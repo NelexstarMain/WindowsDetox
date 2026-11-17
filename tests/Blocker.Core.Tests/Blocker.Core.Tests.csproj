@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Blocker.Core\Blocker.Core.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.Plugin.Templates\Blocker.Plugin.Templates.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
