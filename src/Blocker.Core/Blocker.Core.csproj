@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Blocker.Core</RootNamespace>
+    <Description>OS-independent core: session clock, rollback journal, secure store, event bus, circuit breaker, plugin compile/analyze/test pipeline.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.SDK\Blocker.SDK.csproj" />
+    <ProjectReference Include="..\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
+    <ProjectReference Include="..\Blocker.Plugin.Testing\Blocker.Plugin.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Basic.Reference.Assemblies.Net100" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="System.IO.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blocker.Core.Tests" />
+  </ItemGroup>
+</Project>

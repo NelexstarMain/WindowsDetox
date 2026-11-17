@@ -21,6 +21,7 @@
     <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="4.0.0" />
     <PackageVersion Include="StreamJsonRpc" Version="2.26.150" />
     <PackageVersion Include="System.IO.Abstractions" Version="23.0.1" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="xunit.v3" Version="4.0.3" />

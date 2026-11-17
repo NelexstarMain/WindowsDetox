@@ -1,11 +1,13 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Blocker.Core/Blocker.Core.csproj" />
     <Project Path="src/Blocker.Plugin.Templates/Blocker.Plugin.Templates.csproj" />
     <Project Path="src/Blocker.Plugin.Testing/Blocker.Plugin.Testing.csproj" />
     <Project Path="src/Blocker.SDK/Blocker.SDK.csproj" />
     <Project Path="src/Blocker.UI.SDK/Blocker.UI.SDK.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Blocker.Core.Tests/Blocker.Core.Tests.csproj" />
     <Project Path="tests/Blocker.Plugin.Templates.Tests/Blocker.Plugin.Templates.Tests.csproj" />
     <Project Path="tests/Blocker.Plugin.Testing.Fixtures/Blocker.Plugin.Testing.Fixtures.csproj" />
     <Project Path="tests/Blocker.Plugin.Testing.Tests/Blocker.Plugin.Testing.Tests.csproj" />
