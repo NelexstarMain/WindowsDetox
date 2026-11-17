@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Blocker.Sdk" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Blocker.Plugin.Testing\Blocker.Plugin.Testing.csproj" />
+    <ProjectReference Include="..\Blocker.Plugin.Testing.Fixtures\Blocker.Plugin.Testing.Fixtures.csproj" />
+  </ItemGroup>
+</Project>

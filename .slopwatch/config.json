@@ -1,0 +1,15 @@
+{
+  "suppressions": [
+    {
+      "ruleId": "SW001",
+      "pattern": "tests/Blocker.Plugin.Testing.Fixtures/**",
+      "justification": "Deliberately skipped sample tests: the in-app plugin runner must reject Skip, and these fixtures prove it. This library is not a test project and is never run by xUnit."
+    },
+    {
+      "ruleId": "SW004",
+      "pattern": "tests/Blocker.Plugin.Testing.Fixtures/**",
+      "justification": "Deliberately hanging sample tests used to prove the runner's per-test timeout. Never executed by xUnit."
+    }
+  ],
+  "globalSuppressions": []
+}

@@ -1,0 +1,129 @@
+#nullable enable
+Blocker.Plugin.Testing.FakePluginContext
+Blocker.Plugin.Testing.FakePluginContext.Events.get -> Blocker.Sdk.Events.IEventBus!
+Blocker.Plugin.Testing.FakePluginContext.Extensions.get -> Blocker.Sdk.Extensions.IExtensionRegistry!
+Blocker.Plugin.Testing.FakePluginContext.FakeLogger.get -> Blocker.Plugin.Testing.RecordingPluginLogger!
+Blocker.Plugin.Testing.FakePluginContext.FakePluginContext(string! pluginId = "com.example.test-plugin", params Blocker.Sdk.PluginCapability[]! capabilities) -> void
+Blocker.Plugin.Testing.FakePluginContext.FakeSession.get -> Blocker.Plugin.Testing.FakeSessionInfo!
+Blocker.Plugin.Testing.FakePluginContext.FakeStorage.get -> Blocker.Plugin.Testing.InMemoryPluginStorage!
+Blocker.Plugin.Testing.FakePluginContext.FakeTime.get -> Microsoft.Extensions.Time.Testing.FakeTimeProvider!
+Blocker.Plugin.Testing.FakePluginContext.GetExtension<T>() -> T!
+Blocker.Plugin.Testing.FakePluginContext.InvokeIpcAsync(string! method, string! payloadJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+Blocker.Plugin.Testing.FakePluginContext.Ipc.get -> Blocker.Sdk.Ipc.IIpcRegistry!
+Blocker.Plugin.Testing.FakePluginContext.Logger.get -> Blocker.Sdk.Diagnostics.IPluginLogger!
+Blocker.Plugin.Testing.FakePluginContext.Plugin.get -> Blocker.Sdk.PluginInfo!
+Blocker.Plugin.Testing.FakePluginContext.PublishAsync<TEvent>(TEvent! e, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Plugin.Testing.FakePluginContext.RegisteredExtensions.get -> System.Collections.Generic.IReadOnlyList<Blocker.Sdk.Extensions.IPluginExtension!>!
+Blocker.Plugin.Testing.FakePluginContext.RegisteredIpcMethods.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+Blocker.Plugin.Testing.FakePluginContext.RenderAsync(Blocker.UI.Sdk.IUiContribution! contribution, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Blocker.UI.Sdk.UiNode!>
+Blocker.Plugin.Testing.FakePluginContext.RenderRequests.get -> int
+Blocker.Plugin.Testing.FakePluginContext.SendActionAsync(Blocker.UI.Sdk.IUiContribution! contribution, Blocker.UI.Sdk.UiAction! action, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Plugin.Testing.FakePluginContext.Session.get -> Blocker.Sdk.Session.ISessionInfo!
+Blocker.Plugin.Testing.FakePluginContext.Storage.get -> Blocker.Sdk.Storage.IPluginStorage!
+Blocker.Plugin.Testing.FakePluginContext.TickAsync(System.TimeSpan advance, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Plugin.Testing.FakePluginContext.Time.get -> System.TimeProvider!
+Blocker.Plugin.Testing.FakeSessionInfo
+Blocker.Plugin.Testing.FakeSessionInfo.Current.get -> Blocker.Sdk.Session.SessionSnapshot!
+Blocker.Plugin.Testing.FakeSessionInfo.Current.set -> void
+Blocker.Plugin.Testing.FakeSessionInfo.FakeSessionInfo() -> void
+Blocker.Plugin.Testing.InMemoryPluginStorage
+Blocker.Plugin.Testing.InMemoryPluginStorage.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Blocker.Plugin.Testing.InMemoryPluginStorage.InMemoryPluginStorage(long quotaBytes = 1048576) -> void
+Blocker.Plugin.Testing.InMemoryPluginStorage.ListKeysAsync(string? prefix = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<string!>!>
+Blocker.Plugin.Testing.InMemoryPluginStorage.QuotaBytes.get -> long
+Blocker.Plugin.Testing.InMemoryPluginStorage.ReadAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+Blocker.Plugin.Testing.InMemoryPluginStorage.UsedBytes.get -> long
+Blocker.Plugin.Testing.InMemoryPluginStorage.WriteAsync(string! key, string! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Plugin.Testing.PluginLogEntry
+Blocker.Plugin.Testing.PluginLogEntry.<Clone>$() -> Blocker.Plugin.Testing.PluginLogEntry!
+Blocker.Plugin.Testing.PluginLogEntry.Deconstruct(out Blocker.Sdk.Diagnostics.PluginLogLevel Level, out string! Message, out System.Exception? Exception) -> void
+Blocker.Plugin.Testing.PluginLogEntry.Equals(Blocker.Plugin.Testing.PluginLogEntry? other) -> bool
+Blocker.Plugin.Testing.PluginLogEntry.Exception.get -> System.Exception?
+Blocker.Plugin.Testing.PluginLogEntry.Exception.init -> void
+Blocker.Plugin.Testing.PluginLogEntry.Level.get -> Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Plugin.Testing.PluginLogEntry.Level.init -> void
+Blocker.Plugin.Testing.PluginLogEntry.Message.get -> string!
+Blocker.Plugin.Testing.PluginLogEntry.Message.init -> void
+Blocker.Plugin.Testing.PluginLogEntry.PluginLogEntry(Blocker.Sdk.Diagnostics.PluginLogLevel Level, string! Message, System.Exception? Exception) -> void
+Blocker.Plugin.Testing.PluginTestData
+Blocker.Plugin.Testing.RecordingPluginLogger
+Blocker.Plugin.Testing.RecordingPluginLogger.Entries.get -> System.Collections.Generic.IReadOnlyList<Blocker.Plugin.Testing.PluginLogEntry!>!
+Blocker.Plugin.Testing.RecordingPluginLogger.Log(Blocker.Sdk.Diagnostics.PluginLogLevel level, string! message, System.Exception? exception = null) -> void
+Blocker.Plugin.Testing.RecordingPluginLogger.RecordingPluginLogger() -> void
+Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestOutcome.Failed = 1 -> Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestOutcome.NotSupported = 3 -> Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestOutcome.Passed = 0 -> Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestOutcome.TimedOut = 2 -> Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestReport
+Blocker.Plugin.Testing.Runner.PluginTestReport.<Clone>$() -> Blocker.Plugin.Testing.Runner.PluginTestReport!
+Blocker.Plugin.Testing.Runner.PluginTestReport.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.Plugin.Testing.Runner.PluginTestResult!>! Results, out System.TimeSpan Duration) -> void
+Blocker.Plugin.Testing.Runner.PluginTestReport.Duration.get -> System.TimeSpan
+Blocker.Plugin.Testing.Runner.PluginTestReport.Duration.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestReport.Equals(Blocker.Plugin.Testing.Runner.PluginTestReport? other) -> bool
+Blocker.Plugin.Testing.Runner.PluginTestReport.Failed.get -> int
+Blocker.Plugin.Testing.Runner.PluginTestReport.NotSupported.get -> int
+Blocker.Plugin.Testing.Runner.PluginTestReport.Passed.get -> int
+Blocker.Plugin.Testing.Runner.PluginTestReport.PluginTestReport(System.Collections.Generic.IReadOnlyList<Blocker.Plugin.Testing.Runner.PluginTestResult!>! Results, System.TimeSpan Duration) -> void
+Blocker.Plugin.Testing.Runner.PluginTestReport.Results.get -> System.Collections.Generic.IReadOnlyList<Blocker.Plugin.Testing.Runner.PluginTestResult!>!
+Blocker.Plugin.Testing.Runner.PluginTestReport.Results.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestReport.Succeeded.get -> bool
+Blocker.Plugin.Testing.Runner.PluginTestReport.TimedOut.get -> int
+Blocker.Plugin.Testing.Runner.PluginTestReport.ToText() -> string!
+Blocker.Plugin.Testing.Runner.PluginTestResult
+Blocker.Plugin.Testing.Runner.PluginTestResult.<Clone>$() -> Blocker.Plugin.Testing.Runner.PluginTestResult!
+Blocker.Plugin.Testing.Runner.PluginTestResult.ClassName.get -> string!
+Blocker.Plugin.Testing.Runner.PluginTestResult.ClassName.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.Deconstruct(out string! ClassName, out string! DisplayName, out Blocker.Plugin.Testing.Runner.PluginTestOutcome Outcome, out System.TimeSpan Duration, out string? Message, out string? StackTrace) -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.DisplayName.get -> string!
+Blocker.Plugin.Testing.Runner.PluginTestResult.DisplayName.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.Duration.get -> System.TimeSpan
+Blocker.Plugin.Testing.Runner.PluginTestResult.Duration.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.Equals(Blocker.Plugin.Testing.Runner.PluginTestResult? other) -> bool
+Blocker.Plugin.Testing.Runner.PluginTestResult.Message.get -> string?
+Blocker.Plugin.Testing.Runner.PluginTestResult.Message.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.Outcome.get -> Blocker.Plugin.Testing.Runner.PluginTestOutcome
+Blocker.Plugin.Testing.Runner.PluginTestResult.Outcome.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.PluginTestResult(string! ClassName, string! DisplayName, Blocker.Plugin.Testing.Runner.PluginTestOutcome Outcome, System.TimeSpan Duration, string? Message, string? StackTrace) -> void
+Blocker.Plugin.Testing.Runner.PluginTestResult.StackTrace.get -> string?
+Blocker.Plugin.Testing.Runner.PluginTestResult.StackTrace.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestRunner
+Blocker.Plugin.Testing.Runner.PluginTestRunner.PluginTestRunner(Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? options = null) -> void
+Blocker.Plugin.Testing.Runner.PluginTestRunner.RunAsync(System.Collections.Generic.IEnumerable<System.Type!>! testClasses) -> System.Threading.Tasks.Task<Blocker.Plugin.Testing.Runner.PluginTestReport!>!
+Blocker.Plugin.Testing.Runner.PluginTestRunner.RunAsync(System.Collections.Generic.IEnumerable<System.Type!>! testClasses, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<Blocker.Plugin.Testing.Runner.PluginTestReport!>!
+Blocker.Plugin.Testing.Runner.PluginTestRunner.RunAsync(System.Reflection.Assembly! assembly) -> System.Threading.Tasks.Task<Blocker.Plugin.Testing.Runner.PluginTestReport!>!
+Blocker.Plugin.Testing.Runner.PluginTestRunner.RunAsync(System.Reflection.Assembly! assembly, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<Blocker.Plugin.Testing.Runner.PluginTestReport!>!
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.<Clone>$() -> Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions!
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.Equals(Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? other) -> bool
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.PerTestTimeout.get -> System.TimeSpan
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.PerTestTimeout.init -> void
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.PluginTestRunnerOptions() -> void
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.TotalTimeout.get -> System.TimeSpan
+Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.TotalTimeout.init -> void
+Blocker.Plugin.Testing.UiValidationException
+Blocker.Plugin.Testing.UiValidationException.Errors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.Plugin.Testing.UiValidationException.UiValidationException(System.Collections.Generic.IReadOnlyList<string!>! errors) -> void
+const Blocker.Plugin.Testing.InMemoryPluginStorage.DefaultQuotaBytes = 1048576 -> long
+override Blocker.Plugin.Testing.PluginLogEntry.Equals(object? obj) -> bool
+override Blocker.Plugin.Testing.PluginLogEntry.GetHashCode() -> int
+override Blocker.Plugin.Testing.PluginLogEntry.ToString() -> string!
+override Blocker.Plugin.Testing.Runner.PluginTestReport.Equals(object? obj) -> bool
+override Blocker.Plugin.Testing.Runner.PluginTestReport.GetHashCode() -> int
+override Blocker.Plugin.Testing.Runner.PluginTestReport.ToString() -> string!
+override Blocker.Plugin.Testing.Runner.PluginTestResult.Equals(object? obj) -> bool
+override Blocker.Plugin.Testing.Runner.PluginTestResult.GetHashCode() -> int
+override Blocker.Plugin.Testing.Runner.PluginTestResult.ToString() -> string!
+override Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.Equals(object? obj) -> bool
+override Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.GetHashCode() -> int
+override Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.ToString() -> string!
+static Blocker.Plugin.Testing.PluginLogEntry.operator !=(Blocker.Plugin.Testing.PluginLogEntry? left, Blocker.Plugin.Testing.PluginLogEntry? right) -> bool
+static Blocker.Plugin.Testing.PluginLogEntry.operator ==(Blocker.Plugin.Testing.PluginLogEntry? left, Blocker.Plugin.Testing.PluginLogEntry? right) -> bool
+static Blocker.Plugin.Testing.PluginTestData.ActiveSession(System.TimeSpan remaining, int passesLeft = 2) -> Blocker.Sdk.Session.SessionSnapshot!
+static Blocker.Plugin.Testing.PluginTestData.Process(string! imageName = "game.exe", int pid = 4242) -> Blocker.Sdk.Model.ProcessDescriptor!
+static Blocker.Plugin.Testing.Runner.PluginTestReport.operator !=(Blocker.Plugin.Testing.Runner.PluginTestReport? left, Blocker.Plugin.Testing.Runner.PluginTestReport? right) -> bool
+static Blocker.Plugin.Testing.Runner.PluginTestReport.operator ==(Blocker.Plugin.Testing.Runner.PluginTestReport? left, Blocker.Plugin.Testing.Runner.PluginTestReport? right) -> bool
+static Blocker.Plugin.Testing.Runner.PluginTestResult.operator !=(Blocker.Plugin.Testing.Runner.PluginTestResult? left, Blocker.Plugin.Testing.Runner.PluginTestResult? right) -> bool
+static Blocker.Plugin.Testing.Runner.PluginTestResult.operator ==(Blocker.Plugin.Testing.Runner.PluginTestResult? left, Blocker.Plugin.Testing.Runner.PluginTestResult? right) -> bool
+static Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.operator !=(Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? left, Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? right) -> bool
+static Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions.operator ==(Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? left, Blocker.Plugin.Testing.Runner.PluginTestRunnerOptions? right) -> bool

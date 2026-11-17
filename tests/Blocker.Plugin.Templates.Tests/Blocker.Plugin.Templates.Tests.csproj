@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <RootNamespace>Blocker.Plugin.Templates.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Blocker.Plugin.Templates\Blocker.Plugin.Templates.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.Plugin.Testing\Blocker.Plugin.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The starter's own tests and sources are compiled here, so xunit runs them like any other test. -->
+    <Compile Include="..\..\templates\PluginStarter\*.cs" LinkBase="Template" />
+  </ItemGroup>
+</Project>

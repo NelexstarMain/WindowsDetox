@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Blocker.Plugin.Testing</RootNamespace>
+    <AssemblyName>Blocker.Plugin.Testing</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>In-process test kit for Blocker plugins: fake plugin context, test data and a mini test runner.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.SDK\Blocker.SDK.csproj" />
+    <ProjectReference Include="..\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+</Project>
