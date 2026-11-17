@@ -1,0 +1,14 @@
+<Project>
+  <!-- Publish profile: self-contained + ReadyToRun, only for executables. NativeAOT is forbidden
+       because plugins are compiled with Roslyn and loaded dynamically at runtime. -->
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe'">
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(IsTestProject)' != 'true'">win-x64</RuntimeIdentifier>
+    <SelfContained Condition="'$(IsTestProject)' != 'true'">true</SelfContained>
+    <PublishReadyToRun Condition="'$(IsTestProject)' != 'true'">true</PublishReadyToRun>
+    <PublishAot>false</PublishAot>
+  </PropertyGroup>
+
+  <Target Name="BlockerForbidNativeAot" BeforeTargets="Build" Condition="'$(PublishAot)' == 'true'">
+    <Error Text="NativeAOT is not supported: Blocker loads plugins dynamically and embeds the Roslyn compiler." />
+  </Target>
+</Project>

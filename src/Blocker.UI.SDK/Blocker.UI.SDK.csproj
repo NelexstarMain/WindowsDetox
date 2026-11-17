@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Blocker.UI.Sdk</RootNamespace>
+    <AssemblyName>Blocker.UI.SDK</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Declarative, style-locked UI building blocks for Blocker plugins. Pure data: no WPF dependency.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.SDK\Blocker.SDK.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+</Project>

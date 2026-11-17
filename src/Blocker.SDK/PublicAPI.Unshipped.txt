@@ -1,0 +1,382 @@
+#nullable enable
+Blocker.Sdk.BlockerSdk
+Blocker.Sdk.Diagnostics.IPluginLogger
+Blocker.Sdk.Diagnostics.IPluginLogger.Log(Blocker.Sdk.Diagnostics.PluginLogLevel level, string! message, System.Exception? exception = null) -> void
+Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Sdk.Diagnostics.PluginLogLevel.Debug = 0 -> Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Sdk.Diagnostics.PluginLogLevel.Error = 3 -> Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Sdk.Diagnostics.PluginLogLevel.Information = 1 -> Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Sdk.Diagnostics.PluginLogLevel.Warning = 2 -> Blocker.Sdk.Diagnostics.PluginLogLevel
+Blocker.Sdk.Diagnostics.PluginLoggerExtensions
+Blocker.Sdk.Events.ActiveWindowChanged
+Blocker.Sdk.Events.ActiveWindowChanged.<Clone>$() -> Blocker.Sdk.Events.ActiveWindowChanged!
+Blocker.Sdk.Events.ActiveWindowChanged.ActiveWindowChanged(Blocker.Sdk.Model.WindowDescriptor! Window, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.ActiveWindowChanged.Deconstruct(out Blocker.Sdk.Model.WindowDescriptor! Window, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.ActiveWindowChanged.Equals(Blocker.Sdk.Events.ActiveWindowChanged? other) -> bool
+Blocker.Sdk.Events.ActiveWindowChanged.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.ActiveWindowChanged.OccurredAt.init -> void
+Blocker.Sdk.Events.ActiveWindowChanged.Window.get -> Blocker.Sdk.Model.WindowDescriptor!
+Blocker.Sdk.Events.ActiveWindowChanged.Window.init -> void
+Blocker.Sdk.Events.BlockReason
+Blocker.Sdk.Events.BlockReason.BypassTool = 1 -> Blocker.Sdk.Events.BlockReason
+Blocker.Sdk.Events.BlockReason.NotAllowlisted = 0 -> Blocker.Sdk.Events.BlockReason
+Blocker.Sdk.Events.BlockReason.PluginPolicy = 2 -> Blocker.Sdk.Events.BlockReason
+Blocker.Sdk.Events.CustomPluginEvent
+Blocker.Sdk.Events.CustomPluginEvent.<Clone>$() -> Blocker.Sdk.Events.CustomPluginEvent!
+Blocker.Sdk.Events.CustomPluginEvent.CustomPluginEvent(string! Topic, string! SourcePluginId, string! PayloadJson, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.CustomPluginEvent.Deconstruct(out string! Topic, out string! SourcePluginId, out string! PayloadJson, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.CustomPluginEvent.Equals(Blocker.Sdk.Events.CustomPluginEvent? other) -> bool
+Blocker.Sdk.Events.CustomPluginEvent.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.CustomPluginEvent.OccurredAt.init -> void
+Blocker.Sdk.Events.CustomPluginEvent.PayloadJson.get -> string!
+Blocker.Sdk.Events.CustomPluginEvent.PayloadJson.init -> void
+Blocker.Sdk.Events.CustomPluginEvent.SourcePluginId.get -> string!
+Blocker.Sdk.Events.CustomPluginEvent.SourcePluginId.init -> void
+Blocker.Sdk.Events.CustomPluginEvent.Topic.get -> string!
+Blocker.Sdk.Events.CustomPluginEvent.Topic.init -> void
+Blocker.Sdk.Events.EmergencyPassEnded
+Blocker.Sdk.Events.EmergencyPassEnded.<Clone>$() -> Blocker.Sdk.Events.EmergencyPassEnded!
+Blocker.Sdk.Events.EmergencyPassEnded.Deconstruct(out System.Guid SessionId, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.EmergencyPassEnded.EmergencyPassEnded(System.Guid SessionId, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.EmergencyPassEnded.Equals(Blocker.Sdk.Events.EmergencyPassEnded? other) -> bool
+Blocker.Sdk.Events.EmergencyPassEnded.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.EmergencyPassEnded.OccurredAt.init -> void
+Blocker.Sdk.Events.EmergencyPassEnded.SessionId.get -> System.Guid
+Blocker.Sdk.Events.EmergencyPassEnded.SessionId.init -> void
+Blocker.Sdk.Events.EmergencyPassStarted
+Blocker.Sdk.Events.EmergencyPassStarted.<Clone>$() -> Blocker.Sdk.Events.EmergencyPassStarted!
+Blocker.Sdk.Events.EmergencyPassStarted.Deconstruct(out System.Guid SessionId, out System.TimeSpan Duration, out int PassesLeftToday, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.EmergencyPassStarted.Duration.get -> System.TimeSpan
+Blocker.Sdk.Events.EmergencyPassStarted.Duration.init -> void
+Blocker.Sdk.Events.EmergencyPassStarted.EmergencyPassStarted(System.Guid SessionId, System.TimeSpan Duration, int PassesLeftToday, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.EmergencyPassStarted.Equals(Blocker.Sdk.Events.EmergencyPassStarted? other) -> bool
+Blocker.Sdk.Events.EmergencyPassStarted.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.EmergencyPassStarted.OccurredAt.init -> void
+Blocker.Sdk.Events.EmergencyPassStarted.PassesLeftToday.get -> int
+Blocker.Sdk.Events.EmergencyPassStarted.PassesLeftToday.init -> void
+Blocker.Sdk.Events.EmergencyPassStarted.SessionId.get -> System.Guid
+Blocker.Sdk.Events.EmergencyPassStarted.SessionId.init -> void
+Blocker.Sdk.Events.IBlockerEvent
+Blocker.Sdk.Events.IBlockerEvent.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.IEventBus
+Blocker.Sdk.Events.IEventBus.PublishCustomAsync(string! eventName, string! payloadJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Sdk.Events.IEventBus.Subscribe<TEvent>(System.Func<TEvent!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! handler) -> System.IDisposable!
+Blocker.Sdk.Events.IEventBus.SubscribeCustom(string! topic, System.Func<Blocker.Sdk.Events.CustomPluginEvent!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! handler) -> System.IDisposable!
+Blocker.Sdk.Events.ProcessBlocked
+Blocker.Sdk.Events.ProcessBlocked.<Clone>$() -> Blocker.Sdk.Events.ProcessBlocked!
+Blocker.Sdk.Events.ProcessBlocked.BlockedByPlugin.get -> string?
+Blocker.Sdk.Events.ProcessBlocked.BlockedByPlugin.init -> void
+Blocker.Sdk.Events.ProcessBlocked.Deconstruct(out Blocker.Sdk.Model.ProcessDescriptor! Process, out Blocker.Sdk.Events.BlockReason Reason, out string? BlockedByPlugin, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.ProcessBlocked.Equals(Blocker.Sdk.Events.ProcessBlocked? other) -> bool
+Blocker.Sdk.Events.ProcessBlocked.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.ProcessBlocked.OccurredAt.init -> void
+Blocker.Sdk.Events.ProcessBlocked.Process.get -> Blocker.Sdk.Model.ProcessDescriptor!
+Blocker.Sdk.Events.ProcessBlocked.Process.init -> void
+Blocker.Sdk.Events.ProcessBlocked.ProcessBlocked(Blocker.Sdk.Model.ProcessDescriptor! Process, Blocker.Sdk.Events.BlockReason Reason, string? BlockedByPlugin, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.ProcessBlocked.Reason.get -> Blocker.Sdk.Events.BlockReason
+Blocker.Sdk.Events.ProcessBlocked.Reason.init -> void
+Blocker.Sdk.Events.SessionEndReason
+Blocker.Sdk.Events.SessionEndReason.BreakGlass = 1 -> Blocker.Sdk.Events.SessionEndReason
+Blocker.Sdk.Events.SessionEndReason.DeveloperAbort = 2 -> Blocker.Sdk.Events.SessionEndReason
+Blocker.Sdk.Events.SessionEndReason.Expired = 0 -> Blocker.Sdk.Events.SessionEndReason
+Blocker.Sdk.Events.SessionEnded
+Blocker.Sdk.Events.SessionEnded.<Clone>$() -> Blocker.Sdk.Events.SessionEnded!
+Blocker.Sdk.Events.SessionEnded.Deconstruct(out System.Guid SessionId, out Blocker.Sdk.Events.SessionEndReason Reason, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.SessionEnded.Equals(Blocker.Sdk.Events.SessionEnded? other) -> bool
+Blocker.Sdk.Events.SessionEnded.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.SessionEnded.OccurredAt.init -> void
+Blocker.Sdk.Events.SessionEnded.Reason.get -> Blocker.Sdk.Events.SessionEndReason
+Blocker.Sdk.Events.SessionEnded.Reason.init -> void
+Blocker.Sdk.Events.SessionEnded.SessionEnded(System.Guid SessionId, Blocker.Sdk.Events.SessionEndReason Reason, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.SessionEnded.SessionId.get -> System.Guid
+Blocker.Sdk.Events.SessionEnded.SessionId.init -> void
+Blocker.Sdk.Events.SessionStarted
+Blocker.Sdk.Events.SessionStarted.<Clone>$() -> Blocker.Sdk.Events.SessionStarted!
+Blocker.Sdk.Events.SessionStarted.Deconstruct(out System.Guid SessionId, out System.TimeSpan PlannedDuration, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.SessionStarted.Equals(Blocker.Sdk.Events.SessionStarted? other) -> bool
+Blocker.Sdk.Events.SessionStarted.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.SessionStarted.OccurredAt.init -> void
+Blocker.Sdk.Events.SessionStarted.PlannedDuration.get -> System.TimeSpan
+Blocker.Sdk.Events.SessionStarted.PlannedDuration.init -> void
+Blocker.Sdk.Events.SessionStarted.SessionId.get -> System.Guid
+Blocker.Sdk.Events.SessionStarted.SessionId.init -> void
+Blocker.Sdk.Events.SessionStarted.SessionStarted(System.Guid SessionId, System.TimeSpan PlannedDuration, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.UserIdleChanged
+Blocker.Sdk.Events.UserIdleChanged.<Clone>$() -> Blocker.Sdk.Events.UserIdleChanged!
+Blocker.Sdk.Events.UserIdleChanged.Deconstruct(out bool IsIdle, out System.TimeSpan IdleDuration, out System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Events.UserIdleChanged.Equals(Blocker.Sdk.Events.UserIdleChanged? other) -> bool
+Blocker.Sdk.Events.UserIdleChanged.IdleDuration.get -> System.TimeSpan
+Blocker.Sdk.Events.UserIdleChanged.IdleDuration.init -> void
+Blocker.Sdk.Events.UserIdleChanged.IsIdle.get -> bool
+Blocker.Sdk.Events.UserIdleChanged.IsIdle.init -> void
+Blocker.Sdk.Events.UserIdleChanged.OccurredAt.get -> System.DateTimeOffset
+Blocker.Sdk.Events.UserIdleChanged.OccurredAt.init -> void
+Blocker.Sdk.Events.UserIdleChanged.UserIdleChanged(bool IsIdle, System.TimeSpan IdleDuration, System.DateTimeOffset OccurredAt) -> void
+Blocker.Sdk.Extensions.IExtensionRegistry
+Blocker.Sdk.Extensions.IExtensionRegistry.Add(Blocker.Sdk.Extensions.IPluginExtension! extension) -> System.IDisposable!
+Blocker.Sdk.Extensions.ILockPolicyContributor
+Blocker.Sdk.Extensions.ILockPolicyContributor.EvaluateAsync(Blocker.Sdk.Extensions.LockAction action, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.Sdk.Extensions.LockVote>
+Blocker.Sdk.Extensions.IPluginExtension
+Blocker.Sdk.Extensions.IProcessInterceptor
+Blocker.Sdk.Extensions.IProcessInterceptor.OnProcessStartingAsync(Blocker.Sdk.Model.ProcessDescriptor! process, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.Sdk.Extensions.InterceptDecision>
+Blocker.Sdk.Extensions.ITickListener
+Blocker.Sdk.Extensions.ITickListener.Interval.get -> System.TimeSpan
+Blocker.Sdk.Extensions.ITickListener.OnTickAsync(Blocker.Sdk.Extensions.TickContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Blocker.Sdk.Extensions.IWindowInterceptor
+Blocker.Sdk.Extensions.IWindowInterceptor.OnWindowActivatedAsync(Blocker.Sdk.Model.WindowDescriptor! window, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.Sdk.Extensions.InterceptDecision>
+Blocker.Sdk.Extensions.InterceptDecision
+Blocker.Sdk.Extensions.InterceptDecision.Equals(Blocker.Sdk.Extensions.InterceptDecision other) -> bool
+Blocker.Sdk.Extensions.InterceptDecision.InterceptDecision() -> void
+Blocker.Sdk.Extensions.InterceptDecision.Reason.get -> string?
+Blocker.Sdk.Extensions.InterceptDecision.Verdict.get -> Blocker.Sdk.Extensions.InterceptVerdict
+Blocker.Sdk.Extensions.InterceptVerdict
+Blocker.Sdk.Extensions.InterceptVerdict.Abstain = 0 -> Blocker.Sdk.Extensions.InterceptVerdict
+Blocker.Sdk.Extensions.InterceptVerdict.Block = 1 -> Blocker.Sdk.Extensions.InterceptVerdict
+Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockAction.ChangeProtectionSettings = 3 -> Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockAction.DisablePlugin = 2 -> Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockAction.RemovePlugin = 1 -> Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockAction.UninstallApplication = 0 -> Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockAction.UseEmergencyPass = 4 -> Blocker.Sdk.Extensions.LockAction
+Blocker.Sdk.Extensions.LockVote
+Blocker.Sdk.Extensions.LockVote.Equals(Blocker.Sdk.Extensions.LockVote other) -> bool
+Blocker.Sdk.Extensions.LockVote.IsVeto.get -> bool
+Blocker.Sdk.Extensions.LockVote.LockVote() -> void
+Blocker.Sdk.Extensions.LockVote.Reason.get -> string?
+Blocker.Sdk.Extensions.TickContext
+Blocker.Sdk.Extensions.TickContext.<Clone>$() -> Blocker.Sdk.Extensions.TickContext!
+Blocker.Sdk.Extensions.TickContext.Deconstruct(out System.DateTimeOffset Now, out Blocker.Sdk.Session.SessionSnapshot! Session) -> void
+Blocker.Sdk.Extensions.TickContext.Equals(Blocker.Sdk.Extensions.TickContext? other) -> bool
+Blocker.Sdk.Extensions.TickContext.Now.get -> System.DateTimeOffset
+Blocker.Sdk.Extensions.TickContext.Now.init -> void
+Blocker.Sdk.Extensions.TickContext.Session.get -> Blocker.Sdk.Session.SessionSnapshot!
+Blocker.Sdk.Extensions.TickContext.Session.init -> void
+Blocker.Sdk.Extensions.TickContext.TickContext(System.DateTimeOffset Now, Blocker.Sdk.Session.SessionSnapshot! Session) -> void
+Blocker.Sdk.IBlockerPlugin
+Blocker.Sdk.IBlockerPlugin.InitializeAsync(Blocker.Sdk.IPluginContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Blocker.Sdk.IBlockerPlugin.ShutdownAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Blocker.Sdk.IPluginContext
+Blocker.Sdk.IPluginContext.Events.get -> Blocker.Sdk.Events.IEventBus!
+Blocker.Sdk.IPluginContext.Extensions.get -> Blocker.Sdk.Extensions.IExtensionRegistry!
+Blocker.Sdk.IPluginContext.Ipc.get -> Blocker.Sdk.Ipc.IIpcRegistry!
+Blocker.Sdk.IPluginContext.Logger.get -> Blocker.Sdk.Diagnostics.IPluginLogger!
+Blocker.Sdk.IPluginContext.Plugin.get -> Blocker.Sdk.PluginInfo!
+Blocker.Sdk.IPluginContext.Session.get -> Blocker.Sdk.Session.ISessionInfo!
+Blocker.Sdk.IPluginContext.Storage.get -> Blocker.Sdk.Storage.IPluginStorage!
+Blocker.Sdk.IPluginContext.Time.get -> System.TimeProvider!
+Blocker.Sdk.Ipc.IIpcRegistry
+Blocker.Sdk.Ipc.IIpcRegistry.Register(string! method, System.Func<string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<string!>>! handler) -> System.IDisposable!
+Blocker.Sdk.Model.ProcessDescriptor
+Blocker.Sdk.Model.ProcessDescriptor.<Clone>$() -> Blocker.Sdk.Model.ProcessDescriptor!
+Blocker.Sdk.Model.ProcessDescriptor.Deconstruct(out int ProcessId, out int ParentProcessId, out string! ImageName, out string! ExecutablePath, out string? Sha256, out string? PackageFamilyName, out System.DateTimeOffset StartedAt) -> void
+Blocker.Sdk.Model.ProcessDescriptor.Equals(Blocker.Sdk.Model.ProcessDescriptor? other) -> bool
+Blocker.Sdk.Model.ProcessDescriptor.ExecutablePath.get -> string!
+Blocker.Sdk.Model.ProcessDescriptor.ExecutablePath.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.ImageName.get -> string!
+Blocker.Sdk.Model.ProcessDescriptor.ImageName.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.PackageFamilyName.get -> string?
+Blocker.Sdk.Model.ProcessDescriptor.PackageFamilyName.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.ParentProcessId.get -> int
+Blocker.Sdk.Model.ProcessDescriptor.ParentProcessId.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.ProcessDescriptor(int ProcessId, int ParentProcessId, string! ImageName, string! ExecutablePath, string? Sha256, string? PackageFamilyName, System.DateTimeOffset StartedAt) -> void
+Blocker.Sdk.Model.ProcessDescriptor.ProcessId.get -> int
+Blocker.Sdk.Model.ProcessDescriptor.ProcessId.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.Sha256.get -> string?
+Blocker.Sdk.Model.ProcessDescriptor.Sha256.init -> void
+Blocker.Sdk.Model.ProcessDescriptor.StartedAt.get -> System.DateTimeOffset
+Blocker.Sdk.Model.ProcessDescriptor.StartedAt.init -> void
+Blocker.Sdk.Model.WindowDescriptor
+Blocker.Sdk.Model.WindowDescriptor.<Clone>$() -> Blocker.Sdk.Model.WindowDescriptor!
+Blocker.Sdk.Model.WindowDescriptor.Deconstruct(out int ProcessId, out string! ImageName, out string! ExecutablePath, out string? PackageFamilyName, out string? Title) -> void
+Blocker.Sdk.Model.WindowDescriptor.Equals(Blocker.Sdk.Model.WindowDescriptor? other) -> bool
+Blocker.Sdk.Model.WindowDescriptor.ExecutablePath.get -> string!
+Blocker.Sdk.Model.WindowDescriptor.ExecutablePath.init -> void
+Blocker.Sdk.Model.WindowDescriptor.ImageName.get -> string!
+Blocker.Sdk.Model.WindowDescriptor.ImageName.init -> void
+Blocker.Sdk.Model.WindowDescriptor.PackageFamilyName.get -> string?
+Blocker.Sdk.Model.WindowDescriptor.PackageFamilyName.init -> void
+Blocker.Sdk.Model.WindowDescriptor.ProcessId.get -> int
+Blocker.Sdk.Model.WindowDescriptor.ProcessId.init -> void
+Blocker.Sdk.Model.WindowDescriptor.Title.get -> string?
+Blocker.Sdk.Model.WindowDescriptor.Title.init -> void
+Blocker.Sdk.Model.WindowDescriptor.WindowDescriptor(int ProcessId, string! ImageName, string! ExecutablePath, string? PackageFamilyName, string? Title) -> void
+Blocker.Sdk.PluginCapabilities
+Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.CustomEvents = 5 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.IdleEvents = 4 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.Ipc = 10 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.LockPolicy = 9 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.Network = 15 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.ProcessEvents = 1 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.ProcessInterception = 6 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.SessionEvents = 0 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.Tick = 8 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.UiBlockScreen = 14 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.UiDashboardWidget = 12 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.UiPage = 11 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.UiSettingsSection = 13 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.WindowEvents = 2 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.WindowInterception = 7 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.WindowTitles = 3 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapabilityException
+Blocker.Sdk.PluginCapabilityException.Capability.get -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapabilityException.PluginCapabilityException(Blocker.Sdk.PluginCapability capability) -> void
+Blocker.Sdk.PluginId
+Blocker.Sdk.PluginId.Equals(Blocker.Sdk.PluginId other) -> bool
+Blocker.Sdk.PluginId.PluginId() -> void
+Blocker.Sdk.PluginId.PluginId(string! value) -> void
+Blocker.Sdk.PluginId.Value.get -> string!
+Blocker.Sdk.PluginInfo
+Blocker.Sdk.PluginInfo.<Clone>$() -> Blocker.Sdk.PluginInfo!
+Blocker.Sdk.PluginInfo.Author.get -> string!
+Blocker.Sdk.PluginInfo.Author.init -> void
+Blocker.Sdk.PluginInfo.Capabilities.get -> System.Collections.Generic.IReadOnlySet<Blocker.Sdk.PluginCapability>!
+Blocker.Sdk.PluginInfo.Capabilities.init -> void
+Blocker.Sdk.PluginInfo.Deconstruct(out Blocker.Sdk.PluginId Id, out string! Name, out System.Version! Version, out string! Author, out System.Collections.Generic.IReadOnlySet<Blocker.Sdk.PluginCapability>! Capabilities) -> void
+Blocker.Sdk.PluginInfo.Equals(Blocker.Sdk.PluginInfo? other) -> bool
+Blocker.Sdk.PluginInfo.Has(Blocker.Sdk.PluginCapability capability) -> bool
+Blocker.Sdk.PluginInfo.Id.get -> Blocker.Sdk.PluginId
+Blocker.Sdk.PluginInfo.Id.init -> void
+Blocker.Sdk.PluginInfo.Name.get -> string!
+Blocker.Sdk.PluginInfo.Name.init -> void
+Blocker.Sdk.PluginInfo.PluginInfo(Blocker.Sdk.PluginId Id, string! Name, System.Version! Version, string! Author, System.Collections.Generic.IReadOnlySet<Blocker.Sdk.PluginCapability>! Capabilities) -> void
+Blocker.Sdk.PluginInfo.Version.get -> System.Version!
+Blocker.Sdk.PluginInfo.Version.init -> void
+Blocker.Sdk.Session.ISessionInfo
+Blocker.Sdk.Session.ISessionInfo.Current.get -> Blocker.Sdk.Session.SessionSnapshot!
+Blocker.Sdk.Session.SessionPhase
+Blocker.Sdk.Session.SessionPhase.Active = 1 -> Blocker.Sdk.Session.SessionPhase
+Blocker.Sdk.Session.SessionPhase.EmergencyPass = 2 -> Blocker.Sdk.Session.SessionPhase
+Blocker.Sdk.Session.SessionPhase.Idle = 0 -> Blocker.Sdk.Session.SessionPhase
+Blocker.Sdk.Session.SessionSnapshot
+Blocker.Sdk.Session.SessionSnapshot.<Clone>$() -> Blocker.Sdk.Session.SessionSnapshot!
+Blocker.Sdk.Session.SessionSnapshot.Deconstruct(out Blocker.Sdk.Session.SessionPhase Phase, out System.Guid? SessionId, out System.TimeSpan? Remaining, out System.TimeSpan? EmergencyPassRemaining, out int EmergencyPassesLeftToday, out int EmergencyPassesPerDay, out System.TimeSpan EmergencyPassDuration) -> void
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassDuration.get -> System.TimeSpan
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassDuration.init -> void
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassRemaining.get -> System.TimeSpan?
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassRemaining.init -> void
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassesLeftToday.get -> int
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassesLeftToday.init -> void
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassesPerDay.get -> int
+Blocker.Sdk.Session.SessionSnapshot.EmergencyPassesPerDay.init -> void
+Blocker.Sdk.Session.SessionSnapshot.Equals(Blocker.Sdk.Session.SessionSnapshot? other) -> bool
+Blocker.Sdk.Session.SessionSnapshot.IsSessionRunning.get -> bool
+Blocker.Sdk.Session.SessionSnapshot.Phase.get -> Blocker.Sdk.Session.SessionPhase
+Blocker.Sdk.Session.SessionSnapshot.Phase.init -> void
+Blocker.Sdk.Session.SessionSnapshot.Remaining.get -> System.TimeSpan?
+Blocker.Sdk.Session.SessionSnapshot.Remaining.init -> void
+Blocker.Sdk.Session.SessionSnapshot.SessionId.get -> System.Guid?
+Blocker.Sdk.Session.SessionSnapshot.SessionId.init -> void
+Blocker.Sdk.Session.SessionSnapshot.SessionSnapshot(Blocker.Sdk.Session.SessionPhase Phase, System.Guid? SessionId, System.TimeSpan? Remaining, System.TimeSpan? EmergencyPassRemaining, int EmergencyPassesLeftToday, int EmergencyPassesPerDay, System.TimeSpan EmergencyPassDuration) -> void
+Blocker.Sdk.Storage.IPluginStorage
+Blocker.Sdk.Storage.IPluginStorage.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Blocker.Sdk.Storage.IPluginStorage.ListKeysAsync(string? prefix = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<string!>!>
+Blocker.Sdk.Storage.IPluginStorage.QuotaBytes.get -> long
+Blocker.Sdk.Storage.IPluginStorage.ReadAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+Blocker.Sdk.Storage.IPluginStorage.WriteAsync(string! key, string! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Blocker.Sdk.Storage.PluginStorageException
+Blocker.Sdk.Storage.PluginStorageException.PluginStorageException(string! message) -> void
+Blocker.Sdk.Storage.PluginStorageExtensions
+Blocker.Sdk.Storage.PluginStorageKey
+const Blocker.Sdk.BlockerSdk.CallbackBudgetMilliseconds = 50 -> int
+const Blocker.Sdk.BlockerSdk.MaxPayloadBytes = 65536 -> int
+const Blocker.Sdk.Storage.PluginStorageKey.MaxLength = 128 -> int
+override Blocker.Sdk.Events.ActiveWindowChanged.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.ActiveWindowChanged.GetHashCode() -> int
+override Blocker.Sdk.Events.ActiveWindowChanged.ToString() -> string!
+override Blocker.Sdk.Events.CustomPluginEvent.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.CustomPluginEvent.GetHashCode() -> int
+override Blocker.Sdk.Events.CustomPluginEvent.ToString() -> string!
+override Blocker.Sdk.Events.EmergencyPassEnded.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.EmergencyPassEnded.GetHashCode() -> int
+override Blocker.Sdk.Events.EmergencyPassEnded.ToString() -> string!
+override Blocker.Sdk.Events.EmergencyPassStarted.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.EmergencyPassStarted.GetHashCode() -> int
+override Blocker.Sdk.Events.EmergencyPassStarted.ToString() -> string!
+override Blocker.Sdk.Events.ProcessBlocked.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.ProcessBlocked.GetHashCode() -> int
+override Blocker.Sdk.Events.ProcessBlocked.ToString() -> string!
+override Blocker.Sdk.Events.SessionEnded.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.SessionEnded.GetHashCode() -> int
+override Blocker.Sdk.Events.SessionEnded.ToString() -> string!
+override Blocker.Sdk.Events.SessionStarted.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.SessionStarted.GetHashCode() -> int
+override Blocker.Sdk.Events.SessionStarted.ToString() -> string!
+override Blocker.Sdk.Events.UserIdleChanged.Equals(object? obj) -> bool
+override Blocker.Sdk.Events.UserIdleChanged.GetHashCode() -> int
+override Blocker.Sdk.Events.UserIdleChanged.ToString() -> string!
+override Blocker.Sdk.Extensions.InterceptDecision.GetHashCode() -> int
+override Blocker.Sdk.Extensions.LockVote.GetHashCode() -> int
+override Blocker.Sdk.Extensions.TickContext.Equals(object? obj) -> bool
+override Blocker.Sdk.Extensions.TickContext.GetHashCode() -> int
+override Blocker.Sdk.Extensions.TickContext.ToString() -> string!
+override Blocker.Sdk.Model.ProcessDescriptor.Equals(object? obj) -> bool
+override Blocker.Sdk.Model.ProcessDescriptor.GetHashCode() -> int
+override Blocker.Sdk.Model.ProcessDescriptor.ToString() -> string!
+override Blocker.Sdk.Model.WindowDescriptor.Equals(object? obj) -> bool
+override Blocker.Sdk.Model.WindowDescriptor.GetHashCode() -> int
+override Blocker.Sdk.Model.WindowDescriptor.ToString() -> string!
+override Blocker.Sdk.PluginId.GetHashCode() -> int
+override Blocker.Sdk.PluginId.ToString() -> string!
+override Blocker.Sdk.PluginInfo.Equals(object? obj) -> bool
+override Blocker.Sdk.PluginInfo.GetHashCode() -> int
+override Blocker.Sdk.PluginInfo.ToString() -> string!
+override Blocker.Sdk.Session.SessionSnapshot.Equals(object? obj) -> bool
+override Blocker.Sdk.Session.SessionSnapshot.GetHashCode() -> int
+override Blocker.Sdk.Session.SessionSnapshot.ToString() -> string!
+static Blocker.Sdk.BlockerSdk.Version.get -> System.Version!
+static Blocker.Sdk.Diagnostics.PluginLoggerExtensions.Error(this Blocker.Sdk.Diagnostics.IPluginLogger! logger, string! message, System.Exception? exception = null) -> void
+static Blocker.Sdk.Diagnostics.PluginLoggerExtensions.Info(this Blocker.Sdk.Diagnostics.IPluginLogger! logger, string! message) -> void
+static Blocker.Sdk.Diagnostics.PluginLoggerExtensions.Warn(this Blocker.Sdk.Diagnostics.IPluginLogger! logger, string! message) -> void
+static Blocker.Sdk.Events.ActiveWindowChanged.operator !=(Blocker.Sdk.Events.ActiveWindowChanged? left, Blocker.Sdk.Events.ActiveWindowChanged? right) -> bool
+static Blocker.Sdk.Events.ActiveWindowChanged.operator ==(Blocker.Sdk.Events.ActiveWindowChanged? left, Blocker.Sdk.Events.ActiveWindowChanged? right) -> bool
+static Blocker.Sdk.Events.CustomPluginEvent.operator !=(Blocker.Sdk.Events.CustomPluginEvent? left, Blocker.Sdk.Events.CustomPluginEvent? right) -> bool
+static Blocker.Sdk.Events.CustomPluginEvent.operator ==(Blocker.Sdk.Events.CustomPluginEvent? left, Blocker.Sdk.Events.CustomPluginEvent? right) -> bool
+static Blocker.Sdk.Events.EmergencyPassEnded.operator !=(Blocker.Sdk.Events.EmergencyPassEnded? left, Blocker.Sdk.Events.EmergencyPassEnded? right) -> bool
+static Blocker.Sdk.Events.EmergencyPassEnded.operator ==(Blocker.Sdk.Events.EmergencyPassEnded? left, Blocker.Sdk.Events.EmergencyPassEnded? right) -> bool
+static Blocker.Sdk.Events.EmergencyPassStarted.operator !=(Blocker.Sdk.Events.EmergencyPassStarted? left, Blocker.Sdk.Events.EmergencyPassStarted? right) -> bool
+static Blocker.Sdk.Events.EmergencyPassStarted.operator ==(Blocker.Sdk.Events.EmergencyPassStarted? left, Blocker.Sdk.Events.EmergencyPassStarted? right) -> bool
+static Blocker.Sdk.Events.ProcessBlocked.operator !=(Blocker.Sdk.Events.ProcessBlocked? left, Blocker.Sdk.Events.ProcessBlocked? right) -> bool
+static Blocker.Sdk.Events.ProcessBlocked.operator ==(Blocker.Sdk.Events.ProcessBlocked? left, Blocker.Sdk.Events.ProcessBlocked? right) -> bool
+static Blocker.Sdk.Events.SessionEnded.operator !=(Blocker.Sdk.Events.SessionEnded? left, Blocker.Sdk.Events.SessionEnded? right) -> bool
+static Blocker.Sdk.Events.SessionEnded.operator ==(Blocker.Sdk.Events.SessionEnded? left, Blocker.Sdk.Events.SessionEnded? right) -> bool
+static Blocker.Sdk.Events.SessionStarted.operator !=(Blocker.Sdk.Events.SessionStarted? left, Blocker.Sdk.Events.SessionStarted? right) -> bool
+static Blocker.Sdk.Events.SessionStarted.operator ==(Blocker.Sdk.Events.SessionStarted? left, Blocker.Sdk.Events.SessionStarted? right) -> bool
+static Blocker.Sdk.Events.UserIdleChanged.operator !=(Blocker.Sdk.Events.UserIdleChanged? left, Blocker.Sdk.Events.UserIdleChanged? right) -> bool
+static Blocker.Sdk.Events.UserIdleChanged.operator ==(Blocker.Sdk.Events.UserIdleChanged? left, Blocker.Sdk.Events.UserIdleChanged? right) -> bool
+static Blocker.Sdk.Extensions.InterceptDecision.Abstain.get -> Blocker.Sdk.Extensions.InterceptDecision
+static Blocker.Sdk.Extensions.InterceptDecision.Block(string! reason) -> Blocker.Sdk.Extensions.InterceptDecision
+static Blocker.Sdk.Extensions.InterceptDecision.operator !=(Blocker.Sdk.Extensions.InterceptDecision left, Blocker.Sdk.Extensions.InterceptDecision right) -> bool
+static Blocker.Sdk.Extensions.InterceptDecision.operator ==(Blocker.Sdk.Extensions.InterceptDecision left, Blocker.Sdk.Extensions.InterceptDecision right) -> bool
+static Blocker.Sdk.Extensions.LockVote.Allow.get -> Blocker.Sdk.Extensions.LockVote
+static Blocker.Sdk.Extensions.LockVote.Veto(string! reason) -> Blocker.Sdk.Extensions.LockVote
+static Blocker.Sdk.Extensions.LockVote.operator !=(Blocker.Sdk.Extensions.LockVote left, Blocker.Sdk.Extensions.LockVote right) -> bool
+static Blocker.Sdk.Extensions.LockVote.operator ==(Blocker.Sdk.Extensions.LockVote left, Blocker.Sdk.Extensions.LockVote right) -> bool
+static Blocker.Sdk.Extensions.TickContext.operator !=(Blocker.Sdk.Extensions.TickContext? left, Blocker.Sdk.Extensions.TickContext? right) -> bool
+static Blocker.Sdk.Extensions.TickContext.operator ==(Blocker.Sdk.Extensions.TickContext? left, Blocker.Sdk.Extensions.TickContext? right) -> bool
+static Blocker.Sdk.Model.ProcessDescriptor.operator !=(Blocker.Sdk.Model.ProcessDescriptor? left, Blocker.Sdk.Model.ProcessDescriptor? right) -> bool
+static Blocker.Sdk.Model.ProcessDescriptor.operator ==(Blocker.Sdk.Model.ProcessDescriptor? left, Blocker.Sdk.Model.ProcessDescriptor? right) -> bool
+static Blocker.Sdk.Model.WindowDescriptor.operator !=(Blocker.Sdk.Model.WindowDescriptor? left, Blocker.Sdk.Model.WindowDescriptor? right) -> bool
+static Blocker.Sdk.Model.WindowDescriptor.operator ==(Blocker.Sdk.Model.WindowDescriptor? left, Blocker.Sdk.Model.WindowDescriptor? right) -> bool
+static Blocker.Sdk.PluginCapabilities.AllNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Blocker.Sdk.PluginCapabilities.RequiredForEvent(System.Type! eventType) -> Blocker.Sdk.PluginCapability
+static Blocker.Sdk.PluginCapabilities.ToManifestName(Blocker.Sdk.PluginCapability capability) -> string!
+static Blocker.Sdk.PluginCapabilities.TryParse(string? name, out Blocker.Sdk.PluginCapability capability) -> bool
+static Blocker.Sdk.PluginId.IsValid(string? value) -> bool
+static Blocker.Sdk.PluginId.TryCreate(string? value, out Blocker.Sdk.PluginId id) -> bool
+static Blocker.Sdk.PluginId.operator !=(Blocker.Sdk.PluginId left, Blocker.Sdk.PluginId right) -> bool
+static Blocker.Sdk.PluginId.operator ==(Blocker.Sdk.PluginId left, Blocker.Sdk.PluginId right) -> bool
+static Blocker.Sdk.PluginInfo.operator !=(Blocker.Sdk.PluginInfo? left, Blocker.Sdk.PluginInfo? right) -> bool
+static Blocker.Sdk.PluginInfo.operator ==(Blocker.Sdk.PluginInfo? left, Blocker.Sdk.PluginInfo? right) -> bool
+static Blocker.Sdk.Session.SessionSnapshot.Idle.get -> Blocker.Sdk.Session.SessionSnapshot!
+static Blocker.Sdk.Session.SessionSnapshot.operator !=(Blocker.Sdk.Session.SessionSnapshot? left, Blocker.Sdk.Session.SessionSnapshot? right) -> bool
+static Blocker.Sdk.Session.SessionSnapshot.operator ==(Blocker.Sdk.Session.SessionSnapshot? left, Blocker.Sdk.Session.SessionSnapshot? right) -> bool
+static Blocker.Sdk.Storage.PluginStorageExtensions.ReadJsonAsync<T>(this Blocker.Sdk.Storage.IPluginStorage! storage, string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
+static Blocker.Sdk.Storage.PluginStorageExtensions.WriteJsonAsync<T>(this Blocker.Sdk.Storage.IPluginStorage! storage, string! key, T value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+static Blocker.Sdk.Storage.PluginStorageKey.IsValid(string? key) -> bool
+static Blocker.Sdk.Storage.PluginStorageKey.ThrowIfInvalid(string? key) -> void
+~override Blocker.Sdk.Extensions.InterceptDecision.Equals(object obj) -> bool
+~override Blocker.Sdk.Extensions.InterceptDecision.ToString() -> string
+~override Blocker.Sdk.Extensions.LockVote.Equals(object obj) -> bool
+~override Blocker.Sdk.Extensions.LockVote.ToString() -> string
+~override Blocker.Sdk.PluginId.Equals(object obj) -> bool

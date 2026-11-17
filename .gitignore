@@ -1,0 +1,10 @@
+artifacts/
+bin/
+obj/
+.vs/
+*.user
+*.binlog
+*.trx
+TestResults/
+.dotnet/
+*.dmp

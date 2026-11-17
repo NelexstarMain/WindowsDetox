@@ -1,0 +1,32 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet tool restore
+      - run: dotnet build WindowsDetox.slnx -c Release
+      - name: Test (portable subset)
+        if: runner.os == 'Linux'
+        run: dotnet test --solution WindowsDetox.slnx -c Release --no-build --filter-not-trait "Category=WindowsOnly"
+      - name: Test (all)
+        if: runner.os == 'Windows'
+        run: dotnet test --solution WindowsDetox.slnx -c Release --no-build
+      - name: Slopwatch
+        if: runner.os == 'Linux'
+        run: dotnet slopwatch analyze -d . --fail-on warning
+      - name: Vulnerable packages
+        if: runner.os == 'Linux'
+        run: dotnet list WindowsDetox.slnx package --vulnerable --include-transitive

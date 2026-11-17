@@ -1,0 +1,10 @@
+{
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestFeature",
+    "errorMessage": "WindowsDetox requires the .NET 10 SDK (10.0.100 or newer feature band)."
+  },
+  "test": {
+    "runner": "Microsoft.Testing.Platform"
+  }
+}

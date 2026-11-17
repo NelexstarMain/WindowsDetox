@@ -1,0 +1,585 @@
+#nullable enable
+Blocker.UI.Sdk.ExtensionCapabilities
+Blocker.UI.Sdk.IBlockScreenPlugin
+Blocker.UI.Sdk.IBlockScreenPlugin.RenderAsync(Blocker.UI.Sdk.UiRenderContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.UI.Sdk.UiNode!>
+Blocker.UI.Sdk.IDashboardWidgetPlugin
+Blocker.UI.Sdk.IDashboardWidgetPlugin.RenderAsync(Blocker.UI.Sdk.UiRenderContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.UI.Sdk.UiCard!>
+Blocker.UI.Sdk.IDashboardWidgetPlugin.Size.get -> Blocker.UI.Sdk.UiWidgetSize
+Blocker.UI.Sdk.ISettingsSectionPlugin
+Blocker.UI.Sdk.ISettingsSectionPlugin.RenderAsync(Blocker.UI.Sdk.UiRenderContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.UI.Sdk.UiNode!>
+Blocker.UI.Sdk.ISettingsSectionPlugin.Title.get -> string!
+Blocker.UI.Sdk.IUiContribution
+Blocker.UI.Sdk.IUiContribution.OnActionAsync(Blocker.UI.Sdk.UiAction! action, Blocker.UI.Sdk.UiRenderContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Blocker.UI.Sdk.IUiPagePlugin
+Blocker.UI.Sdk.IUiPagePlugin.Navigation.get -> Blocker.UI.Sdk.UiNavigationItem!
+Blocker.UI.Sdk.IUiPagePlugin.RenderAsync(Blocker.UI.Sdk.UiRenderContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Blocker.UI.Sdk.UiPage!>
+Blocker.UI.Sdk.IUiSurface
+Blocker.UI.Sdk.IUiSurface.RequestRender() -> void
+Blocker.UI.Sdk.Ui
+Blocker.UI.Sdk.UiAction
+Blocker.UI.Sdk.UiAction.<Clone>$() -> Blocker.UI.Sdk.UiAction!
+Blocker.UI.Sdk.UiAction.Deconstruct(out string! ElementId, out Blocker.UI.Sdk.UiActionKind Kind, out string? Value, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! FormValues) -> void
+Blocker.UI.Sdk.UiAction.ElementId.get -> string!
+Blocker.UI.Sdk.UiAction.ElementId.init -> void
+Blocker.UI.Sdk.UiAction.Equals(Blocker.UI.Sdk.UiAction? other) -> bool
+Blocker.UI.Sdk.UiAction.FormValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Blocker.UI.Sdk.UiAction.FormValues.init -> void
+Blocker.UI.Sdk.UiAction.Kind.get -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiAction.Kind.init -> void
+Blocker.UI.Sdk.UiAction.UiAction(string! ElementId, Blocker.UI.Sdk.UiActionKind Kind, string? Value, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! FormValues) -> void
+Blocker.UI.Sdk.UiAction.Value.get -> string?
+Blocker.UI.Sdk.UiAction.Value.init -> void
+Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiActionKind.Click = 0 -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiActionKind.Submit = 2 -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiActionKind.Toggle = 1 -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiAlignment
+Blocker.UI.Sdk.UiAlignment.Center = 1 -> Blocker.UI.Sdk.UiAlignment
+Blocker.UI.Sdk.UiAlignment.End = 2 -> Blocker.UI.Sdk.UiAlignment
+Blocker.UI.Sdk.UiAlignment.Start = 0 -> Blocker.UI.Sdk.UiAlignment
+Blocker.UI.Sdk.UiBarChart
+Blocker.UI.Sdk.UiBarChart.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Points, out string? Title, out string? ValueSuffix) -> void
+Blocker.UI.Sdk.UiBarChart.Equals(Blocker.UI.Sdk.UiBarChart? other) -> bool
+Blocker.UI.Sdk.UiBarChart.Points.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>!
+Blocker.UI.Sdk.UiBarChart.Points.init -> void
+Blocker.UI.Sdk.UiBarChart.Title.get -> string?
+Blocker.UI.Sdk.UiBarChart.Title.init -> void
+Blocker.UI.Sdk.UiBarChart.UiBarChart(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Points, string? Title = null, string? ValueSuffix = null) -> void
+Blocker.UI.Sdk.UiBarChart.ValueSuffix.get -> string?
+Blocker.UI.Sdk.UiBarChart.ValueSuffix.init -> void
+Blocker.UI.Sdk.UiButton
+Blocker.UI.Sdk.UiButton.Deconstruct(out string! Id, out string! Label, out Blocker.UI.Sdk.UiButtonVariant Variant, out Blocker.UI.Sdk.UiIcon? Icon, out bool IsEnabled) -> void
+Blocker.UI.Sdk.UiButton.Equals(Blocker.UI.Sdk.UiButton? other) -> bool
+Blocker.UI.Sdk.UiButton.Icon.get -> Blocker.UI.Sdk.UiIcon?
+Blocker.UI.Sdk.UiButton.Icon.init -> void
+Blocker.UI.Sdk.UiButton.Id.get -> string!
+Blocker.UI.Sdk.UiButton.Id.init -> void
+Blocker.UI.Sdk.UiButton.IsEnabled.get -> bool
+Blocker.UI.Sdk.UiButton.IsEnabled.init -> void
+Blocker.UI.Sdk.UiButton.Label.get -> string!
+Blocker.UI.Sdk.UiButton.Label.init -> void
+Blocker.UI.Sdk.UiButton.UiButton(string! Id, string! Label, Blocker.UI.Sdk.UiButtonVariant Variant = Blocker.UI.Sdk.UiButtonVariant.Secondary, Blocker.UI.Sdk.UiIcon? Icon = null, bool IsEnabled = true) -> void
+Blocker.UI.Sdk.UiButton.Variant.get -> Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiButton.Variant.init -> void
+Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiButtonVariant.Primary = 0 -> Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiButtonVariant.Secondary = 1 -> Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiButtonVariant.Subtle = 3 -> Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiButtonVariant.Warning = 2 -> Blocker.UI.Sdk.UiButtonVariant
+Blocker.UI.Sdk.UiCard
+Blocker.UI.Sdk.UiCard.Children.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>!
+Blocker.UI.Sdk.UiCard.Children.init -> void
+Blocker.UI.Sdk.UiCard.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, out string? Title, out string? Subtitle, out Blocker.UI.Sdk.UiIcon? Icon) -> void
+Blocker.UI.Sdk.UiCard.Equals(Blocker.UI.Sdk.UiCard? other) -> bool
+Blocker.UI.Sdk.UiCard.Icon.get -> Blocker.UI.Sdk.UiIcon?
+Blocker.UI.Sdk.UiCard.Icon.init -> void
+Blocker.UI.Sdk.UiCard.Subtitle.get -> string?
+Blocker.UI.Sdk.UiCard.Subtitle.init -> void
+Blocker.UI.Sdk.UiCard.Title.get -> string?
+Blocker.UI.Sdk.UiCard.Title.init -> void
+Blocker.UI.Sdk.UiCard.UiCard(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, string? Title = null, string? Subtitle = null, Blocker.UI.Sdk.UiIcon? Icon = null) -> void
+Blocker.UI.Sdk.UiCheckboxField
+Blocker.UI.Sdk.UiCheckboxField.Deconstruct(out string! Id, out string! Label, out bool IsChecked) -> void
+Blocker.UI.Sdk.UiCheckboxField.Equals(Blocker.UI.Sdk.UiCheckboxField? other) -> bool
+Blocker.UI.Sdk.UiCheckboxField.IsChecked.get -> bool
+Blocker.UI.Sdk.UiCheckboxField.IsChecked.init -> void
+Blocker.UI.Sdk.UiCheckboxField.UiCheckboxField(string! Id, string! Label, bool IsChecked = false) -> void
+Blocker.UI.Sdk.UiDataPoint
+Blocker.UI.Sdk.UiDataPoint.<Clone>$() -> Blocker.UI.Sdk.UiDataPoint!
+Blocker.UI.Sdk.UiDataPoint.Deconstruct(out string! Label, out double Value) -> void
+Blocker.UI.Sdk.UiDataPoint.Equals(Blocker.UI.Sdk.UiDataPoint? other) -> bool
+Blocker.UI.Sdk.UiDataPoint.Label.get -> string!
+Blocker.UI.Sdk.UiDataPoint.Label.init -> void
+Blocker.UI.Sdk.UiDataPoint.UiDataPoint(string! Label, double Value) -> void
+Blocker.UI.Sdk.UiDataPoint.Value.get -> double
+Blocker.UI.Sdk.UiDataPoint.Value.init -> void
+Blocker.UI.Sdk.UiForm
+Blocker.UI.Sdk.UiForm.Deconstruct(out string! Id, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>! Fields, out string! SubmitLabel) -> void
+Blocker.UI.Sdk.UiForm.Equals(Blocker.UI.Sdk.UiForm? other) -> bool
+Blocker.UI.Sdk.UiForm.Fields.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>!
+Blocker.UI.Sdk.UiForm.Fields.init -> void
+Blocker.UI.Sdk.UiForm.Id.get -> string!
+Blocker.UI.Sdk.UiForm.Id.init -> void
+Blocker.UI.Sdk.UiForm.SubmitLabel.get -> string!
+Blocker.UI.Sdk.UiForm.SubmitLabel.init -> void
+Blocker.UI.Sdk.UiForm.UiForm(string! Id, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>! Fields, string! SubmitLabel) -> void
+Blocker.UI.Sdk.UiFormField
+Blocker.UI.Sdk.UiFormField.Deconstruct(out string! Id, out string! Label) -> void
+Blocker.UI.Sdk.UiFormField.Id.get -> string!
+Blocker.UI.Sdk.UiFormField.Id.init -> void
+Blocker.UI.Sdk.UiFormField.Label.get -> string!
+Blocker.UI.Sdk.UiFormField.Label.init -> void
+Blocker.UI.Sdk.UiFormField.UiFormField(Blocker.UI.Sdk.UiFormField! original) -> void
+Blocker.UI.Sdk.UiFormField.UiFormField(string! Id, string! Label) -> void
+Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiGap.Large = 2 -> Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiGap.Medium = 1 -> Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiGap.Small = 0 -> Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiGrid
+Blocker.UI.Sdk.UiGrid.Children.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>!
+Blocker.UI.Sdk.UiGrid.Children.init -> void
+Blocker.UI.Sdk.UiGrid.Columns.get -> int
+Blocker.UI.Sdk.UiGrid.Columns.init -> void
+Blocker.UI.Sdk.UiGrid.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, out int Columns) -> void
+Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiGrid? other) -> bool
+Blocker.UI.Sdk.UiGrid.UiGrid(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, int Columns) -> void
+Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Apps = 15 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Book = 23 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Calendar = 14 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Chart = 13 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Checkmark = 10 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Clock = 0 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Code = 24 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Coffee = 29 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Dismiss = 11 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Flame = 18 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Folder = 30 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Game = 26 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Globe = 16 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Heart = 22 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Info = 9 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Leaf = 19 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Lock = 3 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Moon = 27 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Music = 25 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Pause = 6 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Play = 5 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Plug = 17 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Settings = 12 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Shield = 2 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Star = 21 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Stop = 7 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Sun = 28 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Target = 20 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Timer = 1 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Trophy = 31 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Unlock = 4 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Warning = 8 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiJson
+Blocker.UI.Sdk.UiLimits
+Blocker.UI.Sdk.UiLimits.<Clone>$() -> Blocker.UI.Sdk.UiLimits!
+Blocker.UI.Sdk.UiLimits.Deconstruct(out int MaxDepth, out int MaxNodes, out int MaxTextLength, out int MaxItems) -> void
+Blocker.UI.Sdk.UiLimits.Equals(Blocker.UI.Sdk.UiLimits? other) -> bool
+Blocker.UI.Sdk.UiLimits.MaxDepth.get -> int
+Blocker.UI.Sdk.UiLimits.MaxDepth.init -> void
+Blocker.UI.Sdk.UiLimits.MaxItems.get -> int
+Blocker.UI.Sdk.UiLimits.MaxItems.init -> void
+Blocker.UI.Sdk.UiLimits.MaxNodes.get -> int
+Blocker.UI.Sdk.UiLimits.MaxNodes.init -> void
+Blocker.UI.Sdk.UiLimits.MaxTextLength.get -> int
+Blocker.UI.Sdk.UiLimits.MaxTextLength.init -> void
+Blocker.UI.Sdk.UiLimits.UiLimits(int MaxDepth, int MaxNodes, int MaxTextLength, int MaxItems) -> void
+Blocker.UI.Sdk.UiLineChart
+Blocker.UI.Sdk.UiLineChart.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSeries!>! Series, out string? Title, out string? ValueSuffix) -> void
+Blocker.UI.Sdk.UiLineChart.Equals(Blocker.UI.Sdk.UiLineChart? other) -> bool
+Blocker.UI.Sdk.UiLineChart.Series.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSeries!>!
+Blocker.UI.Sdk.UiLineChart.Series.init -> void
+Blocker.UI.Sdk.UiLineChart.Title.get -> string?
+Blocker.UI.Sdk.UiLineChart.Title.init -> void
+Blocker.UI.Sdk.UiLineChart.UiLineChart(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSeries!>! Series, string? Title = null, string? ValueSuffix = null) -> void
+Blocker.UI.Sdk.UiLineChart.ValueSuffix.get -> string?
+Blocker.UI.Sdk.UiLineChart.ValueSuffix.init -> void
+Blocker.UI.Sdk.UiNavigationItem
+Blocker.UI.Sdk.UiNavigationItem.<Clone>$() -> Blocker.UI.Sdk.UiNavigationItem!
+Blocker.UI.Sdk.UiNavigationItem.Deconstruct(out string! Title, out Blocker.UI.Sdk.UiIcon Icon) -> void
+Blocker.UI.Sdk.UiNavigationItem.Equals(Blocker.UI.Sdk.UiNavigationItem? other) -> bool
+Blocker.UI.Sdk.UiNavigationItem.Icon.get -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiNavigationItem.Icon.init -> void
+Blocker.UI.Sdk.UiNavigationItem.Title.get -> string!
+Blocker.UI.Sdk.UiNavigationItem.Title.init -> void
+Blocker.UI.Sdk.UiNavigationItem.UiNavigationItem(string! Title, Blocker.UI.Sdk.UiIcon Icon) -> void
+Blocker.UI.Sdk.UiNode
+Blocker.UI.Sdk.UiNode.UiNode() -> void
+Blocker.UI.Sdk.UiNode.UiNode(Blocker.UI.Sdk.UiNode! original) -> void
+Blocker.UI.Sdk.UiNumberField
+Blocker.UI.Sdk.UiNumberField.Deconstruct(out string! Id, out string! Label, out double Value, out double Minimum, out double Maximum, out double Step) -> void
+Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiNumberField? other) -> bool
+Blocker.UI.Sdk.UiNumberField.Maximum.get -> double
+Blocker.UI.Sdk.UiNumberField.Maximum.init -> void
+Blocker.UI.Sdk.UiNumberField.Minimum.get -> double
+Blocker.UI.Sdk.UiNumberField.Minimum.init -> void
+Blocker.UI.Sdk.UiNumberField.Step.get -> double
+Blocker.UI.Sdk.UiNumberField.Step.init -> void
+Blocker.UI.Sdk.UiNumberField.UiNumberField(string! Id, string! Label, double Value, double Minimum, double Maximum, double Step = 1) -> void
+Blocker.UI.Sdk.UiNumberField.Value.get -> double
+Blocker.UI.Sdk.UiNumberField.Value.init -> void
+Blocker.UI.Sdk.UiOption
+Blocker.UI.Sdk.UiOption.<Clone>$() -> Blocker.UI.Sdk.UiOption!
+Blocker.UI.Sdk.UiOption.Deconstruct(out string! Value, out string! Label) -> void
+Blocker.UI.Sdk.UiOption.Equals(Blocker.UI.Sdk.UiOption? other) -> bool
+Blocker.UI.Sdk.UiOption.Label.get -> string!
+Blocker.UI.Sdk.UiOption.Label.init -> void
+Blocker.UI.Sdk.UiOption.UiOption(string! Value, string! Label) -> void
+Blocker.UI.Sdk.UiOption.Value.get -> string!
+Blocker.UI.Sdk.UiOption.Value.init -> void
+Blocker.UI.Sdk.UiOrientation
+Blocker.UI.Sdk.UiOrientation.Horizontal = 1 -> Blocker.UI.Sdk.UiOrientation
+Blocker.UI.Sdk.UiOrientation.Vertical = 0 -> Blocker.UI.Sdk.UiOrientation
+Blocker.UI.Sdk.UiPage
+Blocker.UI.Sdk.UiPage.Children.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>!
+Blocker.UI.Sdk.UiPage.Children.init -> void
+Blocker.UI.Sdk.UiPage.Deconstruct(out string! Title, out string? Subtitle, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children) -> void
+Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiPage? other) -> bool
+Blocker.UI.Sdk.UiPage.Subtitle.get -> string?
+Blocker.UI.Sdk.UiPage.Subtitle.init -> void
+Blocker.UI.Sdk.UiPage.Title.get -> string!
+Blocker.UI.Sdk.UiPage.Title.init -> void
+Blocker.UI.Sdk.UiPage.UiPage(string! Title, string? Subtitle, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children) -> void
+Blocker.UI.Sdk.UiProgress
+Blocker.UI.Sdk.UiProgress.Deconstruct(out double Value, out double Maximum, out string? Label, out Blocker.UI.Sdk.UiTone Tone) -> void
+Blocker.UI.Sdk.UiProgress.Equals(Blocker.UI.Sdk.UiProgress? other) -> bool
+Blocker.UI.Sdk.UiProgress.Label.get -> string?
+Blocker.UI.Sdk.UiProgress.Label.init -> void
+Blocker.UI.Sdk.UiProgress.Maximum.get -> double
+Blocker.UI.Sdk.UiProgress.Maximum.init -> void
+Blocker.UI.Sdk.UiProgress.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiProgress.Tone.init -> void
+Blocker.UI.Sdk.UiProgress.UiProgress(double Value, double Maximum, string? Label = null, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent) -> void
+Blocker.UI.Sdk.UiProgress.Value.get -> double
+Blocker.UI.Sdk.UiProgress.Value.init -> void
+Blocker.UI.Sdk.UiRenderContext
+Blocker.UI.Sdk.UiRenderContext.<Clone>$() -> Blocker.UI.Sdk.UiRenderContext!
+Blocker.UI.Sdk.UiRenderContext.Deconstruct(out Blocker.Sdk.Session.SessionSnapshot! Session, out Blocker.UI.Sdk.IUiSurface! Surface) -> void
+Blocker.UI.Sdk.UiRenderContext.Equals(Blocker.UI.Sdk.UiRenderContext? other) -> bool
+Blocker.UI.Sdk.UiRenderContext.Session.get -> Blocker.Sdk.Session.SessionSnapshot!
+Blocker.UI.Sdk.UiRenderContext.Session.init -> void
+Blocker.UI.Sdk.UiRenderContext.Surface.get -> Blocker.UI.Sdk.IUiSurface!
+Blocker.UI.Sdk.UiRenderContext.Surface.init -> void
+Blocker.UI.Sdk.UiRenderContext.UiRenderContext(Blocker.Sdk.Session.SessionSnapshot! Session, Blocker.UI.Sdk.IUiSurface! Surface) -> void
+Blocker.UI.Sdk.UiSelectField
+Blocker.UI.Sdk.UiSelectField.Deconstruct(out string! Id, out string! Label, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiOption!>! Options, out string? SelectedValue) -> void
+Blocker.UI.Sdk.UiSelectField.Equals(Blocker.UI.Sdk.UiSelectField? other) -> bool
+Blocker.UI.Sdk.UiSelectField.Options.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiOption!>!
+Blocker.UI.Sdk.UiSelectField.Options.init -> void
+Blocker.UI.Sdk.UiSelectField.SelectedValue.get -> string?
+Blocker.UI.Sdk.UiSelectField.SelectedValue.init -> void
+Blocker.UI.Sdk.UiSelectField.UiSelectField(string! Id, string! Label, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiOption!>! Options, string? SelectedValue = null) -> void
+Blocker.UI.Sdk.UiSeries
+Blocker.UI.Sdk.UiSeries.<Clone>$() -> Blocker.UI.Sdk.UiSeries!
+Blocker.UI.Sdk.UiSeries.Deconstruct(out string! Name, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Points) -> void
+Blocker.UI.Sdk.UiSeries.Equals(Blocker.UI.Sdk.UiSeries? other) -> bool
+Blocker.UI.Sdk.UiSeries.Name.get -> string!
+Blocker.UI.Sdk.UiSeries.Name.init -> void
+Blocker.UI.Sdk.UiSeries.Points.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>!
+Blocker.UI.Sdk.UiSeries.Points.init -> void
+Blocker.UI.Sdk.UiSeries.UiSeries(string! Name, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Points) -> void
+Blocker.UI.Sdk.UiStack
+Blocker.UI.Sdk.UiStack.Children.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>!
+Blocker.UI.Sdk.UiStack.Children.init -> void
+Blocker.UI.Sdk.UiStack.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, out Blocker.UI.Sdk.UiOrientation Orientation, out Blocker.UI.Sdk.UiGap Gap) -> void
+Blocker.UI.Sdk.UiStack.Equals(Blocker.UI.Sdk.UiStack? other) -> bool
+Blocker.UI.Sdk.UiStack.Gap.get -> Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiStack.Gap.init -> void
+Blocker.UI.Sdk.UiStack.Orientation.get -> Blocker.UI.Sdk.UiOrientation
+Blocker.UI.Sdk.UiStack.Orientation.init -> void
+Blocker.UI.Sdk.UiStack.UiStack(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, Blocker.UI.Sdk.UiOrientation Orientation = Blocker.UI.Sdk.UiOrientation.Vertical, Blocker.UI.Sdk.UiGap Gap = Blocker.UI.Sdk.UiGap.Medium) -> void
+Blocker.UI.Sdk.UiStatTile
+Blocker.UI.Sdk.UiStatTile.Caption.get -> string?
+Blocker.UI.Sdk.UiStatTile.Caption.init -> void
+Blocker.UI.Sdk.UiStatTile.Deconstruct(out string! Label, out string! Value, out string? Caption, out Blocker.UI.Sdk.UiTone Tone, out Blocker.UI.Sdk.UiIcon? Icon) -> void
+Blocker.UI.Sdk.UiStatTile.Equals(Blocker.UI.Sdk.UiStatTile? other) -> bool
+Blocker.UI.Sdk.UiStatTile.Icon.get -> Blocker.UI.Sdk.UiIcon?
+Blocker.UI.Sdk.UiStatTile.Icon.init -> void
+Blocker.UI.Sdk.UiStatTile.Label.get -> string!
+Blocker.UI.Sdk.UiStatTile.Label.init -> void
+Blocker.UI.Sdk.UiStatTile.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiStatTile.Tone.init -> void
+Blocker.UI.Sdk.UiStatTile.UiStatTile(string! Label, string! Value, string? Caption = null, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Neutral, Blocker.UI.Sdk.UiIcon? Icon = null) -> void
+Blocker.UI.Sdk.UiStatTile.Value.get -> string!
+Blocker.UI.Sdk.UiStatTile.Value.init -> void
+Blocker.UI.Sdk.UiTable
+Blocker.UI.Sdk.UiTable.Columns.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableColumn!>!
+Blocker.UI.Sdk.UiTable.Columns.init -> void
+Blocker.UI.Sdk.UiTable.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableColumn!>! Columns, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableRow!>! Rows) -> void
+Blocker.UI.Sdk.UiTable.Equals(Blocker.UI.Sdk.UiTable? other) -> bool
+Blocker.UI.Sdk.UiTable.Rows.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableRow!>!
+Blocker.UI.Sdk.UiTable.Rows.init -> void
+Blocker.UI.Sdk.UiTable.UiTable(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableColumn!>! Columns, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTableRow!>! Rows) -> void
+Blocker.UI.Sdk.UiTableColumn
+Blocker.UI.Sdk.UiTableColumn.<Clone>$() -> Blocker.UI.Sdk.UiTableColumn!
+Blocker.UI.Sdk.UiTableColumn.Alignment.get -> Blocker.UI.Sdk.UiAlignment
+Blocker.UI.Sdk.UiTableColumn.Alignment.init -> void
+Blocker.UI.Sdk.UiTableColumn.Deconstruct(out string! Header, out Blocker.UI.Sdk.UiAlignment Alignment, out bool Monospace) -> void
+Blocker.UI.Sdk.UiTableColumn.Equals(Blocker.UI.Sdk.UiTableColumn? other) -> bool
+Blocker.UI.Sdk.UiTableColumn.Header.get -> string!
+Blocker.UI.Sdk.UiTableColumn.Header.init -> void
+Blocker.UI.Sdk.UiTableColumn.Monospace.get -> bool
+Blocker.UI.Sdk.UiTableColumn.Monospace.init -> void
+Blocker.UI.Sdk.UiTableColumn.UiTableColumn(string! Header, Blocker.UI.Sdk.UiAlignment Alignment = Blocker.UI.Sdk.UiAlignment.Start, bool Monospace = false) -> void
+Blocker.UI.Sdk.UiTableRow
+Blocker.UI.Sdk.UiTableRow.<Clone>$() -> Blocker.UI.Sdk.UiTableRow!
+Blocker.UI.Sdk.UiTableRow.Cells.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.UI.Sdk.UiTableRow.Cells.init -> void
+Blocker.UI.Sdk.UiTableRow.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Cells) -> void
+Blocker.UI.Sdk.UiTableRow.Equals(Blocker.UI.Sdk.UiTableRow? other) -> bool
+Blocker.UI.Sdk.UiTableRow.UiTableRow(System.Collections.Generic.IReadOnlyList<string!>! Cells) -> void
+Blocker.UI.Sdk.UiText
+Blocker.UI.Sdk.UiText.Deconstruct(out string! Text, out Blocker.UI.Sdk.UiTextStyle Style, out Blocker.UI.Sdk.UiTone Tone) -> void
+Blocker.UI.Sdk.UiText.Equals(Blocker.UI.Sdk.UiText? other) -> bool
+Blocker.UI.Sdk.UiText.Style.get -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiText.Style.init -> void
+Blocker.UI.Sdk.UiText.Text.get -> string!
+Blocker.UI.Sdk.UiText.Text.init -> void
+Blocker.UI.Sdk.UiText.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiText.Tone.init -> void
+Blocker.UI.Sdk.UiText.UiText(string! Text, Blocker.UI.Sdk.UiTextStyle Style = Blocker.UI.Sdk.UiTextStyle.Body, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Neutral) -> void
+Blocker.UI.Sdk.UiTextField
+Blocker.UI.Sdk.UiTextField.Deconstruct(out string! Id, out string! Label, out string! Value, out string? Placeholder, out int MaxLength) -> void
+Blocker.UI.Sdk.UiTextField.Equals(Blocker.UI.Sdk.UiTextField? other) -> bool
+Blocker.UI.Sdk.UiTextField.MaxLength.get -> int
+Blocker.UI.Sdk.UiTextField.MaxLength.init -> void
+Blocker.UI.Sdk.UiTextField.Placeholder.get -> string?
+Blocker.UI.Sdk.UiTextField.Placeholder.init -> void
+Blocker.UI.Sdk.UiTextField.UiTextField(string! Id, string! Label, string! Value = "", string? Placeholder = null, int MaxLength = 200) -> void
+Blocker.UI.Sdk.UiTextField.Value.get -> string!
+Blocker.UI.Sdk.UiTextField.Value.init -> void
+Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTextStyle.Body = 0 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTextStyle.Caption = 1 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTextStyle.Mono = 4 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTextStyle.Subtitle = 2 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTextStyle.Title = 3 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiToggle
+Blocker.UI.Sdk.UiToggle.Deconstruct(out string! Id, out string! Label, out bool IsOn, out string? Description) -> void
+Blocker.UI.Sdk.UiToggle.Description.get -> string?
+Blocker.UI.Sdk.UiToggle.Description.init -> void
+Blocker.UI.Sdk.UiToggle.Equals(Blocker.UI.Sdk.UiToggle? other) -> bool
+Blocker.UI.Sdk.UiToggle.Id.get -> string!
+Blocker.UI.Sdk.UiToggle.Id.init -> void
+Blocker.UI.Sdk.UiToggle.IsOn.get -> bool
+Blocker.UI.Sdk.UiToggle.IsOn.init -> void
+Blocker.UI.Sdk.UiToggle.Label.get -> string!
+Blocker.UI.Sdk.UiToggle.Label.init -> void
+Blocker.UI.Sdk.UiToggle.UiToggle(string! Id, string! Label, bool IsOn, string? Description = null) -> void
+Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTone.Accent = 1 -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTone.Danger = 4 -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTone.Neutral = 0 -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTone.Success = 2 -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTone.Warning = 3 -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTreeValidator
+Blocker.UI.Sdk.UiValidationResult
+Blocker.UI.Sdk.UiValidationResult.<Clone>$() -> Blocker.UI.Sdk.UiValidationResult!
+Blocker.UI.Sdk.UiValidationResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Errors) -> void
+Blocker.UI.Sdk.UiValidationResult.Equals(Blocker.UI.Sdk.UiValidationResult? other) -> bool
+Blocker.UI.Sdk.UiValidationResult.Errors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.UI.Sdk.UiValidationResult.Errors.init -> void
+Blocker.UI.Sdk.UiValidationResult.IsValid.get -> bool
+Blocker.UI.Sdk.UiValidationResult.UiValidationResult(System.Collections.Generic.IReadOnlyList<string!>! Errors) -> void
+Blocker.UI.Sdk.UiWidgetSize
+Blocker.UI.Sdk.UiWidgetSize.Medium = 1 -> Blocker.UI.Sdk.UiWidgetSize
+Blocker.UI.Sdk.UiWidgetSize.Small = 0 -> Blocker.UI.Sdk.UiWidgetSize
+Blocker.UI.Sdk.UiWidgetSize.Wide = 2 -> Blocker.UI.Sdk.UiWidgetSize
+abstract Blocker.UI.Sdk.UiFormField.<Clone>$() -> Blocker.UI.Sdk.UiFormField!
+abstract Blocker.UI.Sdk.UiNode.<Clone>$() -> Blocker.UI.Sdk.UiNode!
+const Blocker.UI.Sdk.UiJson.MaxDocumentBytes = 524288 -> int
+override Blocker.UI.Sdk.UiAction.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiAction.GetHashCode() -> int
+override Blocker.UI.Sdk.UiAction.ToString() -> string!
+override Blocker.UI.Sdk.UiBarChart.<Clone>$() -> Blocker.UI.Sdk.UiBarChart!
+override Blocker.UI.Sdk.UiBarChart.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiBarChart.GetHashCode() -> int
+override Blocker.UI.Sdk.UiBarChart.ToString() -> string!
+override Blocker.UI.Sdk.UiButton.<Clone>$() -> Blocker.UI.Sdk.UiButton!
+override Blocker.UI.Sdk.UiButton.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiButton.GetHashCode() -> int
+override Blocker.UI.Sdk.UiButton.ToString() -> string!
+override Blocker.UI.Sdk.UiCard.<Clone>$() -> Blocker.UI.Sdk.UiCard!
+override Blocker.UI.Sdk.UiCard.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiCard.GetHashCode() -> int
+override Blocker.UI.Sdk.UiCard.ToString() -> string!
+override Blocker.UI.Sdk.UiCheckboxField.<Clone>$() -> Blocker.UI.Sdk.UiCheckboxField!
+override Blocker.UI.Sdk.UiCheckboxField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiCheckboxField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiCheckboxField.ToString() -> string!
+override Blocker.UI.Sdk.UiDataPoint.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiDataPoint.GetHashCode() -> int
+override Blocker.UI.Sdk.UiDataPoint.ToString() -> string!
+override Blocker.UI.Sdk.UiForm.<Clone>$() -> Blocker.UI.Sdk.UiForm!
+override Blocker.UI.Sdk.UiForm.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiForm.GetHashCode() -> int
+override Blocker.UI.Sdk.UiForm.ToString() -> string!
+override Blocker.UI.Sdk.UiFormField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiFormField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiFormField.ToString() -> string!
+override Blocker.UI.Sdk.UiGrid.<Clone>$() -> Blocker.UI.Sdk.UiGrid!
+override Blocker.UI.Sdk.UiGrid.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiGrid.GetHashCode() -> int
+override Blocker.UI.Sdk.UiGrid.ToString() -> string!
+override Blocker.UI.Sdk.UiLimits.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiLimits.GetHashCode() -> int
+override Blocker.UI.Sdk.UiLimits.ToString() -> string!
+override Blocker.UI.Sdk.UiLineChart.<Clone>$() -> Blocker.UI.Sdk.UiLineChart!
+override Blocker.UI.Sdk.UiLineChart.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiLineChart.GetHashCode() -> int
+override Blocker.UI.Sdk.UiLineChart.ToString() -> string!
+override Blocker.UI.Sdk.UiNavigationItem.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiNavigationItem.GetHashCode() -> int
+override Blocker.UI.Sdk.UiNavigationItem.ToString() -> string!
+override Blocker.UI.Sdk.UiNode.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiNode.GetHashCode() -> int
+override Blocker.UI.Sdk.UiNode.ToString() -> string!
+override Blocker.UI.Sdk.UiNumberField.<Clone>$() -> Blocker.UI.Sdk.UiNumberField!
+override Blocker.UI.Sdk.UiNumberField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiNumberField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiNumberField.ToString() -> string!
+override Blocker.UI.Sdk.UiOption.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiOption.GetHashCode() -> int
+override Blocker.UI.Sdk.UiOption.ToString() -> string!
+override Blocker.UI.Sdk.UiPage.<Clone>$() -> Blocker.UI.Sdk.UiPage!
+override Blocker.UI.Sdk.UiPage.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiPage.GetHashCode() -> int
+override Blocker.UI.Sdk.UiPage.ToString() -> string!
+override Blocker.UI.Sdk.UiProgress.<Clone>$() -> Blocker.UI.Sdk.UiProgress!
+override Blocker.UI.Sdk.UiProgress.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiProgress.GetHashCode() -> int
+override Blocker.UI.Sdk.UiProgress.ToString() -> string!
+override Blocker.UI.Sdk.UiRenderContext.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiRenderContext.GetHashCode() -> int
+override Blocker.UI.Sdk.UiRenderContext.ToString() -> string!
+override Blocker.UI.Sdk.UiSelectField.<Clone>$() -> Blocker.UI.Sdk.UiSelectField!
+override Blocker.UI.Sdk.UiSelectField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiSelectField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiSelectField.ToString() -> string!
+override Blocker.UI.Sdk.UiSeries.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiSeries.GetHashCode() -> int
+override Blocker.UI.Sdk.UiSeries.ToString() -> string!
+override Blocker.UI.Sdk.UiStack.<Clone>$() -> Blocker.UI.Sdk.UiStack!
+override Blocker.UI.Sdk.UiStack.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiStack.GetHashCode() -> int
+override Blocker.UI.Sdk.UiStack.ToString() -> string!
+override Blocker.UI.Sdk.UiStatTile.<Clone>$() -> Blocker.UI.Sdk.UiStatTile!
+override Blocker.UI.Sdk.UiStatTile.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiStatTile.GetHashCode() -> int
+override Blocker.UI.Sdk.UiStatTile.ToString() -> string!
+override Blocker.UI.Sdk.UiTable.<Clone>$() -> Blocker.UI.Sdk.UiTable!
+override Blocker.UI.Sdk.UiTable.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTable.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTable.ToString() -> string!
+override Blocker.UI.Sdk.UiTableColumn.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTableColumn.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTableColumn.ToString() -> string!
+override Blocker.UI.Sdk.UiTableRow.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTableRow.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTableRow.ToString() -> string!
+override Blocker.UI.Sdk.UiText.<Clone>$() -> Blocker.UI.Sdk.UiText!
+override Blocker.UI.Sdk.UiText.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiText.GetHashCode() -> int
+override Blocker.UI.Sdk.UiText.ToString() -> string!
+override Blocker.UI.Sdk.UiTextField.<Clone>$() -> Blocker.UI.Sdk.UiTextField!
+override Blocker.UI.Sdk.UiTextField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTextField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTextField.ToString() -> string!
+override Blocker.UI.Sdk.UiToggle.<Clone>$() -> Blocker.UI.Sdk.UiToggle!
+override Blocker.UI.Sdk.UiToggle.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiToggle.GetHashCode() -> int
+override Blocker.UI.Sdk.UiToggle.ToString() -> string!
+override Blocker.UI.Sdk.UiValidationResult.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiValidationResult.GetHashCode() -> int
+override Blocker.UI.Sdk.UiValidationResult.ToString() -> string!
+override sealed Blocker.UI.Sdk.UiBarChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiButton.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiCard.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiCheckboxField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiForm.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiLineChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiProgress.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiSelectField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiStack.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiStatTile.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiTable.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiText.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiTextField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiToggle.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+static Blocker.UI.Sdk.ExtensionCapabilities.GetRequired(Blocker.Sdk.Extensions.IPluginExtension! extension) -> System.Collections.Generic.IReadOnlyList<Blocker.Sdk.PluginCapability>!
+static Blocker.UI.Sdk.Ui.BarChart(string! title, params Blocker.UI.Sdk.UiDataPoint![]! points) -> Blocker.UI.Sdk.UiBarChart!
+static Blocker.UI.Sdk.Ui.Button(string! id, string! label, Blocker.UI.Sdk.UiButtonVariant variant = Blocker.UI.Sdk.UiButtonVariant.Secondary, Blocker.UI.Sdk.UiIcon? icon = null) -> Blocker.UI.Sdk.UiButton!
+static Blocker.UI.Sdk.Ui.Card(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
+static Blocker.UI.Sdk.Ui.Card(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
+static Blocker.UI.Sdk.Ui.Column(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiStack!
+static Blocker.UI.Sdk.Ui.Form(string! id, string! submitLabel, params Blocker.UI.Sdk.UiFormField![]! fields) -> Blocker.UI.Sdk.UiForm!
+static Blocker.UI.Sdk.Ui.Grid(int columns, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiGrid!
+static Blocker.UI.Sdk.Ui.Page(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
+static Blocker.UI.Sdk.Ui.Page(string! title, string! subtitle, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
+static Blocker.UI.Sdk.Ui.Point(string! label, double value) -> Blocker.UI.Sdk.UiDataPoint!
+static Blocker.UI.Sdk.Ui.Progress(double value, double maximum, string? label = null) -> Blocker.UI.Sdk.UiProgress!
+static Blocker.UI.Sdk.Ui.Row(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiStack!
+static Blocker.UI.Sdk.Ui.Stat(string! label, string! value, string? caption = null, Blocker.UI.Sdk.UiTone tone = Blocker.UI.Sdk.UiTone.Neutral, Blocker.UI.Sdk.UiIcon? icon = null) -> Blocker.UI.Sdk.UiStatTile!
+static Blocker.UI.Sdk.Ui.Text(string! text, Blocker.UI.Sdk.UiTextStyle style = Blocker.UI.Sdk.UiTextStyle.Body, Blocker.UI.Sdk.UiTone tone = Blocker.UI.Sdk.UiTone.Neutral) -> Blocker.UI.Sdk.UiText!
+static Blocker.UI.Sdk.Ui.Toggle(string! id, string! label, bool isOn, string? description = null) -> Blocker.UI.Sdk.UiToggle!
+static Blocker.UI.Sdk.UiAction.Click(string! elementId) -> Blocker.UI.Sdk.UiAction!
+static Blocker.UI.Sdk.UiAction.Submit(string! elementId, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! values) -> Blocker.UI.Sdk.UiAction!
+static Blocker.UI.Sdk.UiAction.Toggle(string! elementId, bool isOn) -> Blocker.UI.Sdk.UiAction!
+static Blocker.UI.Sdk.UiAction.operator !=(Blocker.UI.Sdk.UiAction? left, Blocker.UI.Sdk.UiAction? right) -> bool
+static Blocker.UI.Sdk.UiAction.operator ==(Blocker.UI.Sdk.UiAction? left, Blocker.UI.Sdk.UiAction? right) -> bool
+static Blocker.UI.Sdk.UiBarChart.operator !=(Blocker.UI.Sdk.UiBarChart? left, Blocker.UI.Sdk.UiBarChart? right) -> bool
+static Blocker.UI.Sdk.UiBarChart.operator ==(Blocker.UI.Sdk.UiBarChart? left, Blocker.UI.Sdk.UiBarChart? right) -> bool
+static Blocker.UI.Sdk.UiButton.operator !=(Blocker.UI.Sdk.UiButton? left, Blocker.UI.Sdk.UiButton? right) -> bool
+static Blocker.UI.Sdk.UiButton.operator ==(Blocker.UI.Sdk.UiButton? left, Blocker.UI.Sdk.UiButton? right) -> bool
+static Blocker.UI.Sdk.UiCard.operator !=(Blocker.UI.Sdk.UiCard? left, Blocker.UI.Sdk.UiCard? right) -> bool
+static Blocker.UI.Sdk.UiCard.operator ==(Blocker.UI.Sdk.UiCard? left, Blocker.UI.Sdk.UiCard? right) -> bool
+static Blocker.UI.Sdk.UiCheckboxField.operator !=(Blocker.UI.Sdk.UiCheckboxField? left, Blocker.UI.Sdk.UiCheckboxField? right) -> bool
+static Blocker.UI.Sdk.UiCheckboxField.operator ==(Blocker.UI.Sdk.UiCheckboxField? left, Blocker.UI.Sdk.UiCheckboxField? right) -> bool
+static Blocker.UI.Sdk.UiDataPoint.operator !=(Blocker.UI.Sdk.UiDataPoint? left, Blocker.UI.Sdk.UiDataPoint? right) -> bool
+static Blocker.UI.Sdk.UiDataPoint.operator ==(Blocker.UI.Sdk.UiDataPoint? left, Blocker.UI.Sdk.UiDataPoint? right) -> bool
+static Blocker.UI.Sdk.UiForm.operator !=(Blocker.UI.Sdk.UiForm? left, Blocker.UI.Sdk.UiForm? right) -> bool
+static Blocker.UI.Sdk.UiForm.operator ==(Blocker.UI.Sdk.UiForm? left, Blocker.UI.Sdk.UiForm? right) -> bool
+static Blocker.UI.Sdk.UiFormField.operator !=(Blocker.UI.Sdk.UiFormField? left, Blocker.UI.Sdk.UiFormField? right) -> bool
+static Blocker.UI.Sdk.UiFormField.operator ==(Blocker.UI.Sdk.UiFormField? left, Blocker.UI.Sdk.UiFormField? right) -> bool
+static Blocker.UI.Sdk.UiGrid.operator !=(Blocker.UI.Sdk.UiGrid? left, Blocker.UI.Sdk.UiGrid? right) -> bool
+static Blocker.UI.Sdk.UiGrid.operator ==(Blocker.UI.Sdk.UiGrid? left, Blocker.UI.Sdk.UiGrid? right) -> bool
+static Blocker.UI.Sdk.UiJson.Deserialize(string! json) -> Blocker.UI.Sdk.UiNode!
+static Blocker.UI.Sdk.UiJson.Serialize(Blocker.UI.Sdk.UiNode! node) -> string!
+static Blocker.UI.Sdk.UiLimits.Default.get -> Blocker.UI.Sdk.UiLimits!
+static Blocker.UI.Sdk.UiLimits.operator !=(Blocker.UI.Sdk.UiLimits? left, Blocker.UI.Sdk.UiLimits? right) -> bool
+static Blocker.UI.Sdk.UiLimits.operator ==(Blocker.UI.Sdk.UiLimits? left, Blocker.UI.Sdk.UiLimits? right) -> bool
+static Blocker.UI.Sdk.UiLineChart.operator !=(Blocker.UI.Sdk.UiLineChart? left, Blocker.UI.Sdk.UiLineChart? right) -> bool
+static Blocker.UI.Sdk.UiLineChart.operator ==(Blocker.UI.Sdk.UiLineChart? left, Blocker.UI.Sdk.UiLineChart? right) -> bool
+static Blocker.UI.Sdk.UiNavigationItem.operator !=(Blocker.UI.Sdk.UiNavigationItem? left, Blocker.UI.Sdk.UiNavigationItem? right) -> bool
+static Blocker.UI.Sdk.UiNavigationItem.operator ==(Blocker.UI.Sdk.UiNavigationItem? left, Blocker.UI.Sdk.UiNavigationItem? right) -> bool
+static Blocker.UI.Sdk.UiNode.operator !=(Blocker.UI.Sdk.UiNode? left, Blocker.UI.Sdk.UiNode? right) -> bool
+static Blocker.UI.Sdk.UiNode.operator ==(Blocker.UI.Sdk.UiNode? left, Blocker.UI.Sdk.UiNode? right) -> bool
+static Blocker.UI.Sdk.UiNumberField.operator !=(Blocker.UI.Sdk.UiNumberField? left, Blocker.UI.Sdk.UiNumberField? right) -> bool
+static Blocker.UI.Sdk.UiNumberField.operator ==(Blocker.UI.Sdk.UiNumberField? left, Blocker.UI.Sdk.UiNumberField? right) -> bool
+static Blocker.UI.Sdk.UiOption.operator !=(Blocker.UI.Sdk.UiOption? left, Blocker.UI.Sdk.UiOption? right) -> bool
+static Blocker.UI.Sdk.UiOption.operator ==(Blocker.UI.Sdk.UiOption? left, Blocker.UI.Sdk.UiOption? right) -> bool
+static Blocker.UI.Sdk.UiPage.operator !=(Blocker.UI.Sdk.UiPage? left, Blocker.UI.Sdk.UiPage? right) -> bool
+static Blocker.UI.Sdk.UiPage.operator ==(Blocker.UI.Sdk.UiPage? left, Blocker.UI.Sdk.UiPage? right) -> bool
+static Blocker.UI.Sdk.UiProgress.operator !=(Blocker.UI.Sdk.UiProgress? left, Blocker.UI.Sdk.UiProgress? right) -> bool
+static Blocker.UI.Sdk.UiProgress.operator ==(Blocker.UI.Sdk.UiProgress? left, Blocker.UI.Sdk.UiProgress? right) -> bool
+static Blocker.UI.Sdk.UiRenderContext.operator !=(Blocker.UI.Sdk.UiRenderContext? left, Blocker.UI.Sdk.UiRenderContext? right) -> bool
+static Blocker.UI.Sdk.UiRenderContext.operator ==(Blocker.UI.Sdk.UiRenderContext? left, Blocker.UI.Sdk.UiRenderContext? right) -> bool
+static Blocker.UI.Sdk.UiSelectField.operator !=(Blocker.UI.Sdk.UiSelectField? left, Blocker.UI.Sdk.UiSelectField? right) -> bool
+static Blocker.UI.Sdk.UiSelectField.operator ==(Blocker.UI.Sdk.UiSelectField? left, Blocker.UI.Sdk.UiSelectField? right) -> bool
+static Blocker.UI.Sdk.UiSeries.operator !=(Blocker.UI.Sdk.UiSeries? left, Blocker.UI.Sdk.UiSeries? right) -> bool
+static Blocker.UI.Sdk.UiSeries.operator ==(Blocker.UI.Sdk.UiSeries? left, Blocker.UI.Sdk.UiSeries? right) -> bool
+static Blocker.UI.Sdk.UiStack.operator !=(Blocker.UI.Sdk.UiStack? left, Blocker.UI.Sdk.UiStack? right) -> bool
+static Blocker.UI.Sdk.UiStack.operator ==(Blocker.UI.Sdk.UiStack? left, Blocker.UI.Sdk.UiStack? right) -> bool
+static Blocker.UI.Sdk.UiStatTile.operator !=(Blocker.UI.Sdk.UiStatTile? left, Blocker.UI.Sdk.UiStatTile? right) -> bool
+static Blocker.UI.Sdk.UiStatTile.operator ==(Blocker.UI.Sdk.UiStatTile? left, Blocker.UI.Sdk.UiStatTile? right) -> bool
+static Blocker.UI.Sdk.UiTable.operator !=(Blocker.UI.Sdk.UiTable? left, Blocker.UI.Sdk.UiTable? right) -> bool
+static Blocker.UI.Sdk.UiTable.operator ==(Blocker.UI.Sdk.UiTable? left, Blocker.UI.Sdk.UiTable? right) -> bool
+static Blocker.UI.Sdk.UiTableColumn.operator !=(Blocker.UI.Sdk.UiTableColumn? left, Blocker.UI.Sdk.UiTableColumn? right) -> bool
+static Blocker.UI.Sdk.UiTableColumn.operator ==(Blocker.UI.Sdk.UiTableColumn? left, Blocker.UI.Sdk.UiTableColumn? right) -> bool
+static Blocker.UI.Sdk.UiTableRow.operator !=(Blocker.UI.Sdk.UiTableRow? left, Blocker.UI.Sdk.UiTableRow? right) -> bool
+static Blocker.UI.Sdk.UiTableRow.operator ==(Blocker.UI.Sdk.UiTableRow? left, Blocker.UI.Sdk.UiTableRow? right) -> bool
+static Blocker.UI.Sdk.UiText.operator !=(Blocker.UI.Sdk.UiText? left, Blocker.UI.Sdk.UiText? right) -> bool
+static Blocker.UI.Sdk.UiText.operator ==(Blocker.UI.Sdk.UiText? left, Blocker.UI.Sdk.UiText? right) -> bool
+static Blocker.UI.Sdk.UiTextField.operator !=(Blocker.UI.Sdk.UiTextField? left, Blocker.UI.Sdk.UiTextField? right) -> bool
+static Blocker.UI.Sdk.UiTextField.operator ==(Blocker.UI.Sdk.UiTextField? left, Blocker.UI.Sdk.UiTextField? right) -> bool
+static Blocker.UI.Sdk.UiToggle.operator !=(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
+static Blocker.UI.Sdk.UiToggle.operator ==(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
+static Blocker.UI.Sdk.UiTreeValidator.Validate(Blocker.UI.Sdk.UiNode? root, Blocker.UI.Sdk.UiLimits? limits = null) -> Blocker.UI.Sdk.UiValidationResult!
+static Blocker.UI.Sdk.UiTreeValidator.ValidateNavigation(Blocker.UI.Sdk.UiNavigationItem? item) -> Blocker.UI.Sdk.UiValidationResult!
+static Blocker.UI.Sdk.UiValidationResult.operator !=(Blocker.UI.Sdk.UiValidationResult? left, Blocker.UI.Sdk.UiValidationResult? right) -> bool
+static Blocker.UI.Sdk.UiValidationResult.operator ==(Blocker.UI.Sdk.UiValidationResult? left, Blocker.UI.Sdk.UiValidationResult? right) -> bool
+virtual Blocker.UI.Sdk.UiFormField.EqualityContract.get -> System.Type!
+virtual Blocker.UI.Sdk.UiFormField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+virtual Blocker.UI.Sdk.UiFormField.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Blocker.UI.Sdk.UiNode.EqualityContract.get -> System.Type!
+virtual Blocker.UI.Sdk.UiNode.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+virtual Blocker.UI.Sdk.UiNode.PrintMembers(System.Text.StringBuilder! builder) -> bool
