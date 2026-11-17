@@ -15,9 +15,14 @@ STYLE_GUIDE.md         UI rules (optional in the ZIP)
 README.md              human notes (optional in the ZIP)
 ```
 
-* Allowed file types: `.cs`, `.json`, `.md`. Anything else is rejected.
-* Limits: at most 50 files, 2 MB unpacked. No folders that escape the root (`..`), no absolute paths.
-* Language: C# (latest), nullable enabled, namespace-per-plugin. Use explicit `using` directives (no implicit usings).
+* Allowed file types: `.cs`, `.json`, `.md`. Anything else is rejected. Sub-folders are allowed (`plugin.json` stays at the root),
+  but a path has at most 3 segments (two folders plus the file name, e.g. `Ui/Widgets/Card.cs`). No `..`, no absolute paths.
+* ZIP limits: file <= 5 MB, <= 50 entries (directory entries count), <= 2 MB unpacked, compression ratio <= 100 per entry,
+  `plugin.json` <= 16 KB. Files must be UTF-8.
+* Language: C# (latest), nullable enabled, namespace-per-plugin. The compiler provides these global usings and nothing else:
+  `System`, `System.Collections.Generic`, `System.Linq`, `System.Threading`, `System.Threading.Tasks`. Add explicit `using`
+  directives for everything else (`System.Globalization`, `System.Text.Json`, `Blocker.Sdk`, ...). `System.IO` and
+  `System.Net.Http` are deliberately not global.
 * Only the Blocker SDK and the .NET base class library are referenced. NuGet packages and other DLLs are impossible.
 
 ## 2. Manifest (`plugin.json`)
@@ -25,10 +30,10 @@ README.md              human notes (optional in the ZIP)
 | Field | Type | Required | Rules |
 |---|---|---|---|
 | `id` | string | yes | Reverse-DNS, 2 to 5 dot-separated segments, each `[a-z][a-z0-9-]*`, max 128 chars. Example `com.example.focus-counter`. Change it for your own plugin; it is also the storage and IPC namespace. |
-| `name` | string | yes | Display name, short, plain text. |
+| `name` | string | yes | Display name, 1 to 64 characters of plain text. |
 | `version` | string | yes | `major.minor.patch`, for example `1.0.0`. Increase it for every upload. |
-| `author` | string | yes | Display name of the author. |
-| `description` | string | yes | One or two plain sentences: what the plugin does for the user. |
+| `author` | string | yes | Display name of the author, 1 to 64 characters. |
+| `description` | string | no | One or two plain sentences: what the plugin does for the user. Max 500 characters, no control characters. |
 | `sdkVersion` | string | yes | SDK contract version the plugin was written for. Currently `"1.0"`. A newer major version is refused. |
 | `entryType` | string | yes | Fully qualified name of the public class implementing `IBlockerPlugin`, with a public parameterless constructor. Example `FocusCounter.PluginMain`. |
 | `capabilities` | string[] | yes | Exactly the capabilities the code uses (see table). Unknown names are rejected. Declare the minimum: the user sees this list before installing. Use `[]` if none are needed. |
@@ -42,7 +47,7 @@ README.md              human notes (optional in the ZIP)
 | `events.window` | `ActiveWindowChanged` (title is always `null`) |
 | `events.window.title` | `WindowDescriptor.Title` is filled in. Without it the title is `null`. Never log or store titles. |
 | `events.idle` | `UserIdleChanged` |
-| `events.custom` | `IEventBus.PublishCustomAsync`, `CustomPluginEvent` |
+| `events.custom` | `IEventBus.PublishCustomAsync`, `IEventBus.SubscribeCustom`, `Subscribe<CustomPluginEvent>` |
 | `intercept.process` | implement `IProcessInterceptor` |
 | `intercept.window` | implement `IWindowInterceptor` (add `events.window.title` to also read titles) |
 | `tick` | implement `ITickListener` |
@@ -52,11 +57,14 @@ README.md              human notes (optional in the ZIP)
 | `ui.dashboard` | implement `IDashboardWidgetPlugin` |
 | `ui.settings` | implement `ISettingsSectionPlugin` |
 | `ui.blockscreen` | implement `IBlockScreenPlugin` |
-| `network` | outbound network access (host allow-listed; not available in tests) |
+| `network` | unlocks `System.Net.Http` (and WebSockets, Mail, `WebClient`, `WebRequest`, `Dns`; see BLK031). Nothing else: raw sockets stay denied. Host allow-listed; not available in tests |
 
-Using an API without its capability is a compile-time analysis error and, at runtime, throws
-`PluginCapabilityException`. Keep the manifest and the code in sync: declare exactly what the code uses, nothing more.
-`SubscribeCustom` observes other plugins' topics and needs no capability of its own.
+Using an API without its capability is a compile-time error (**BLK008**, reported at the class declaration or the call) and,
+at runtime, throws `PluginCapabilityException`. BLK008 is raised for: a class implementing an extension interface
+(`IProcessInterceptor`, `IWindowInterceptor`, `ITickListener`, `ILockPolicyContributor`, `IUiPagePlugin`,
+`IDashboardWidgetPlugin`, `ISettingsSectionPlugin`, `IBlockScreenPlugin`) without its capability; `IEventBus.Subscribe<T>` with a core
+event type `T` whose capability is missing; `SubscribeCustom`/`PublishCustomAsync` without `events.custom`; `IIpcRegistry.Register`
+without `ipc`. Keep the manifest and the code in sync: declare exactly what the code uses, nothing more.
 
 ## 3. Lifecycle
 
@@ -197,14 +205,40 @@ Validate every `UiAction` (kind, element id, value, form values) before acting; 
 
 ## 6. Hard rules
 
-* Time: use `context.Time` (`GetUtcNow()`, `GetTimestamp()`). Never `DateTime.Now` or `DateTime.UtcNow`.
-* Forbidden APIs (static analysis rejects the plugin): `System.Diagnostics.Process`, `Microsoft.Win32` (Registry), `System.IO.File`,
-  `Directory`, `FileStream`, `Path` for file access (use `context.Storage`), P/Invoke (`DllImport`, `LibraryImport`), `unsafe` code,
-  `System.Reflection`, `Reflection.Emit`, `Assembly.Load`, `AppDomain`, `Environment` access to the machine, `Console`.
-* Threads: no `Thread`, no `Task.Run` loops, no blocking (`.Wait()`, `.Result`, `Thread.Sleep`, `GetAwaiter().GetResult()`).
-  Use `async`/`await`, honour `CancellationToken`, and use `ITickListener` for periodic work.
-* `async void` is forbidden. Event handlers and callbacks return `ValueTask`/`Task`.
-* Network only with `network` capability, never in the tests.
+Static analysis rejects the plugin with `file:line: BLKxxx: message` for each violation. Anything not listed is allowed
+(collections, LINQ, `System.Text.Json`, `Regex`, `Interlocked`/`Volatile`, `Task`/`ValueTask`, `Task.Delay`, `StringBuilder`,
+`StringReader`/`StringWriter`/`MemoryStream`, `Path` string helpers such as `Combine`/`GetFileName`/`GetExtension`).
+
+| Rule | Denied |
+|---|---|
+| BLK001 | `unsafe` |
+| BLK002 | `fixed` |
+| BLK003 | Function pointers |
+| BLK004 | `extern` methods |
+| BLK005 | `__arglist`, `__makeref`, `__reftype`, `__refvalue` |
+| BLK006 | `dynamic` |
+| BLK007 | `async void` (methods, local functions, lambdas): return `Task`/`ValueTask` |
+| BLK008 | Missing capability (see section 2) |
+| BLK010 | `System.Diagnostics.Process*` (all types starting with it), `Debugger` |
+| BLK011 | `System.Reflection.Emit.*`, `System.Runtime.Loader.*`, `Assembly.Load/LoadFrom/LoadFile/UnsafeLoadFrom/CreateInstance`, static `Type.GetType/GetTypeFromProgID/GetTypeFromCLSID`, `Expression.Compile`, `LambdaExpression.Compile`, `Activator` |
+| BLK012 | Reflection that invokes by name: `MethodBase.Invoke`, `ConstructorInfo.Invoke`, `MethodInfo.CreateDelegate`, `PropertyInfo.GetValue/SetValue/GetConstantValue`, `FieldInfo.GetValue/SetValue/GetValueDirect/SetValueDirect`, `Type.InvokeMember`, `Delegate.DynamicInvoke/CreateDelegate` (plain `typeof`/`GetType()`/`GetMethod` are fine) |
+| BLK013 | `System.Runtime.InteropServices.*` (P/Invoke, `Marshal`, `MemoryMarshal`, ...), `Unsafe`, `UnsafeAccessorAttribute` |
+| BLK014 | `ModuleInitializerAttribute` |
+| BLK020 | File system: `File`, `Directory`, `FileStream`, `FileInfo`, `DirectoryInfo`, `DriveInfo`, `FileSystemInfo`, `FileSystemWatcher`, `RandomAccess`, `ZipFile`, `ZipFileExtensions`, `FileVersionInfo`, `TextWriterTraceListener`, `DelimitedListTraceListener`, `ResourceReader`, `ResourceWriter`, `FileWebRequest`, `FileWebResponse`, `ResourceManager.CreateFileBasedResourceManager`, `Path.GetTempPath/GetTempFileName`, `StreamReader`/`StreamWriter` constructors taking a string path, `System.Xml` loaders/writers (`Load/Save/Create`, constructors) taking a file name or URI, namespaces `System.IO.Pipes`, `System.IO.MemoryMappedFiles`, `System.IO.IsolatedStorage`, `System.IO.Enumeration`. Use `context.Storage` |
+| BLK021 | `Microsoft.Win32.*` (registry, `SafeHandles`, ...) |
+| BLK022 | Every `Environment` member except `NewLine`; `AppDomain`, `GC`, `AppContext` |
+| BLK023 | `Thread` (constructor, `Start`, `UnsafeStart`, `Sleep`, `Join`, `Interrupt`, `Abort`, `SpinWait`, `Yield`), `ThreadPool` |
+| BLK024 | Blocking waits: `Task.Wait/WaitAll/WaitAny/Result`, `ValueTask.Result`, `GetResult()` on `TaskAwaiter`, `ValueTaskAwaiter`, `ConfiguredTaskAwaiter`, `ConfiguredValueTaskAwaiter` (i.e. `GetAwaiter().GetResult()`), `SemaphoreSlim.Wait`, `ManualResetEventSlim.Wait`, `CountdownEvent.Wait`, `WaitHandle.WaitOne/WaitAll/WaitAny` |
+| BLK025 | Real clocks: `DateTime.Now/UtcNow/Today`, `DateTimeOffset.Now/UtcNow`, `TimeProvider.System`, `Environment.TickCount/TickCount64`, `Stopwatch`. Use `context.Time` |
+| BLK030 | Never allowed: `System.Net.Sockets.*`, `System.Net.NetworkInformation.*`, `System.Net.Quic.*` |
+| BLK031 | Allowed only with `network`: `System.Net.Http.*`, `System.Net.WebSockets.*`, `System.Net.Mail.*`, `WebClient`, `WebRequest`, `HttpWebRequest`, `HttpWebResponse`, `WebResponse`, `FtpWebRequest`, `Dns`, `ServicePoint`, `ServicePointManager` |
+| BLK040 | All of `System.Security.*` except hashing and randomness: `SHA256/384/512`, `HMACSHA256/384/512`, `HashAlgorithm`, `HMAC`, `KeyedHashAlgorithm`, `IncrementalHash`, `HashAlgorithmName`, `RandomNumberGenerator`, `CryptographicOperations`, `CryptographicException`. `MD5` and `SHA1` are denied |
+| BLK041 | `Console` (use `context.Logger`) |
+
+* Time: use `context.Time` (`GetUtcNow()`, `GetTimestamp()`). `Task.Delay` is allowed but use the `TimeProvider` overload
+  `Task.Delay(delay, context.Time, ct)`; for periodic work prefer `ITickListener`.
+* Threads: no `Thread`, no `Task.Run` loops, no blocking. Use `async`/`await` and honour `CancellationToken`.
+* Network only with the `network` capability, never in the tests.
 * Plugins can only **tighten** enforcement. There is no allow verdict: an interceptor can `Block` or `Abstain`. Critical Windows
   processes are never blocked regardless.
 * Lock votes may only veto voluntary actions (uninstall, remove/disable plugin, change protection settings, emergency pass).
@@ -219,8 +253,9 @@ Validate every `UiAction` (kind, element id, value, form values) before acting; 
 
 * `PluginTests.cs` is mandatory. Blocker compiles it with your code and runs every test against `FakePluginContext`
   before installing. **All tests must pass; any failure blocks installation.**
-* Allowed: xUnit v3 `[Fact]`, `[Theory]` with `[InlineData]`, and `Xunit.Assert`. Not allowed: `Skip`, `MemberData`/`ClassData`,
-  fixtures, `async void`, real time (`Task.Delay`, `DateTime.Now`), file or network access.
+* Allowed: xUnit v3 `[Fact]`, `[Theory]` with `[InlineData]`, and `Xunit.Assert`. Failing by design: `Skip`/`SkipUnless`/`SkipWhen`,
+  `Explicit`, `async void` tests, `MemberData`/`ClassData`, fixtures. Also avoid real time and file or network access.
+* Limits: 5 seconds per test (including setup and teardown), 60 seconds for the whole run; tests not finished in time fail.
 * Test classes are `public`, have a public parameterless constructor and live in namespace `<YourNamespace>.Tests`.
 * Use `Blocker.Plugin.Testing`:
   `new FakePluginContext(pluginId, capabilities)` (no capabilities means all granted), `FakeTime`, `FakeSession.Current`,
@@ -235,7 +270,7 @@ Validate every `UiAction` (kind, element id, value, form values) before acting; 
 
 1. Make sure `plugin.json` is valid and the version is higher than the installed one.
 2. Select the **contents** of this folder (not the folder itself) and zip them, so `plugin.json` is at the ZIP root.
-3. The ZIP contains only `.cs`, `.json`, `.md` files, at most 50 files and 2 MB unpacked.
+3. The ZIP contains only `.cs`, `.json`, `.md` files and respects the limits in section 1 (5 MB, 50 entries, 2 MB unpacked).
 4. In Blocker open Plugins, choose the ZIP. Installing, updating, removing or disabling plugins is blocked while a detox session is active.
 
 ## 9. Common errors and fixes
@@ -246,8 +281,9 @@ Validate every `UiAction` (kind, element id, value, form values) before acting; 
 | Invalid plugin id | Lowercase reverse-DNS, 2 to 5 segments, e.g. `com.example.my-plugin`. |
 | Unknown capability | Use only names from the capability table. |
 | Entry type not found / no parameterless constructor | `entryType` must be `Namespace.Class`, public, implementing `IBlockerPlugin`. |
-| Uses API X which requires capability Y | Add Y to `capabilities`, or remove the API call. |
-| Forbidden API | Replace by SDK services (storage instead of files, `context.Time` instead of `DateTime.Now`). |
+| `BLK008` missing capability | Add the named capability to `capabilities`, or remove the interface/call. |
+| `BLK031` on `System.Net.Http` | Add `network` to `capabilities`, or remove the API call. |
+| Other `BLKxxx` | Forbidden API (section 6). Replace by SDK services (storage instead of files, `context.Time` instead of `DateTime.Now`). |
 | `PluginCapabilityException` in a test | The test context was created without that capability, or the manifest list is incomplete. |
 | `UiValidationException` | Fix the tree: unique ids, texts under 2000 chars, no control characters, progress value between 0 and max. |
 | Plugin `Faulted` | A callback exceeded 50 ms or threw repeatedly: render from cache, move work to a tick listener. |
@@ -256,7 +292,7 @@ Validate every `UiAction` (kind, element id, value, form values) before acting; 
 ## 10. Definition of done
 
 - [ ] `plugin.json`: unique `id`, valid `version`, `sdkVersion` `1.0`, correct `entryType`, minimal capabilities that match the code.
-- [ ] No forbidden API, no `DateTime.Now`, no `async void`, no blocking calls, no empty `catch`.
+- [ ] No denied API (section 6): no `DateTime.Now`, no `async void`, no blocking calls, no empty `catch`.
 - [ ] Every callback runs well under 50 ms (renders use cached state only).
 - [ ] All user and IPC input is validated; unexpected input is ignored.
 - [ ] UI follows `STYLE_GUIDE.md` (declarative blocks only, semantic tones, plain text, valid tree).

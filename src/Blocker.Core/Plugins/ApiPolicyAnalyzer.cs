@@ -1,6 +1,8 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Reflection;
 using Blocker.Sdk;
+using Blocker.Sdk.Events;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -22,7 +24,8 @@ public sealed record PluginDiagnostic(string File, int Line, string RuleId, stri
 /// <summary>
 /// Semantic API policy for plugin code. Every symbol a plugin references (names, object creations, attributes) is
 /// matched against <see cref="ApiPolicyRules"/>; <c>typeof(...)</c> and <c>nameof(...)</c> are always fine because they
-/// only name a type. Unsafe and native-interop syntax is rejected outright.
+/// only name a type. Unsafe and native-interop syntax is rejected outright. Extension interfaces and capability-gated
+/// SDK calls (BLK008) must have their capability in the manifest.
 /// </summary>
 public static class ApiPolicyAnalyzer
 {
@@ -83,6 +86,7 @@ public static class ApiPolicyAnalyzer
             foreach (SyntaxNode node in root.DescendantNodes(Descend))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                CheckCapabilities(tree, node, model, cancellationToken);
                 if (node is SimpleNameSyntax or BaseObjectCreationExpressionSyntax or AttributeSyntax)
                 {
                     CheckReference(tree, node, model.GetSymbolInfo(node, cancellationToken));
@@ -91,6 +95,67 @@ public static class ApiPolicyAnalyzer
                 {
                     Add(tree, node.GetLocation(), ApiPolicyRules.AsyncVoidId, ApiPolicyRules.AsyncVoidReason);
                 }
+            }
+        }
+
+        private void CheckCapabilities(SyntaxTree tree, SyntaxNode node, SemanticModel model, CancellationToken cancellationToken)
+        {
+            if (node is TypeDeclarationSyntax declaration && model.GetDeclaredSymbol(declaration, cancellationToken) is { } type)
+            {
+                List<string> missing = [];
+                foreach (INamedTypeSymbol contract in type.AllInterfaces)
+                {
+                    if (ApiPolicyRules.ExtensionInterfaces.TryGetValue(FullName(contract.OriginalDefinition), out PluginCapability needed)
+                        && !capabilities.Contains(needed))
+                    {
+                        missing.Add($"'{PluginCapabilities.ToManifestName(needed)}' (for {contract.Name})");
+                    }
+                }
+
+                if (missing.Count > 0)
+                {
+                    missing.Sort(StringComparer.Ordinal);
+                    Add(tree, declaration.Identifier.GetLocation(), ApiPolicyRules.MissingCapabilityId,
+                        $"Class '{type.Name}' needs {string.Join(", ", missing)}; declare it in plugin.json or remove the interface.");
+                }
+            }
+            else if (node is InvocationExpressionSyntax invocation
+                && model.GetSymbolInfo(invocation, cancellationToken).Symbol is IMethodSymbol { ContainingType: { } owner } method)
+            {
+                string ownerName = FullName(owner.OriginalDefinition);
+                CapabilityCall? call = ApiPolicyRules.CapabilityCalls.FirstOrDefault(c => c.Type == ownerName && c.Method == method.Name);
+                if (call is null)
+                {
+                    return;
+                }
+
+                PluginCapability? needed = call.Capability
+                    ?? (method.TypeArguments is [INamedTypeSymbol eventType] ? CoreEventCapability(eventType) : null);
+                if (needed is { } capability && !capabilities.Contains(capability))
+                {
+                    Location location = invocation.Expression is MemberAccessExpressionSyntax access ? access.Name.GetLocation() : invocation.GetLocation();
+                    Add(tree, location, ApiPolicyRules.MissingCapabilityId,
+                        $"'{owner.Name}.{method.Name}' needs the '{PluginCapabilities.ToManifestName(capability)}' capability; declare it in plugin.json.");
+                }
+            }
+        }
+
+        /// <summary>The capability needed for a core SDK event type; <see langword="null"/> for any other type.</summary>
+        private static PluginCapability? CoreEventCapability(INamedTypeSymbol eventType)
+        {
+            Assembly sdk = typeof(IBlockerEvent).Assembly;
+            if (eventType.ContainingAssembly?.Name != sdk.GetName().Name || sdk.GetType(eventType.ToDisplayString(), throwOnError: false) is not { } type)
+            {
+                return null;
+            }
+
+            try
+            {
+                return PluginCapabilities.RequiredForEvent(type);
+            }
+            catch (ArgumentException)
+            {
+                return null;
             }
         }
 

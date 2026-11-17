@@ -13,4 +13,4 @@ A tiny working plugin that counts the distractions Blocker stopped during a deto
    Installing or removing plugins is not possible during an active detox session.
 
 Files: `plugin.json` (manifest), `PluginMain.cs` (plugin), `PluginTests.cs` (tests), `AGENT_INSTRUCTIONS.md`, `STYLE_GUIDE.md`.
-Allowed in the ZIP: `.cs`, `.json`, `.md`; at most 50 files and 2 MB.
+Allowed in the ZIP: `.cs`, `.json`, `.md`; at most 50 entries, 2 MB unpacked, 5 MB ZIP. `description` in `plugin.json` is optional.

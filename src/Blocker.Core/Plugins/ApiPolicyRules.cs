@@ -36,6 +36,9 @@ internal sealed record ApiRule(string Id, string Reason, string Target, ApiRuleS
     public Func<ISymbol, bool>? Where { get; init; }
 }
 
+/// <summary>A call that needs a capability. A <see langword="null"/> <paramref name="Capability"/> means it depends on the event type argument.</summary>
+internal sealed record CapabilityCall(string Type, string Method, PluginCapability? Capability);
+
 /// <summary>A rule on syntax alone (language features that have no safe subset).</summary>
 internal sealed record SyntaxRule(string Id, string Reason, SyntaxKind Kind);
 
@@ -52,6 +55,30 @@ internal static class ApiPolicyRules
     public const string AsyncVoidReason = "'async void' hides exceptions from the host; return Task or ValueTask.";
     public const string DynamicId = "BLK006";
     public const string DynamicReason = "'dynamic' binds members at run time and bypasses the API policy.";
+
+    public const string MissingCapabilityId = "BLK008";
+
+    /// <summary>Gets the SDK extension interfaces (full metadata names) and the capability implementing each one requires.</summary>
+    public static IReadOnlyDictionary<string, PluginCapability> ExtensionInterfaces { get; } = new Dictionary<string, PluginCapability>(StringComparer.Ordinal)
+    {
+        ["Blocker.Sdk.Extensions.IProcessInterceptor"] = PluginCapability.ProcessInterception,
+        ["Blocker.Sdk.Extensions.IWindowInterceptor"] = PluginCapability.WindowInterception,
+        ["Blocker.Sdk.Extensions.ITickListener"] = PluginCapability.Tick,
+        ["Blocker.Sdk.Extensions.ILockPolicyContributor"] = PluginCapability.LockPolicy,
+        ["Blocker.UI.Sdk.IUiPagePlugin"] = PluginCapability.UiPage,
+        ["Blocker.UI.Sdk.IDashboardWidgetPlugin"] = PluginCapability.UiDashboardWidget,
+        ["Blocker.UI.Sdk.ISettingsSectionPlugin"] = PluginCapability.UiSettingsSection,
+        ["Blocker.UI.Sdk.IBlockScreenPlugin"] = PluginCapability.UiBlockScreen,
+    };
+
+    /// <summary>Gets the SDK methods that throw <c>PluginCapabilityException</c> at run time without their capability.</summary>
+    public static IReadOnlyList<CapabilityCall> CapabilityCalls { get; } =
+    [
+        new("Blocker.Sdk.Events.IEventBus", "Subscribe", null),
+        new("Blocker.Sdk.Events.IEventBus", "SubscribeCustom", PluginCapability.CustomEvents),
+        new("Blocker.Sdk.Events.IEventBus", "PublishCustomAsync", PluginCapability.CustomEvents),
+        new("Blocker.Sdk.Ipc.IIpcRegistry", "Register", PluginCapability.Ipc),
+    ];
 
     private const string Clock = "Use context.Time (TimeProvider); the real clock makes plugins and tests non-deterministic.";
     private const string FileSystem = "Plugins cannot access the file system; use context.Storage.";

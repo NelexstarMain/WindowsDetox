@@ -135,7 +135,7 @@ public sealed partial class HostEventBus : IEventPublisher, IAsyncDisposable
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested)
         {
-            // Shutting down: remaining deliveries are abandoned.
+            LogDeliveryAbandoned(_logger, s.Plugin.Id.Value, evt.GetType().Name);
         }
     }
 
@@ -154,6 +154,9 @@ public sealed partial class HostEventBus : IEventPublisher, IAsyncDisposable
             }
         });
     }
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Bus stopping: delivery of {EventType} to plugin {PluginId} abandoned.")]
+    private static partial void LogDeliveryAbandoned(ILogger logger, string pluginId, string eventType);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin {PluginId} handler for {EventType} failed: {Outcome}.")]
     private static partial void LogHandlerFailed(ILogger logger, Exception? exception, string pluginId, string eventType, BreakerOutcome outcome);

@@ -371,6 +371,238 @@ public sealed class ApiPolicyAnalyzerTests
         Assert.Equal("BLK025", diagnostic.RuleId);
     }
 
+    [Theory]
+    [InlineData("Blocker.Sdk.Extensions.IProcessInterceptor", PluginCapability.ProcessInterception)]
+    [InlineData("Blocker.Sdk.Extensions.IWindowInterceptor", PluginCapability.WindowInterception)]
+    [InlineData("Blocker.Sdk.Extensions.ITickListener", PluginCapability.Tick)]
+    [InlineData("Blocker.Sdk.Extensions.ILockPolicyContributor", PluginCapability.LockPolicy)]
+    [InlineData("Blocker.UI.Sdk.IUiPagePlugin", PluginCapability.UiPage)]
+    [InlineData("Blocker.UI.Sdk.IDashboardWidgetPlugin", PluginCapability.UiDashboardWidget)]
+    [InlineData("Blocker.UI.Sdk.ISettingsSectionPlugin", PluginCapability.UiSettingsSection)]
+    [InlineData("Blocker.UI.Sdk.IBlockScreenPlugin", PluginCapability.UiBlockScreen)]
+    public void Implementing_an_extension_interface_without_its_capability_is_reported_at_the_class(string contract, PluginCapability capability)
+    {
+        string source = $$"""
+            // header
+            public sealed class Ok { }
+
+            public abstract class Mine : {{contract}}
+            {
+            }
+            """;
+
+        PluginDiagnostic diagnostic = Single(source);
+
+        Assert.Equal("BLK008", diagnostic.RuleId);
+        Assert.Equal(4, diagnostic.Line);
+        Assert.Contains($"'{PluginCapabilities.ToManifestName(capability)}'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Empty(PluginTestSupport.Analyze(source, capability));
+    }
+
+    [Fact]
+    public void Several_missing_extension_capabilities_are_reported_once_per_class_and_the_granted_one_is_skipped()
+    {
+        const string Source = """
+            public abstract class Mine : Blocker.Sdk.Extensions.ITickListener, Blocker.Sdk.Extensions.ILockPolicyContributor, Blocker.UI.Sdk.IBlockScreenPlugin
+            {
+            }
+            """;
+
+        PluginDiagnostic diagnostic = Single(Source, PluginCapability.Tick);
+
+        Assert.Equal("BLK008", diagnostic.RuleId);
+        Assert.Equal(1, diagnostic.Line);
+        Assert.Contains("'lockpolicy'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'ui.blockscreen'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("'tick'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Inherited_extension_interfaces_are_checked_on_the_derived_class()
+    {
+        const string Source = """
+            public abstract class Base : Blocker.Sdk.Extensions.ITickListener { }
+
+            public abstract class Derived : Base { }
+            """;
+
+        IReadOnlyList<PluginDiagnostic> diagnostics = PluginTestSupport.Analyze(Source, PluginCapability.Tick);
+        Assert.Empty(diagnostics);
+
+        diagnostics = PluginTestSupport.Analyze(Source);
+        Assert.Equal([1, 3], diagnostics.Select(d => d.Line));
+        Assert.All(diagnostics, d => Assert.Equal("BLK008", d.RuleId));
+    }
+
+    [Fact]
+    public void Plain_classes_and_the_ui_contribution_base_interface_need_no_capability()
+    {
+        const string Source = """
+            public abstract class Base : Blocker.UI.Sdk.IUiContribution { }
+
+            public sealed class Plain : Blocker.Sdk.IBlockerPlugin
+            {
+                public System.Threading.Tasks.ValueTask InitializeAsync(Blocker.Sdk.IPluginContext context, System.Threading.CancellationToken cancellationToken) => default;
+
+                public System.Threading.Tasks.ValueTask ShutdownAsync(System.Threading.CancellationToken cancellationToken) => default;
+            }
+            """;
+
+        Assert.Empty(PluginTestSupport.Analyze(Source));
+    }
+
+    [Theory]
+    [InlineData("SessionStarted", PluginCapability.SessionEvents)]
+    [InlineData("SessionEnded", PluginCapability.SessionEvents)]
+    [InlineData("ProcessBlocked", PluginCapability.ProcessEvents)]
+    [InlineData("ActiveWindowChanged", PluginCapability.WindowEvents)]
+    [InlineData("UserIdleChanged", PluginCapability.IdleEvents)]
+    [InlineData("CustomPluginEvent", PluginCapability.CustomEvents)]
+    public void Subscribing_to_a_core_event_without_its_capability_is_reported(string eventType, PluginCapability capability)
+    {
+        string source = $$"""
+            using Blocker.Sdk.Events;
+            public static class C
+            {
+                public static void M(IEventBus bus)
+                {
+                    bus.Subscribe<{{eventType}}>((e, ct) => System.Threading.Tasks.ValueTask.CompletedTask);
+                }
+            }
+            """;
+
+        PluginDiagnostic diagnostic = Single(source);
+
+        Assert.Equal("BLK008", diagnostic.RuleId);
+        Assert.Equal(6, diagnostic.Line);
+        Assert.Contains($"'{PluginCapabilities.ToManifestName(capability)}'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Empty(PluginTestSupport.Analyze(source, capability));
+        Assert.Single(PluginTestSupport.Analyze(source, PluginCapability.Tick));
+    }
+
+    [Fact]
+    public void Subscribe_with_an_inferred_event_type_is_checked_too()
+    {
+        const string Source = """
+            using Blocker.Sdk.Events;
+            public static class C
+            {
+                public static void M(IEventBus bus)
+                {
+                    bus.Subscribe((ProcessBlocked e, System.Threading.CancellationToken ct) => System.Threading.Tasks.ValueTask.CompletedTask);
+                }
+            }
+            """;
+
+        PluginDiagnostic diagnostic = Single(Source);
+
+        Assert.Equal("BLK008", diagnostic.RuleId);
+        Assert.Equal(6, diagnostic.Line);
+        Assert.Empty(PluginTestSupport.Analyze(Source, PluginCapability.ProcessEvents));
+    }
+
+    [Fact]
+    public void Subscribe_with_a_type_parameter_or_a_plugin_type_is_not_decidable_and_not_reported()
+    {
+        const string Source = """
+            using Blocker.Sdk.Events;
+            public sealed record ProcessBlocked : IBlockerEvent { public System.DateTimeOffset OccurredAt => default; }
+            public static class C
+            {
+                public static void Generic<T>(IEventBus bus) where T : class, IBlockerEvent
+                {
+                    bus.Subscribe<T>((e, ct) => System.Threading.Tasks.ValueTask.CompletedTask);
+                }
+
+                public static void Local(IEventBus bus)
+                {
+                    bus.Subscribe<ProcessBlocked>((e, ct) => System.Threading.Tasks.ValueTask.CompletedTask);
+                }
+            }
+            """;
+
+        Assert.DoesNotContain(PluginTestSupport.Analyze(Source), d => d.RuleId == "BLK008");
+    }
+
+    [Theory]
+    [InlineData("bus.SubscribeCustom(\"t\", (e, ct) => System.Threading.Tasks.ValueTask.CompletedTask);", "Blocker.Sdk.Events.IEventBus bus", PluginCapability.CustomEvents)]
+    [InlineData("bus.PublishCustomAsync(\"name\", \"{}\");", "Blocker.Sdk.Events.IEventBus bus", PluginCapability.CustomEvents)]
+    [InlineData("ipc.Register(\"ping\", (json, ct) => System.Threading.Tasks.ValueTask.FromResult(json));", "Blocker.Sdk.Ipc.IIpcRegistry ipc", PluginCapability.Ipc)]
+    public void Custom_events_and_ipc_calls_without_their_capability_are_reported(string statement, string parameter, PluginCapability capability)
+    {
+        string source = $$"""
+            public static class C
+            {
+                public static void M({{parameter}})
+                {
+                    {{statement}}
+                }
+            }
+            """;
+
+        PluginDiagnostic diagnostic = Single(source);
+
+        Assert.Equal("BLK008", diagnostic.RuleId);
+        Assert.Equal(5, diagnostic.Line);
+        Assert.Contains($"'{PluginCapabilities.ToManifestName(capability)}'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Empty(PluginTestSupport.Analyze(source, capability));
+    }
+
+    [Fact]
+    public void Every_capability_table_entry_names_an_sdk_symbol_that_exists()
+    {
+        CSharpCompilation compilation = PluginTestSupport.CompilationOf("public class C { }");
+
+        foreach (string contract in ApiPolicyRules.ExtensionInterfaces.Keys)
+        {
+            Assert.True(compilation.GetTypeByMetadataName(contract) is { TypeKind: TypeKind.Interface }, contract);
+        }
+
+        foreach (CapabilityCall call in ApiPolicyRules.CapabilityCalls)
+        {
+            INamedTypeSymbol? type = compilation.GetTypeByMetadataName(call.Type);
+            Assert.True(type is not null && type.GetMembers(call.Method).Length > 0, $"{call.Type}.{call.Method}");
+        }
+    }
+
+    [Fact]
+    public async Task Agent_instructions_document_every_rule_id_and_denied_symbol()
+    {
+        string doc = (await PluginTestSupport.StarterFilesAsync())["AGENT_INSTRUCTIONS.md"];
+        List<string> missing = [];
+        foreach (string id in ApiPolicyRules.All.Select(r => r.Id).Concat(ApiPolicyRules.Syntax.Select(r => r.Id)).Append(ApiPolicyRules.MissingCapabilityId).Distinct())
+        {
+            if (!doc.Contains(id, StringComparison.Ordinal))
+            {
+                missing.Add(id);
+            }
+        }
+
+        foreach (ApiRule rule in ApiPolicyRules.All)
+        {
+            string name = rule.Target[(rule.Target.LastIndexOf('.') + 1)..];
+            if (rule.Scope == ApiRuleScope.Namespace)
+            {
+                name = rule.Target;
+            }
+
+            if (!doc.Contains(name, StringComparison.Ordinal))
+            {
+                missing.Add($"{rule.Id} {rule.Target}");
+            }
+
+            foreach (string member in rule.Members ?? [])
+            {
+                if (member != ".ctor" && !doc.Contains(member, StringComparison.Ordinal))
+                {
+                    missing.Add($"{rule.Id} {rule.Target}.{member}");
+                }
+            }
+        }
+
+        Assert.Empty(missing);
+    }
+
     [Fact]
     public void Rule_ids_are_well_formed_and_every_rule_has_a_reason()
     {
