@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>Blocker.Platform.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Win32 implementations of Blocker.Core ports (CsWin32 only; never shells out to cmd/powershell/sc/reg).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.Core\Blocker.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- One NativeMethods.txt per feature area; CsWin32 merges all of them. -->
+    <AdditionalFiles Include="Processes\NativeMethods.txt" />
+    <AdditionalFiles Include="Changes\NativeMethods.txt" />
+    <AdditionalFiles Include="NativeMethods.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blocker.Platform.Windows.Tests" />
+  </ItemGroup>
+</Project>
