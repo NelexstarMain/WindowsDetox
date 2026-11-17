@@ -1,0 +1,16 @@
+{
+  "id": "com.example.focus-counter",
+  "name": "Focus Counter",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "Counts the distractions Blocker stopped during a detox session and shows the number on the dashboard and the block screen.",
+  "sdkVersion": "1.0",
+  "entryType": "FocusCounter.PluginMain",
+  "capabilities": [
+    "events.session",
+    "events.process",
+    "ui.dashboard",
+    "ui.settings",
+    "ui.blockscreen"
+  ]
+}

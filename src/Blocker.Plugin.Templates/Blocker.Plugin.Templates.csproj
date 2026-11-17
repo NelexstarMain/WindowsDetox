@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Blocker.Plugin.Templates</RootNamespace>
+    <AssemblyName>Blocker.Plugin.Templates</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Embeds the plugin starter template (manifest, sample plugin, tests and agent documentation) and writes it as a ZIP.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\templates\PluginStarter\*" Exclude="..\..\templates\PluginStarter\bin\**;..\..\templates\PluginStarter\obj\**"
+                      LogicalName="PluginStarter/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,4 @@
+#nullable enable
+Blocker.Plugin.Templates.PluginStarterTemplate
+static Blocker.Plugin.Templates.PluginStarterTemplate.FileNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Blocker.Plugin.Templates.PluginStarterTemplate.WriteZipAsync(System.IO.Stream! destination, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
