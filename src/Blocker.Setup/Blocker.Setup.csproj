@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Blocker.Setup</RootNamespace>
+    <AssemblyName>Blocker.Setup</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Blocker.UI\Assets\app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Installer and uninstaller: copies the application, registers both services, the per-user agent, shortcuts and the Apps &amp; features entry.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Resource Include="..\Blocker.UI\Assets\app.ico" Link="Assets\app.ico" />
+  </ItemGroup>
+  <!-- eng/build-installer.sh passes -p:SetupPayload=<zip> for the single-file installer; the copy inside the install directory has no payload and runs as the uninstaller. -->
+  <ItemGroup Condition="'$(SetupPayload)' != ''">
+    <EmbeddedResource Include="$(SetupPayload)" LogicalName="payload.zip" />
+  </ItemGroup>
+</Project>

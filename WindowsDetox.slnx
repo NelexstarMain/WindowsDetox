@@ -8,6 +8,7 @@
     <Project Path="src/Blocker.PluginHost/Blocker.PluginHost.csproj" />
     <Project Path="src/Blocker.SDK/Blocker.SDK.csproj" />
     <Project Path="src/Blocker.Service/Blocker.Service.csproj" />
+    <Project Path="src/Blocker.Setup/Blocker.Setup.csproj" />
     <Project Path="src/Blocker.Stub/Blocker.Stub.csproj" />
     <Project Path="src/Blocker.UI/Blocker.UI.csproj" />
     <Project Path="src/Blocker.UI.Controls/Blocker.UI.Controls.csproj" />

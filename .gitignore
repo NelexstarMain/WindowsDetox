@@ -9,3 +9,4 @@ TestResults/
 .dotnet/
 *.dmp
 .claude/worktrees/
+out/
