@@ -248,9 +248,10 @@ internal sealed class ServiceHostHarness : IAsyncDisposable
 
     public BlockerServiceApp App { get; set; } = null!;
 
-    public static async Task<ServiceHostHarness> StartAsync(bool devMode = false)
+    public static async Task<ServiceHostHarness> StartAsync(bool devMode = false, Action<ServiceHostHarness>? arrange = null)
     {
         var harness = new ServiceHostHarness(devMode);
+        arrange?.Invoke(harness);
         harness.App = await harness.StartAppAsync();
         return harness;
     }

@@ -18,6 +18,24 @@ for project in Blocker.Service Blocker.Watchdog Blocker.PluginHost Blocker.Stub 
 done
 find "$app" \( -name '*.pdb' -o -name '*.xml' \) -delete
 
+echo "bundle plugins"
+mkdir -p "$app/bundled-plugins"
+python3 - plugins "$app/bundled-plugins" <<'PY'
+import json, os, sys, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+for name in sorted(os.listdir(src)) if os.path.isdir(src) else []:
+    folder = os.path.join(src, name)
+    manifest = os.path.join(folder, "plugin.json")
+    if not os.path.isfile(manifest):
+        continue
+    plugin_id = json.load(open(manifest, encoding="utf-8"))["id"]
+    with zipfile.ZipFile(os.path.join(dst, plugin_id + ".zip"), "w", zipfile.ZIP_DEFLATED) as z:
+        for file in sorted(os.listdir(folder)):
+            if file.endswith((".cs", ".json", ".md")):
+                z.write(os.path.join(folder, file), file)
+    print("  " + plugin_id)
+PY
+
 echo "zip payload"
 python3 - "$app" "$out/payload.zip" <<'PY'
 import os, sys, zipfile

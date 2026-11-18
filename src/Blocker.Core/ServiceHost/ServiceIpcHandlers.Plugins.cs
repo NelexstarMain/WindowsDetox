@@ -45,6 +45,24 @@ internal sealed partial class ServiceIpcHandlers
             return new InstallPluginResponse(false, null, ["Plugin packages must be smaller than 3 MB."], nameof(PluginInstallStageDto.Package));
         }
 
+        return await InstallPackageAsync(package, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Installs a plugin shipped with the application (from the protected install directory) through the same pipeline as a
+    /// user install: evaluation in the restricted host, lock votes, no session. Callers check the session state first.
+    /// </summary>
+    /// <param name="package">ZIP package.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The install result.</returns>
+    internal async ValueTask<InstallPluginResponse> InstallBundledAsync(byte[] package, CancellationToken cancellationToken)
+    {
+        RequireNoSession();
+        return await InstallPackageAsync(package, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<InstallPluginResponse> InstallPackageAsync(byte[] package, CancellationToken cancellationToken)
+    {
         await _pluginGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {

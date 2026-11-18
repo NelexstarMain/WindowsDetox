@@ -27,6 +27,8 @@ namespace Blocker.Core.ServiceHost;
 public sealed partial class BlockerServiceApp : IAsyncDisposable
 {
     private static readonly TimeSpan TimeRefreshInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan BundledRetryDelay = TimeSpan.FromSeconds(15);
+    private const int BundledAttempts = 8;
     private static readonly TimeSpan TimeRetryInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan StatusInterval = TimeSpan.FromSeconds(1);
 
@@ -47,6 +49,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private readonly List<Task> _background = [];
     private readonly CancellationTokenSource _stop = new();
     private readonly SemaphoreSlim _syncGate = new(1, 1);
+    private readonly ServiceIpcHandlers _handlers;
     private SessionStatusDto? _lastPublished;
     private bool? _lastActive;
     private Guid? _lastSessionId;
@@ -144,6 +147,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 SyncStatusAsync),
             loggers.CreateLogger<ServiceIpcHandlers>());
         _registrations.AddRange(handlers.RegisterAll(Server));
+        _handlers = handlers;
         _notifications = new NotificationPump(agent, Server, loggers.CreateLogger<NotificationPump>());
         Coordinator.Notification += OnNotification;
     }
@@ -256,6 +260,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             _pluginServer.Start();
             _supervisor.Start();
         }
+
+        _background.Add(RunGuardedAsync("Bundled plugins", InstallBundledPluginsAsync));
 
         _background.Add(RunGuardedAsync("Time refresh", RefreshTimeLoopAsync));
         _background.Add(RunGuardedAsync("Status", StatusLoopAsync));

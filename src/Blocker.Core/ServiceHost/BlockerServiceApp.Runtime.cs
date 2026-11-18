@@ -145,6 +145,56 @@ public sealed partial class BlockerServiceApp
         }
     }
 
+    /// <summary>
+    /// Installs each package in the install directory's <c>bundled-plugins</c> folder once, through the normal pipeline (evaluation in the
+    /// restricted host). Offered packages are remembered, so a plugin the user removed stays removed. Waits while a session runs.
+    /// </summary>
+    private async Task InstallBundledPluginsAsync(CancellationToken cancellationToken)
+    {
+        IFileSystem fs = _ports.FileSystem;
+        if (!fs.Directory.Exists(_paths.BundledPluginsDirectory))
+        {
+            return;
+        }
+
+        HashSet<string> offered = fs.File.Exists(_paths.BundledPluginsMarkerPath)
+            ? [.. await fs.File.ReadAllLinesAsync(_paths.BundledPluginsMarkerPath, cancellationToken).ConfigureAwait(false)]
+            : [];
+        foreach (string path in fs.Directory.GetFiles(_paths.BundledPluginsDirectory, "*.zip").Order(StringComparer.OrdinalIgnoreCase))
+        {
+            string name = fs.Path.GetFileName(path);
+            if (offered.Contains(name))
+            {
+                continue;
+            }
+
+            byte[] package = await fs.File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            for (int attempt = 1; ; attempt++)
+            {
+                while (Coordinator.IsSessionActive)
+                {
+                    await Task.Delay(BundledRetryDelay, _ports.Time, cancellationToken).ConfigureAwait(false);
+                }
+
+                try
+                {
+                    InstallPluginResponse result = await _handlers.InstallBundledAsync(package, cancellationToken).ConfigureAwait(false);
+                    LogBundledPlugin(_logger, name, result.Success, string.Join(" | ", result.Errors));
+                    break;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException && attempt < BundledAttempts)
+                {
+                    // The plugin host may still be starting: try again shortly.
+                    LogBundledPluginRetry(_logger, ex, name, attempt);
+                    await Task.Delay(BundledRetryDelay, _ports.Time, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            offered.Add(name);
+            await fs.File.AppendAllLinesAsync(_paths.BundledPluginsMarkerPath, [name], cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task ScanOnceAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<InstalledApp> apps = await _ports.AppScanner.ScanAsync(cancellationToken).ConfigureAwait(false);
@@ -171,6 +221,12 @@ public sealed partial class BlockerServiceApp
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Starting the watchdog service failed.")]
     private static partial void LogWatchdogStartFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Bundled plugin {Package}: installed={Success} {Errors}")]
+    private static partial void LogBundledPlugin(ILogger logger, string package, bool success, string errors);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Installing bundled plugin {Package} failed (attempt {Attempt}); retrying.")]
+    private static partial void LogBundledPluginRetry(ILogger logger, Exception exception, string package, int attempt);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Background loop '{Name}' stopped.")]
     private static partial void LogLoopStopped(ILogger logger, string name);

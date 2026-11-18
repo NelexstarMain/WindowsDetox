@@ -59,6 +59,12 @@ public sealed record BlockerPaths
     /// <summary>Gets the directory of installed plugins.</summary>
     public string PluginsDirectory => Combine(DataRoot, "plugins");
 
+    /// <summary>Gets the directory of plugin packages shipped with the application (installed once on first start).</summary>
+    public string BundledPluginsDirectory => Combine(InstallDirectory, "bundled-plugins");
+
+    /// <summary>Gets the file listing bundled packages already offered, so a plugin the user removed is not reinstalled.</summary>
+    public string BundledPluginsMarkerPath => Combine(DataRoot, "bundled-plugins.txt");
+
     /// <summary>Gets the log directory.</summary>
     public string LogsDirectory => Combine(DataRoot, "logs");
 
