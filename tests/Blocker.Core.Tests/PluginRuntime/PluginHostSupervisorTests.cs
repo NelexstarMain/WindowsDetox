@@ -1,3 +1,4 @@
+using Blocker.Core.Tests.TestSupport;
 using System.IO.Abstractions.TestingHelpers;
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
@@ -108,7 +109,7 @@ public sealed class PluginHostSupervisorTests
     public async Task A_host_that_never_registers_is_killed_after_the_registration_timeout()
     {
         var time = new FakeTimeProvider();
-        await using var h = new SupervisorHarness(launch => Task.Delay(Timeout.Infinite, launch.Stop), time);
+        await using var h = new SupervisorHarness(launch => Hang.UntilCancelled(launch.Stop), time);
 
         h.Supervisor.Start();
         await Spin.UntilAsync(() =>
@@ -147,11 +148,11 @@ public sealed class PluginHostSupervisorTests
                 HostBodies.Answer<LoadPluginsRequest, LoadPluginsResponse>(client, IpcMethods.HostLoadPlugins, (_, _) => Task.FromResult(new LoadPluginsResponse([])));
                 HostBodies.Answer<InterceptProcessRequest, InterceptResponse>(client, IpcMethods.HostInterceptProcess, async (_, ct) =>
                 {
-                    await Task.Delay(Timeout.Infinite, ct);
+                    await Hang.UntilCancelled(ct);
                     return InterceptResponse.Abstain;
                 });
             },
-            (_, stop) => Task.Delay(Timeout.Infinite, stop));
+            (_, stop) => Hang.UntilCancelled(stop));
         await using var h = new SupervisorHarness(body, time);
         h.Supervisor.Start();
         await Soon(h.Supervisor.WaitForStateAsync(PluginHostState.Running, Ct));
@@ -190,7 +191,7 @@ public sealed class PluginHostSupervisorTests
                 });
                 HostBodies.Answer<SessionChangedRequest, EmptyDto>(client, IpcMethods.HostSessionChanged, (_, _) => Task.FromResult(new EmptyDto()));
             },
-            (_, stop) => Task.Delay(Timeout.Infinite, stop));
+            (_, stop) => Hang.UntilCancelled(stop));
         await using var h = new SupervisorHarness(body, time);
         h.Supervisor.Start();
         await Soon(h.Supervisor.WaitForStateAsync(PluginHostState.Running, Ct));
@@ -225,7 +226,7 @@ public sealed class PluginHostSupervisorTests
                 await report.Task.WaitAsync(stop);
                 await client.NotifyAsync(IpcMethods.PluginHostPluginFaulted, IpcJson.ToElement(new PluginFaultedNotification("com.test.p", "too slow")), stop);
                 await client.NotifyAsync(IpcMethods.PluginHostRenderRequested, IpcJson.ToElement(new RenderRequestedNotification("com.test.p", "widget-0")), stop);
-                await Task.Delay(Timeout.Infinite, stop);
+                await Hang.UntilCancelled(stop);
             });
         await using var h = new SupervisorHarness(body, time);
         var faulted = new TaskCompletionSource<PluginFaultedNotification>(TaskCreationOptions.RunContinuationsAsynchronously);

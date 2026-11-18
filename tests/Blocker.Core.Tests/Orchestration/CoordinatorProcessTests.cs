@@ -1,3 +1,4 @@
+using Blocker.Core.Tests.TestSupport;
 using Blocker.Core.Ports;
 using System.IO.Abstractions.TestingHelpers;
 using Blocker.Core.Policy;
@@ -261,7 +262,7 @@ public sealed class CoordinatorProcessTests
                 case 2:
                     throw new InvalidOperationException("plugin crashed");
                 default:
-                    await Task.Delay(Timeout.Infinite, ct); // hangs until the 100 ms budget cancels it
+                    await Hang.UntilCancelled(ct); // hangs until the 100 ms budget cancels it
                     return [InterceptDecision.Block("never reached")];
             }
         });
