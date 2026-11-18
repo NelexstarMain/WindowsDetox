@@ -198,7 +198,7 @@ separate classes (as the template does) or explicitly.
 ## 5. UI
 
 Plugins build UI only from declarative blocks in `Blocker.UI.Sdk` through the `Ui` factory (`Ui.Card`, `Ui.Stat`,
-`Ui.Progress`, `Ui.Button`, `Ui.Toggle`, `Ui.Form`, `Ui.Text`, `Ui.Row`, `Ui.Column`, `Ui.Grid`, `Ui.BarChart`, ...).
+`Ui.Progress`, `Ui.Button`, `Ui.Toggle`, `Ui.Form`, `Ui.Text`, `Ui.Row`, `Ui.Column`, `Ui.Grid`, `Ui.BarChart`, `Ui.DonutChart`, `Ui.Glyph`, ...). `UiDonutChart` shows shares of a whole (1 to 6 slices), `UiHeatmap` shows a rows-by-columns intensity grid (max 12x24), `UiGlyph` draws your logo from SVG path data (commands M L H V C S Q T A Z, size 12 to 96).
 The host renders them with its own style. Read `STYLE_GUIDE.md` for the catalogue, limits and copywriting.
 Element ids (buttons, toggles, forms and form fields) must be unique within one tree: `^[A-Za-z][A-Za-z0-9_-]{0,63}$`.
 Validate every `UiAction` (kind, element id, value, form values) before acting; ignore anything unexpected.

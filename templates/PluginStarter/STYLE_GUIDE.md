@@ -18,6 +18,9 @@ block and the right words.
 | `UiProgress` (`Ui.Progress(value, max, label?)`) | Elapsed or remaining amount. | `0 <= value <= max`, `max > 0`, both finite. |
 | `UiBarChart` (`Ui.BarChart(title, points)`) | Compare a few categories. | Up to 500 points, aim for 7 to 12. `ValueSuffix` for a unit. |
 | `UiLineChart` | Trend over time. | 1 to 6 series, points in x order. |
+| `UiDonutChart` (`Ui.DonutChart(title, slices)`) | Share of a whole (for example time per app category). | 1 to 6 slices, non-negative; optional `CenterValue` and `CenterLabel`. All zero shows an empty ring. |
+| `UiHeatmap` (`new UiHeatmap(rowLabels, columnLabels, values)`) | Activity by two dimensions (weekday by hour). | Up to 12 rows and 24 columns, `Values[row][column]` finite and non-negative; empty column labels keep the axis quiet. |
+| `UiGlyph` (`Ui.Glyph(pathData, size)`) | Your plugin's own vector logo. | Path commands M L H V C S Q T A Z only, up to 4096 characters, size 12 to 96. Coloured by the host (`Tone`, default Accent). |
 | `UiTable` | Short lists of facts. | 1 to 12 columns, every row has one cell per column, up to 500 rows. Use `Monospace` for numeric columns. |
 | `UiButton` (`Ui.Button(id, label, variant, icon?)`) | One action. | Variants: Primary (one per view at most), Secondary, Warning (caution), Subtle (low emphasis, e.g. Reset). `IsEnabled` via the record. |
 | `UiToggle` (`Ui.Toggle(id, label, isOn, description?)`) | A persisted on/off setting. | Receives `UiAction.Toggle`; persist the new value yourself. |
