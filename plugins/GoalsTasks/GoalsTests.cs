@@ -690,6 +690,17 @@ public sealed class GoalsTests
 
     // ---- widget ---------------------------------------------------------------------------------------------------
 
+    private static void AssertFlatWidget(UiCard card)
+    {
+        Assert.True(UiTreeValidator.Validate(card).IsValid);
+        Assert.Equal((null, null, null), (card.Title, card.Subtitle, card.Icon));
+        Assert.Empty(Descendants(card).OfType<UiGlyph>());
+        Assert.Single(Descendants(card).OfType<UiCard>());
+        Assert.Single(Descendants(card).OfType<UiStatTile>());
+        Assert.Single(Descendants(card).OfType<UiProgress>());
+        Assert.True(Descendants(card).OfType<UiToggle>().Count() <= GoalsWidget.VisibleTasks);
+    }
+
     [Fact]
     public async Task The_widget_without_tasks_shows_progress_and_a_hint()
     {
@@ -697,8 +708,7 @@ public sealed class GoalsTests
 
         UiCard card = await RenderWidgetAsync(ctx);
 
-        Assert.True(UiTreeValidator.Validate(card).IsValid);
-        Assert.Equal("Goals & Tasks", card.Title);
+        AssertFlatWidget(card);
         Assert.Equal("0 / 3 tasks", Single<UiStatTile>(card).Value);
         Assert.Equal(new UiProgress(0, 3, null, UiTone.Accent), Single<UiProgress>(card));
         Assert.Empty(Descendants(card).OfType<UiToggle>());
@@ -717,7 +727,7 @@ public sealed class GoalsTests
         await ctx.SendActionAsync(ctx.GetExtension<IDashboardWidgetPlugin>(), UiAction.Toggle("goals-done-1", true), CancellationToken.None);
         UiCard card = await RenderWidgetAsync(ctx);
 
-        Assert.True(UiTreeValidator.Validate(card).IsValid);
+        AssertFlatWidget(card);
         Assert.Equal("1 / 3 tasks", Single<UiStatTile>(card).Value);
         Assert.Equal(["b", "c", "d"], Descendants(card).OfType<UiToggle>().Select(t => t.Label));
         Assert.All(Descendants(card).OfType<UiToggle>(), t => Assert.False(t.IsOn));
@@ -734,6 +744,7 @@ public sealed class GoalsTests
 
         UiCard card = await RenderWidgetAsync(ctx);
 
+        AssertFlatWidget(card);
         Assert.Empty(Descendants(card).OfType<UiToggle>());
         Assert.True(HasText(card, "All tasks done. Nice work!"));
         Assert.Equal("1 / 3 tasks", Single<UiStatTile>(card).Value);

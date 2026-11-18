@@ -14,13 +14,16 @@ internal sealed partial class DashboardPage : Page
         DataContext = viewModel;
         InitializeComponent();
 
-        // Move keyboard focus into the widget picker when it opens, so Esc and Tab act on the sheet.
+        // Move keyboard focus into the widget picker's search box when it opens, so typing filters and Esc and Tab act on the sheet.
         PickerOverlay.IsVisibleChanged += (_, e) =>
         {
             if (e.NewValue is true)
             {
-                _ = Dispatcher.InvokeAsync(() => PickerClose.Focus(), DispatcherPriority.Input);
+                _ = Dispatcher.InvokeAsync(() => PickerSearch.Focus(), DispatcherPriority.Input);
             }
         };
+
+        // The sheet grows with its content up to three quarters of the page and scrolls beyond that.
+        PickerOverlay.SizeChanged += (_, e) => PickerSheet.MaxHeight = e.NewSize.Height * 0.75;
     }
 }

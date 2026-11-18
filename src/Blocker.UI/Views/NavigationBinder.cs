@@ -29,6 +29,7 @@ internal sealed class NavigationBinder
         _shell = shell;
         navigation.SetPageProviderService(pageProvider);
         navigator.NavigationRequested += OnNavigationRequested;
+        navigator.PluginPageRequested += OnPluginPageRequested;
         shell.PluginPages.CollectionChanged += OnPluginPagesChanged;
         navigation.SelectionChanged += OnSelectionChanged;
         navigation.Loaded += (_, _) =>
@@ -48,6 +49,24 @@ internal sealed class NavigationBinder
     };
 
     private void OnNavigationRequested(object? sender, AppPage page) => _navigation.Navigate(ToType(page));
+
+    // Shows the plugin's first page and selects its rail item (items are addressed by their TargetPageTag, the contribution key);
+    // a plugin without a page opens the Plugins page instead.
+    private void OnPluginPageRequested(object? sender, string pluginId)
+    {
+        if (_shell.FindPluginPage(pluginId) is not { } page)
+        {
+            _navigation.Navigate(typeof(PluginsPage));
+            return;
+        }
+
+        if (!_navigation.Navigate(page.Key))
+        {
+            _navigation.Navigate(typeof(PluginPage));
+        }
+
+        _shell.CurrentPluginPage = page;
+    }
 
     private void OnPluginPagesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildPluginItems();
 
@@ -83,6 +102,7 @@ internal sealed class NavigationBinder
                 Content = page.Title,
                 Icon = (IconElement?)PluginPathIcon.TryCreate(page.Icon) ?? new SymbolIcon(SymbolRegular.PuzzlePiece24),
                 TargetPageType = typeof(PluginPage),
+                TargetPageTag = page.Key,
                 Tag = page,
                 Style = (Style)_navigation.FindResource("Blocker.NavItem"),
             });

@@ -22,13 +22,24 @@ namespace Blocker.UI.Controls.Rendering;
 internal sealed class UiVisualBuilder
 {
     private const double CardContentGap = 12;
+    private const double FlatContentGap = 10;
     private const double PageGap = 16;
 
     private readonly Action<UiAction> _raise;
+    private readonly bool _flat;
 
     /// <summary>Initializes a new instance of the <see cref="UiVisualBuilder"/> class.</summary>
     /// <param name="raise">Called when the user interacts with a button, toggle or form.</param>
-    public UiVisualBuilder(Action<UiAction> raise) => _raise = raise;
+    /// <param name="flat">
+    /// Flat mode for content the host already places on its own surface (dashboard widgets): cards render as plain stacks without
+    /// border, background, padding or header (title, subtitle and icon are always dropped, the host draws the identity), and stat
+    /// tiles render as value and label without a tile.
+    /// </param>
+    public UiVisualBuilder(Action<UiAction> raise, bool flat = false)
+    {
+        _raise = raise;
+        _flat = flat;
+    }
 
     /// <summary>Builds the visual for <paramref name="node"/>.</summary>
     /// <param name="node">The node.</param>
@@ -41,7 +52,7 @@ internal sealed class UiVisualBuilder
         UiGrid grid => BuildGrid(grid, insideCard),
         UiCard card => BuildCard(card),
         UiText text => BuildText(text),
-        UiStatTile tile => BuildStatTile(tile, insideCard),
+        UiStatTile tile => BuildStatTile(tile, insideCard, _flat),
         UiProgress progress => BuildProgress(progress),
         UiBarChart chart => BuildBarChart(chart),
         UiLineChart chart => BuildLineChart(chart),
@@ -163,7 +174,7 @@ internal sealed class UiVisualBuilder
     private FrameworkElement BuildCard(UiCard card)
     {
         var stack = new StackPanel();
-        bool hasHeader = card.Title is not null || card.Subtitle is not null || card.Icon is not null;
+        bool hasHeader = !_flat && (card.Title is not null || card.Subtitle is not null || card.Icon is not null);
         if (hasHeader)
         {
             stack.Children.Add(BuildCardHeader(card));
@@ -175,15 +186,14 @@ internal sealed class UiVisualBuilder
             FrameworkElement element = Build(child, insideCard: true);
             if (!first || hasHeader)
             {
-                element.Margin = new Thickness(0, first ? 16 : CardContentGap, 0, 0);
+                element.Margin = new Thickness(0, first ? 16 : _flat ? FlatContentGap : CardContentGap, 0, 0);
             }
 
             first = false;
             stack.Children.Add(element);
         }
 
-        var border = Styled(new Border { Child = stack }, "Blocker.CardBorder");
-        return border;
+        return _flat ? stack : Styled(new Border { Child = stack }, "Blocker.CardBorder");
     }
 
     private static FrameworkElement BuildCardHeader(UiCard card)
@@ -229,7 +239,7 @@ internal sealed class UiVisualBuilder
         return block;
     }
 
-    private static FrameworkElement BuildStatTile(UiStatTile tile, bool insideCard)
+    private static FrameworkElement BuildStatTile(UiStatTile tile, bool insideCard, bool flat)
     {
         var stack = new StackPanel();
 
@@ -266,13 +276,20 @@ internal sealed class UiVisualBuilder
             stack.Children.Add(caption);
         }
 
+        string name = tile.Label + ": " + tile.Value;
+        if (flat)
+        {
+            AutomationProperties.SetName(stack, name);
+            return stack;
+        }
+
         var border = Styled(new Border { Child = stack }, insideCard ? "Blocker.InsetBorder" : "Blocker.CardBorder");
         if (!insideCard)
         {
             border.Padding = new Thickness(16);
         }
 
-        AutomationProperties.SetName(border, tile.Label + ": " + tile.Value);
+        AutomationProperties.SetName(border, name);
         return border;
     }
 

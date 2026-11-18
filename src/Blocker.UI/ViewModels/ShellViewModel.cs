@@ -34,6 +34,12 @@ internal sealed partial class ShellViewModel : ServiceViewModel
     /// <summary>Gets the pages contributed by plugins; shown as extra navigation items.</summary>
     public ObservableCollection<ContributionViewModel> PluginPages { get; } = [];
 
+    /// <summary>Finds the page to open for a plugin.</summary>
+    /// <param name="pluginId">The plugin.</param>
+    /// <returns>Its first page, or <see langword="null"/> when it contributes none.</returns>
+    public ContributionViewModel? FindPluginPage(string pluginId) =>
+        PluginPages.FirstOrDefault(p => string.Equals(p.PluginId, pluginId, StringComparison.Ordinal));
+
     /// <summary>Gets the text of the disconnected banner.</summary>
     public string DisconnectedMessage => "Can't reach the Blocker service. Blocking continues if a session is running. Reconnecting automatically.";
 

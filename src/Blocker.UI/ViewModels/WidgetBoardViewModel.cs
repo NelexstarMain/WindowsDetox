@@ -6,12 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 namespace Blocker.UI.ViewModels;
 
 /// <summary>
-/// The user's dashboard widgets: which plugin widgets are shown, in which order and size. Until the user changes the board for the
-/// first time, every available widget is shown; afterwards only the chosen ones are, and the choice is saved after every change.
+/// The user's dashboard widgets: which plugin widgets are shown, in which order and grid span. Until the user changes the board for
+/// the first time, every available widget is shown; afterwards only the chosen ones are, and the choice is saved after every change.
 /// </summary>
 internal sealed partial class WidgetBoardViewModel : ObservableObject
 {
     private readonly IWidgetLayoutStore _store;
+    private readonly INavigator _navigator;
     private IReadOnlyList<ContributionViewModel> _available = [];
     private List<WidgetPlacement>? _layout;
     private bool _loaded;
@@ -24,9 +25,11 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
 
     /// <summary>Creates the board.</summary>
     /// <param name="store">Where the layout is saved.</param>
-    public WidgetBoardViewModel(IWidgetLayoutStore store)
+    /// <param name="navigator">Opens a widget's plugin page.</param>
+    public WidgetBoardViewModel(IWidgetLayoutStore store, INavigator navigator)
     {
         _store = store;
+        _navigator = navigator;
         Picker = new WidgetPickerViewModel(this);
     }
 
@@ -59,7 +62,7 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
             _loaded = true;
         }
 
-        IEnumerable<WidgetPlacement> wanted = _layout ?? _available.Select(c => new WidgetPlacement(c.Key));
+        IEnumerable<WidgetPlacement> wanted = _layout ?? _available.Select(WidgetSpans.DefaultPlacement);
         HashSet<string> seen = new(StringComparer.Ordinal);
         List<WidgetItemViewModel> next = [];
         foreach (WidgetPlacement placement in wanted)
@@ -70,9 +73,7 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
                 continue;
             }
 
-            WidgetItemViewModel item = Items.FirstOrDefault(i => i.Contribution == contribution) ?? new WidgetItemViewModel(contribution, placement.Size) { IsEditing = IsEditing };
-            item.Size = placement.Size;
-            next.Add(item);
+            next.Add(Items.FirstOrDefault(i => i.Contribution == contribution) ?? new WidgetItemViewModel(contribution, placement.Cols, placement.Rows) { IsEditing = IsEditing });
         }
 
         if (!Items.SequenceEqual(next))
@@ -97,8 +98,52 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
             return false;
         }
 
-        Items.Add(new WidgetItemViewModel(contribution, WidgetSize.Small) { IsEditing = IsEditing });
+        WidgetPlacement placement = WidgetSpans.DefaultPlacement(contribution);
+        Items.Add(new WidgetItemViewModel(contribution, placement.Cols, placement.Rows) { IsEditing = IsEditing });
         Commit();
+        return true;
+    }
+
+    /// <summary>Moves a widget to another position; the order is saved.</summary>
+    /// <param name="item">The widget.</param>
+    /// <param name="newIndex">Target position, limited to the board.</param>
+    /// <returns><see langword="true"/> when the order changed.</returns>
+    public bool Move(WidgetItemViewModel item, int newIndex)
+    {
+        int from = Items.IndexOf(item);
+        int to = Math.Clamp(newIndex, 0, Math.Max(0, Items.Count - 1));
+        if (from < 0 || from == to)
+        {
+            return false;
+        }
+
+        Items.Move(from, to);
+        Commit();
+        return true;
+    }
+
+    /// <summary>Changes how many grid cells a widget spans.</summary>
+    /// <param name="item">The widget.</param>
+    /// <param name="cols">Columns, limited to 1 through <see cref="WidgetPlacement.MaxCols"/>.</param>
+    /// <param name="rows">Rows, limited to 1 through <see cref="WidgetPlacement.MaxRows"/>.</param>
+    /// <param name="commit">Whether to save now; pass <see langword="false"/> while a resize gesture is live and call <see cref="Commit"/> on release.</param>
+    /// <returns><see langword="true"/> when the span changed.</returns>
+    public bool Resize(WidgetItemViewModel item, int cols, int rows, bool commit = true)
+    {
+        cols = WidgetPlacement.ClampCols(cols);
+        rows = WidgetPlacement.ClampRows(rows);
+        if (!Items.Contains(item) || (item.Cols == cols && item.Rows == rows))
+        {
+            return false;
+        }
+
+        item.Cols = cols;
+        item.Rows = rows;
+        if (commit)
+        {
+            Commit();
+        }
+
         return true;
     }
 
@@ -127,47 +172,21 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveEarlier))]
-    private void MoveEarlier(WidgetItemViewModel? item) => Move(item, -1);
-
-    [RelayCommand(CanExecute = nameof(CanMoveLater))]
-    private void MoveLater(WidgetItemViewModel? item) => Move(item, 1);
-
     [RelayCommand]
-    private void ToggleSize(WidgetItemViewModel? item)
+    private void Open(WidgetItemViewModel? item)
     {
-        if (item is null || !Items.Contains(item))
+        if (item is not null && !IsEditing)
         {
-            return;
+            _navigator.GoToPluginPage(item.Contribution.PluginId);
         }
-
-        item.Size = item.IsWide ? WidgetSize.Small : WidgetSize.Wide;
-        Commit();
-    }
-
-    private bool CanMoveEarlier(WidgetItemViewModel? item) => item is not null && Items.IndexOf(item) > 0;
-
-    private bool CanMoveLater(WidgetItemViewModel? item) => item is not null && Items.IndexOf(item) is var index && index >= 0 && index < Items.Count - 1;
-
-    private void Move(WidgetItemViewModel? item, int offset)
-    {
-        int from = item is null ? -1 : Items.IndexOf(item);
-        int to = from + offset;
-        if (from < 0 || to < 0 || to >= Items.Count)
-        {
-            return;
-        }
-
-        Items.Move(from, to);
-        Commit();
     }
 
     /// <summary>Turns the visible items into the saved layout (keeping placements of widgets that are temporarily not offered) and saves it.</summary>
-    private void Commit()
+    public void Commit()
     {
         _layout =
         [
-            .. Items.Select(i => new WidgetPlacement(i.Contribution.Key, i.Size)),
+            .. Items.Select(i => new WidgetPlacement(i.Contribution.Key, i.Cols, i.Rows)),
             .. (_layout ?? []).Where(p => !_available.Any(c => c.Key == p.Key)),
         ];
         try
@@ -188,46 +207,52 @@ internal sealed partial class WidgetBoardViewModel : ObservableObject
         OnPropertyChanged(nameof(HasAvailable));
         OnPropertyChanged(nameof(HasItems));
         OnPropertyChanged(nameof(ShowEmptyState));
-        MoveEarlierCommand.NotifyCanExecuteChanged();
-        MoveLaterCommand.NotifyCanExecuteChanged();
         Picker.Refresh();
     }
 }
 
-/// <summary>A widget on the dashboard with its size and edit state.</summary>
+/// <summary>A widget on the dashboard with its grid span and edit state.</summary>
 internal sealed partial class WidgetItemViewModel : ObservableObject
 {
-    /// <summary>Card width of a one-column widget.</summary>
-    public const double SmallWidth = 300;
-
-    /// <summary>Card width of a two-column widget (two small cards and the gap between them).</summary>
-    public const double WideWidth = (SmallWidth * 2) + 16;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpanLabel))]
+    private int _cols;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWide), nameof(Width), nameof(ToggleSizeText))]
-    private WidgetSize _size;
+    [NotifyPropertyChangedFor(nameof(SpanLabel))]
+    private int _rows;
 
     [ObservableProperty]
     private bool _isEditing;
 
     /// <summary>Creates the item.</summary>
     /// <param name="contribution">The plugin widget.</param>
-    /// <param name="size">Initial size.</param>
-    public WidgetItemViewModel(ContributionViewModel contribution, WidgetSize size)
+    /// <param name="cols">Columns the widget spans.</param>
+    /// <param name="rows">Rows the widget spans.</param>
+    public WidgetItemViewModel(ContributionViewModel contribution, int cols, int rows)
     {
         Contribution = contribution;
-        _size = size;
+        _cols = WidgetPlacement.ClampCols(cols);
+        _rows = WidgetPlacement.ClampRows(rows);
+        contribution.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ContributionViewModel.Icon))
+            {
+                OnPropertyChanged(nameof(Icon));
+                OnPropertyChanged(nameof(HasIcon));
+            }
+        };
     }
 
     /// <summary>Gets the plugin widget.</summary>
     public ContributionViewModel Contribution { get; }
 
-    /// <summary>Gets whether the widget spans two columns.</summary>
-    public bool IsWide => Size == WidgetSize.Wide;
+    /// <summary>Gets the SVG path data of the plugin icon, if it has one.</summary>
+    public string? Icon => Contribution.Icon;
 
-    /// <summary>Gets the card width.</summary>
-    public double Width => IsWide ? WideWidth : SmallWidth;
+    /// <summary>Gets whether the plugin has an icon.</summary>
+    public bool HasIcon => !string.IsNullOrEmpty(Contribution.Icon);
 
-    /// <summary>Gets the label of the size the toggle switches to.</summary>
-    public string ToggleSizeText => IsWide ? "Small" : "Wide";
+    /// <summary>Gets the span as <c>columns × rows</c>.</summary>
+    public string SpanLabel => WidgetSpans.Label(Cols, Rows);
 }

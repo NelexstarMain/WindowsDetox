@@ -206,7 +206,7 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
     }
 }
 
-/// <summary>Dashboard widget: today's progress and the next open tasks. Requires "ui.dashboard".</summary>
+/// <summary>Dashboard widget: today's progress and the next open tasks. The host draws the surface, icon, name and tap-to-open. Requires "ui.dashboard".</summary>
 public sealed class GoalsWidget(GoalsStore store) : GoalsContribution(store), IDashboardWidgetPlugin
 {
     /// <summary>Open tasks shown in the widget.</summary>
@@ -241,7 +241,7 @@ public sealed class GoalsWidget(GoalsStore store) : GoalsContribution(store), ID
             body.Add(Ui.Text("All tasks done. Nice work!", UiTextStyle.Caption));
         }
 
-        return ValueTask.FromResult(new UiCard(body, "Goals & Tasks"));
+        return ValueTask.FromResult(Ui.Card([.. body]));
     }
 }
 

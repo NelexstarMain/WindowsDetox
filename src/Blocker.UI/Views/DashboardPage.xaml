@@ -5,7 +5,74 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
       xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
+      xmlns:v="clr-namespace:Blocker.UI.Views"
+      xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
       Title="Session" Background="Transparent">
+    <Page.Resources>
+        <!-- What a widget shows: the plugin's icon and name (the only identity), then its content drawn flat on the host's surface. -->
+        <DataTemplate x:Key="App.WidgetFace" DataType="{x:Type vm:ContributionViewModel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Height="18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Width="14" Height="14" Margin="0,0,7,0" VerticalAlignment="Center">
+                        <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}"
+                              Visibility="{Binding Icon, Converter={StaticResource HasTextToVisible}}" />
+                        <ui:SymbolIcon Symbol="PuzzlePiece24" FontSize="14" Foreground="{DynamicResource Blocker.Text.Secondary}"
+                                       Visibility="{Binding Icon, Converter={StaticResource HasTextToCollapsed}}" />
+                    </Grid>
+                    <TextBlock Grid.Column="1" Style="{DynamicResource Blocker.Text.Caption}" VerticalAlignment="Center"
+                               Text="{Binding Title}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                               AutomationProperties.Name="{Binding Title, StringFormat='Open {0}'}" />
+                </Grid>
+                <Grid Grid.Row="1" Margin="0,8,0,0" ClipToBounds="True">
+                    <rd:UiNodeView Node="{Binding Node}" IsFlat="True" VerticalAlignment="Top"
+                                   bh:UiNodeActions.Contribution="{Binding}"
+                                   bh:UiNodeActions.Command="{Binding DataContext.SendWidgetActionCommand, RelativeSource={RelativeSource AncestorType=Page}}" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Round remove button at a widget's top-right corner in edit mode. -->
+        <Style x:Key="App.WidgetRemoveButton" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Disc" CornerRadius="12" BorderThickness="1" SnapsToDevicePixels="True"
+                                Background="{DynamicResource Blocker.Bg.Base}" BorderBrush="{DynamicResource Blocker.Border.Strong}">
+                            <ui:SymbolIcon x:Name="Glyph" Symbol="Dismiss12" FontSize="11" Foreground="{TemplateBinding Foreground}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Disc" Property="Background" Value="{DynamicResource Blocker.Danger.Soft}" />
+                                <Setter TargetName="Disc" Property="BorderBrush" Value="{DynamicResource Blocker.Danger}" />
+                                <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Blocker.Danger}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A row of the widget picker: plugin icon, name and widget count. -->
+        <Style x:Key="App.PickerRow" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Subtle}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="MinHeight" Value="52" />
+        </Style>
+    </Page.Resources>
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="{StaticResource Blocker.Thickness.Page}">
@@ -151,73 +218,109 @@
                            Text="{Binding Board.LayoutError}"
                            Visibility="{Binding Board.LayoutError, Converter={StaticResource HasTextToVisible}}" />
 
-                <!-- Empty board: invite the user to add a first widget. -->
-                <Button Style="{DynamicResource Blocker.Button.Subtle}" HorizontalAlignment="Left" Width="300" Height="120" Padding="0"
-                        HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                        Command="{Binding Board.Picker.OpenCommand}" AutomationProperties.Name="Add a widget"
-                        Visibility="{Binding Board.ShowEmptyState, Converter={StaticResource BoolToVisible}}">
-                    <Grid>
-                        <Rectangle Stroke="{DynamicResource Blocker.Border.Strong}" StrokeThickness="1" StrokeDashArray="4 4" RadiusX="4" RadiusY="4" />
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <ui:SymbolIcon Symbol="Add24" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="Add a widget" HorizontalAlignment="Center" />
-                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Choose what to show here." HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Grid>
-                </Button>
+                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,-8,0,16"
+                           Text="Drag a widget to move it. Drag its corner to resize. Press Esc to cancel."
+                           Visibility="{Binding Board.IsEditing, Converter={StaticResource BoolToVisible}}" />
 
-                <ItemsControl ItemsSource="{Binding Board.Items}" Visibility="{Binding Board.HasItems, Converter={StaticResource BoolToVisible}}">
+                <!-- Empty board: one dashed tile, the size of a single cell. -->
+                <v:WidgetGridPanel Visibility="{Binding Board.ShowEmptyState, Converter={StaticResource BoolToVisible}}">
+                    <Button Style="{DynamicResource Blocker.Button.Subtle}" Padding="0" Background="Transparent"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                            Command="{Binding Board.Picker.OpenCommand}" AutomationProperties.Name="Add first widget">
+                        <Grid>
+                            <Rectangle Stroke="{DynamicResource Blocker.Border.Strong}" StrokeThickness="1" StrokeDashArray="4 4" RadiusX="12" RadiusY="12" />
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Add24" FontSize="22" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Add widgets" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Button>
+                </v:WidgetGridPanel>
+
+                <ItemsControl x:Name="BoardItems" ItemsSource="{Binding Board.Items}" Focusable="False"
+                              bh:WidgetBoardInteraction.Board="{Binding Board}"
+                              Visibility="{Binding Board.HasItems, Converter={StaticResource BoolToVisible}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel />
+                            <v:WidgetGridPanel />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="v:WidgetGridPanel.ColumnSpan" Value="{Binding Cols}" />
+                            <Setter Property="v:WidgetGridPanel.RowSpan" Value="{Binding Rows}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Width="{Binding Width}" Margin="0,0,16,16" VerticalAlignment="Top">
-                                <rd:UiNodeView Node="{Binding Contribution.Node}"
-                                               bh:UiNodeActions.Contribution="{Binding Contribution}"
-                                               bh:UiNodeActions.Command="{Binding DataContext.SendWidgetActionCommand, RelativeSource={RelativeSource AncestorType=Page}}">
-                                    <rd:UiNodeView.Style>
-                                        <Style TargetType="rd:UiNodeView">
+                            <!-- One rounded surface per widget. Tapping it opens the plugin; edit mode swaps that for drag, resize and remove. -->
+                            <Grid x:Name="Cell" Background="Transparent" SnapsToDevicePixels="True">
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                <Setter Property="Cursor" Value="SizeAll" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+
+                                <Border CornerRadius="12" BorderThickness="1" Background="{DynamicResource Blocker.Bg.Raised}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsMouseOver, ElementName=Cell}" Value="True" />
+                                                        <Condition Binding="{Binding IsEditing}" Value="False" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+
+                                <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
+                                                Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}">
+                                    <ContentControl.Style>
+                                        <Style TargetType="ContentControl">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsEditing}" Value="True">
                                                     <Setter Property="IsHitTestVisible" Value="False" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </rd:UiNodeView.Style>
-                                </rd:UiNodeView>
+                                    </ContentControl.Style>
+                                </ContentControl>
 
-                                <!-- Edit mode: dashed outline and the card's own controls. -->
+                                <!-- Content taller than the cell is clipped; the bottom edge fades out. -->
+                                <Border VerticalAlignment="Bottom" Height="24" Margin="1" CornerRadius="0,0,11,11" IsHitTestVisible="False"
+                                        Background="{DynamicResource Blocker.Bg.Raised}">
+                                    <Border.OpacityMask>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#00000000" Offset="0" />
+                                            <GradientStop Color="#00000000" Offset="0.45" />
+                                            <GradientStop Color="#FF000000" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Border.OpacityMask>
+                                </Border>
+
+                                <!-- Edit mode: dashed outline, remove button and resize handle. -->
                                 <Grid Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisible}}">
                                     <Rectangle Stroke="{DynamicResource Blocker.Accent.Bar}" StrokeThickness="1" StrokeDashArray="4 3"
-                                               RadiusX="4" RadiusY="4" IsHitTestVisible="False" />
-                                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="2" CornerRadius="4" BorderThickness="1"
-                                            Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Strong}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Style="{DynamicResource Blocker.Button.Subtle}" MinHeight="32" MinWidth="32" Padding="0"
-                                                    Command="{Binding DataContext.Board.MoveEarlierCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}" ToolTip="Move earlier" AutomationProperties.Name="Move widget earlier">
-                                                <ui:SymbolIcon Symbol="ArrowLeft24" />
-                                            </Button>
-                                            <Button Style="{DynamicResource Blocker.Button.Subtle}" MinHeight="32" MinWidth="32" Padding="0"
-                                                    Command="{Binding DataContext.Board.MoveLaterCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}" ToolTip="Move later" AutomationProperties.Name="Move widget later">
-                                                <ui:SymbolIcon Symbol="ArrowRight24" />
-                                            </Button>
-                                            <Button Style="{DynamicResource Blocker.Button.Subtle}" MinHeight="32" Padding="8,0" FontSize="12"
-                                                    Command="{Binding DataContext.Board.ToggleSizeCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}" ToolTip="Change widget size" AutomationProperties.Name="Change widget size">
-                                                <TextBlock Text="{Binding ToggleSizeText}" />
-                                            </Button>
-                                            <Button Style="{DynamicResource Blocker.Button.Subtle}" MinHeight="32" MinWidth="32" Padding="0"
-                                                    Foreground="{DynamicResource Blocker.Danger}"
-                                                    Command="{Binding DataContext.Board.RemoveCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}" ToolTip="Remove widget" AutomationProperties.Name="Remove widget">
-                                                <ui:SymbolIcon Symbol="Dismiss24" />
-                                            </Button>
-                                        </StackPanel>
+                                               RadiusX="12" RadiusY="12" Margin="0.5" IsHitTestVisible="False" />
+                                    <Button Style="{StaticResource App.WidgetRemoveButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"
+                                            Command="{Binding DataContext.Board.RemoveCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                            CommandParameter="{Binding}" ToolTip="Remove widget" AutomationProperties.Name="Remove widget" />
+                                    <Border bh:WidgetBoardInteraction.IsResizeHandle="True" Width="30" Height="30" Background="Transparent"
+                                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
+                                            ToolTip="Drag to resize" AutomationProperties.Name="Resize widget">
+                                        <Path Data="M 0,10 L 10,0 M 4,10 L 10,4 M 8,10 L 10,8" Stroke="{DynamicResource Blocker.Accent.Bar}" StrokeThickness="1.5"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="10" Height="10"
+                                              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8" IsHitTestVisible="False" />
                                     </Border>
                                 </Grid>
                             </Grid>
@@ -227,18 +330,34 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Widget picker: bottom sheet over a dimmed page. -->
-        <Grid x:Name="PickerOverlay" DataContext="{Binding Board.Picker}" KeyboardNavigation.TabNavigation="Cycle"
-              Visibility="{Binding IsOpen, Converter={StaticResource BoolToVisible}}">
+        <!-- Widget picker: bottom sheet over a dimmed page. Plugins are rows; the open row shows its widgets as live previews. -->
+        <Grid x:Name="PickerOverlay" DataContext="{Binding Board.Picker}" KeyboardNavigation.TabNavigation="Cycle">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsOpen}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <!-- Stays visible while the sheet slides out, then falls back to the collapsed style value. -->
+                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility" FillBehavior="Stop">
+                                            <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Visible}" />
+                                            <DiscreteObjectKeyFrame KeyTime="0:0:0.16" Value="{x:Static Visibility.Collapsed}" />
+                                        </ObjectAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
             <Grid.InputBindings>
                 <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
             </Grid.InputBindings>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="0.25*" />
-                <RowDefinition Height="0.75*" />
-            </Grid.RowDefinitions>
 
-            <Border Grid.RowSpan="2" Background="#B3000000" Cursor="Arrow">
+            <Border Background="#B3000000" Cursor="Arrow">
                 <Border.InputBindings>
                     <MouseBinding MouseAction="LeftClick" Command="{Binding CloseCommand}" />
                 </Border.InputBindings>
@@ -253,13 +372,20 @@
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.16" FillBehavior="Stop" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
             </Border>
 
-            <Border Grid.Row="1" MaxWidth="760" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="24,12,24,0"
+            <Border x:Name="PickerSheet" MaxWidth="760" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Padding="24,12,24,0"
                     Background="{DynamicResource Blocker.Bg.Card}" BorderBrush="{DynamicResource Blocker.Border.Strong}"
                     BorderThickness="1,1,1,0" CornerRadius="16,16,0,0" SnapsToDevicePixels="True"
                     AutomationProperties.Name="Add widgets">
@@ -283,22 +409,29 @@
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                             From="0" To="64" Duration="0:0:0.16" FillBehavior="Stop">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseIn" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.16" FillBehavior="Stop" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
+                <DockPanel LastChildFill="True">
                     <!-- Grab handle, as on an Android bottom sheet. -->
-                    <Border Width="40" Height="4" CornerRadius="2" HorizontalAlignment="Center" Margin="0,0,0,12"
+                    <Border DockPanel.Dock="Top" Width="40" Height="4" CornerRadius="2" HorizontalAlignment="Center" Margin="0,0,0,12"
                             Background="{DynamicResource Blocker.Border.Strong}" />
 
-                    <Grid Grid.Row="1" Margin="0,0,0,16">
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -313,79 +446,118 @@
                         </Button>
                     </Grid>
 
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,0,0,24">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="0,0,0,8">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                            <Path Width="16" Height="16" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"
-                                                  Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}"
-                                                  Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisible}}" />
-                                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" FontWeight="SemiBold" Text="{Binding Title}"
-                                                       VerticalAlignment="Center" />
-                                        </StackPanel>
-                                        <ItemsControl ItemsSource="{Binding Entries}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Width="324" Margin="0,0,16,16" Padding="12" VerticalAlignment="Top"
-                                                            Style="{DynamicResource Blocker.Button.Subtle}"
-                                                            Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
-                                                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
-                                                            Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
-                                                            CommandParameter="{Binding}"
-                                                            AutomationProperties.Name="{Binding Contribution.Title, StringFormat='Add {0}'}">
-                                                        <StackPanel>
-                                                            <!-- Live, non-interactive preview scaled down to fit. -->
-                                                            <Border Background="{DynamicResource Blocker.Bg.Canvas}" CornerRadius="4" Padding="8" Height="180" ClipToBounds="True">
-                                                                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Top">
-                                                                    <Grid Width="300">
-                                                                        <rd:UiNodeView Node="{Binding Contribution.Node}" IsHitTestVisible="False" />
-                                                                    </Grid>
-                                                                </Viewbox>
-                                                            </Border>
-                                                            <Grid Margin="0,12,0,0">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                </Grid.ColumnDefinitions>
-                                                                <StackPanel VerticalAlignment="Center">
-                                                                    <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Contribution.Title}" />
-                                                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding SizeLabel}" />
-                                                                </StackPanel>
-                                                                <Border Grid.Column="1" Style="{StaticResource App.Chip}" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                                    <TextBlock>
-                                                                        <TextBlock.Style>
-                                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource App.ChipText}">
-                                                                                <Setter Property="Text" Value="Add" />
-                                                                                <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding IsAdded}" Value="True">
-                                                                                        <Setter Property="Text" Value="Added" />
-                                                                                        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
-                                                                                    </DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </TextBlock.Style>
-                                                                    </TextBlock>
+                    <ui:TextBox x:Name="PickerSearch" DockPanel.Dock="Top" Margin="0,0,0,12" PlaceholderText="Search widgets"
+                                Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search widgets">
+                        <ui:TextBox.Icon>
+                            <ui:SymbolIcon Symbol="Search24" />
+                        </ui:TextBox.Icon>
+                    </ui:TextBox>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,8,0,0" Text="No widgets match your search."
+                                       Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisible}}" />
+                            <ItemsControl ItemsSource="{Binding Groups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,4">
+                                            <Button Style="{StaticResource App.PickerRow}" AutomationProperties.Name="{Binding Title}"
+                                                    Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid Width="24" Height="24" Margin="0,0,14,0" VerticalAlignment="Center">
+                                                        <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}"
+                                                              Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisible}}" />
+                                                        <ui:SymbolIcon Symbol="PuzzlePiece24" FontSize="24" Foreground="{DynamicResource Blocker.Text.Secondary}"
+                                                                       Visibility="{Binding HasIcon, Converter={StaticResource BoolToCollapsed}}" />
+                                                    </Grid>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="NoWrap" />
+                                                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding CountText}" />
+                                                    </StackPanel>
+                                                    <ui:SymbolIcon Grid.Column="2" Symbol="ChevronDown24" FontSize="16" VerticalAlignment="Center"
+                                                                   RenderTransformOrigin="0.5,0.5">
+                                                        <ui:SymbolIcon.Style>
+                                                            <Style TargetType="ui:SymbolIcon">
+                                                                <Setter Property="RenderTransform">
+                                                                    <Setter.Value>
+                                                                        <RotateTransform Angle="0" />
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                        <Setter Property="RenderTransform">
+                                                                            <Setter.Value>
+                                                                                <RotateTransform Angle="180" />
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </ui:SymbolIcon.Style>
+                                                    </ui:SymbolIcon>
+                                                </Grid>
+                                            </Button>
+
+                                            <!-- The plugin's widgets, previewed at the size they are added with. Tap one to add it. -->
+                                            <ItemsControl ItemsSource="{Binding Visible}" Margin="12,8,0,4"
+                                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Margin="0,0,12,12" Padding="8" MinHeight="0" VerticalAlignment="Top"
+                                                                Style="{DynamicResource Blocker.Button.Subtle}"
+                                                                HorizontalContentAlignment="Left" VerticalContentAlignment="Top"
+                                                                Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
+                                                                CommandParameter="{Binding}"
+                                                                AutomationProperties.Name="{Binding Title, StringFormat='Add {0}'}">
+                                                            <StackPanel Width="{Binding PreviewWidth}">
+                                                                <Border Width="{Binding PreviewWidth}" Height="{Binding PreviewHeight}" CornerRadius="8" BorderThickness="1"
+                                                                        Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
+                                                                        ClipToBounds="True">
+                                                                    <Viewbox Stretch="Uniform">
+                                                                        <Grid Width="{Binding SlotWidth}" Height="{Binding SlotHeight}" IsHitTestVisible="False">
+                                                                            <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
+                                                                                            Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}" />
+                                                                        </Grid>
+                                                                    </Viewbox>
                                                                 </Border>
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                                                <Grid Margin="2,8,2,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel VerticalAlignment="Center">
+                                                                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" FontWeight="SemiBold" Text="{Binding Title}"
+                                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding SpanLabel}" />
+                                                                    </StackPanel>
+                                                                    <Border Grid.Column="1" Style="{StaticResource App.Chip}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                            Visibility="{Binding IsAdded, Converter={StaticResource BoolToVisible}}">
+                                                                        <TextBlock Style="{StaticResource App.ChipText}" Text="Added" />
+                                                                    </Border>
+                                                                </Grid>
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </ScrollViewer>
-                </Grid>
+                </DockPanel>
             </Border>
         </Grid>
     </Grid>

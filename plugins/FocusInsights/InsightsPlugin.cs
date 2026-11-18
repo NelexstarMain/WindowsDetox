@@ -277,7 +277,7 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     private sealed record ExampleCache(int Day, TimeZoneInfo Zone, InsightsView View);
 }
 
-/// <summary>Small dashboard widget: today's focus and the last seven days. Requires "ui.dashboard".</summary>
+/// <summary>Small dashboard widget: today's focus time. The host draws the surface, icon, name and tap-to-open. Requires "ui.dashboard".</summary>
 public sealed class InsightsWidget(InsightsStore store) : InsightsContribution(store), IDashboardWidgetPlugin
 {
     /// <inheritdoc/>
@@ -288,26 +288,14 @@ public sealed class InsightsWidget(InsightsStore store) : InsightsContribution(s
     {
         Remember(context);
         InsightsView view = Store.GetView();
-        List<UiNode> body =
-        [
-            Ui.Row(
-                InsightsLogo.Glyph(28),
-                Ui.Stat("Focus today", InsightsFormat.Minutes(view.FocusSecondsToday / 60), "Time in sessions today", UiTone.Accent)),
-        ];
-        if (view.HasData)
-        {
-            UiDataPoint[] week =
-            [
-                .. view.DailySeconds14.Skip(7).Select((seconds, i) => Ui.Point(InsightsFormat.WeekdayLabel(view.Today - 6 + i), seconds / 60)),
-            ];
-            body.Add(new UiBarChart(week, "Last 7 days", "min"));
-        }
-        else
+        string? week = view.HasData ? $"Last 7 days: {InsightsFormat.Minutes(view.FocusSeconds7d / 60)}" : null;
+        List<UiNode> body = [Ui.Stat("Focus today", InsightsFormat.Minutes(view.FocusSecondsToday / 60), week, UiTone.Accent)];
+        if (!view.HasData)
         {
             body.Add(Ui.Text("Stats appear after your first session.", UiTextStyle.Caption));
         }
 
-        return ValueTask.FromResult(new UiCard(body, "Focus Insights"));
+        return ValueTask.FromResult(Ui.Card([.. body]));
     }
 }
 

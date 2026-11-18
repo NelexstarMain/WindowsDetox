@@ -828,33 +828,41 @@ public sealed class InsightsTests
         Assert.All(InsightsLogo.PathData, c => Assert.True(char.IsAsciiDigit(c) || c is ' ' or '.' or '-' || "MLHVAZ".Contains(c, StringComparison.Ordinal)));
     }
 
+    private static void AssertFlatWidget(UiCard card)
+    {
+        Assert.True(UiTreeValidator.Validate(card).IsValid);
+        Assert.Equal((null, null, null), (card.Title, card.Subtitle, card.Icon));
+        Assert.Empty(Descendants(card).OfType<UiGlyph>());
+        Assert.Single(Descendants(card).OfType<UiCard>());
+        Assert.Single(Descendants(card).OfType<UiStatTile>());
+        Assert.True(Descendants(card).OfType<UiProgress>().Count() <= 1);
+    }
+
     [Fact]
-    public async Task The_widget_shows_todays_focus_and_a_seven_day_chart()
+    public async Task The_widget_shows_only_todays_focus_and_the_week_total()
     {
         FakePluginContext ctx = await StartAsync();
         await RunSessionAsync(ctx, Thirty, Thirty);
 
         UiCard card = await RenderWidgetAsync(ctx);
 
-        Assert.True(UiTreeValidator.Validate(card).IsValid);
-        Assert.Equal(InsightsLogo.PathData, Single<UiGlyph>(card).PathData);
+        AssertFlatWidget(card);
         UiStatTile stat = Single<UiStatTile>(card);
-        Assert.Equal(("Focus today", "30 min"), (stat.Label, stat.Value));
-        UiBarChart chart = Single<UiBarChart>(card);
-        Assert.Equal(7, chart.Points.Count);
-        Assert.Equal(new UiDataPoint("Thu", 30), chart.Points[6]);
-        Assert.Equal(new UiDataPoint("Fri", 0), chart.Points[0]);
+        Assert.Equal(("Focus today", "30 min", "Last 7 days: 30 min"), (stat.Label, stat.Value, stat.Caption));
+        Assert.Empty(Descendants(card).OfType<UiBarChart>());
+        Assert.Empty(Descendants(card).OfType<UiText>());
     }
 
     [Fact]
-    public async Task The_widget_without_data_shows_a_hint_instead_of_a_chart()
+    public async Task The_widget_without_data_shows_a_hint_instead_of_a_subtitle()
     {
         FakePluginContext ctx = await StartAsync();
 
         UiCard card = await RenderWidgetAsync(ctx);
 
-        Assert.Empty(Descendants(card).OfType<UiBarChart>());
-        Assert.Equal("0 min", Single<UiStatTile>(card).Value);
+        AssertFlatWidget(card);
+        UiStatTile stat = Single<UiStatTile>(card);
+        Assert.Equal(("0 min", null), (stat.Value, stat.Caption));
         Assert.Contains(Descendants(card).OfType<UiText>(), t => t.Text == "Stats appear after your first session.");
     }
 

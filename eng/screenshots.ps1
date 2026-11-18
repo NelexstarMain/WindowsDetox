@@ -109,7 +109,12 @@ if (Click-Named $main 'Insights') {
 if (Click-Named $main 'Session') {
   Start-Sleep -Seconds 3; Shot $main '13-session-with-widget'
   if (Click-Named $main 'Add widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '14-widget-picker'; [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1 }
-  if (Click-Named $main 'Edit widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '15-widgets-edit' }
+  if (Click-Named $main 'Edit widgets' -Anywhere) {
+    Start-Sleep -Seconds 2; Shot $main '15-widgets-edit'
+    # Leave edit mode, then tap the Goals widget's header: the widget opens its plugin page.
+    Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Seconds 1
+    if (Click-Named $main 'Open Goals & Tasks' -Anywhere) { Start-Sleep -Seconds 3; Shot $main '17-widget-opens-plugin' }
+  }
 }
 if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
 Stop-Process $ui -Force -ErrorAction SilentlyContinue

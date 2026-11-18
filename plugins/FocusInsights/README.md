@@ -15,7 +15,7 @@ Blocked attempts are written to storage at most every 10 seconds (and on shutdow
 ## What it shows
 
 * Page "Insights": logo header, four stat tiles (focus time and blocked attempts of the last 7 days, sessions completed, current streak), focus minutes per day (14 days), most blocked apps (30 days), session outcomes donut, a weekday by time-of-day heatmap of blocked attempts and the last 8 sessions. Before the first session it shows a friendly empty state with a "Show example" button that previews every chart with deterministic sample data (nothing is saved).
-* Dashboard widget (small): today's focus minutes and a 7-day mini chart.
+* Dashboard widget (small): today's focus minutes with the last-7-days total; the host draws the surface, icon and name, and tapping it opens this page.
 * Settings: "Record blocked app names" (privacy, on by default) and "Clear recorded data" (asks for a second click).
 
 ## Capabilities

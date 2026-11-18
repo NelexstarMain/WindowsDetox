@@ -14,6 +14,10 @@ public sealed class UiNodeView : ContentControl
     public static readonly DependencyProperty NodeProperty = DependencyProperty.Register(
         nameof(Node), typeof(UiNode), typeof(UiNodeView), new PropertyMetadata(null, OnNodeChanged));
 
+    /// <summary>Identifies the <see cref="IsFlat"/> dependency property.</summary>
+    public static readonly DependencyProperty IsFlatProperty = DependencyProperty.Register(
+        nameof(IsFlat), typeof(bool), typeof(UiNodeView), new PropertyMetadata(false, OnNodeChanged));
+
     /// <summary>Initializes a new instance of the <see cref="UiNodeView"/> class.</summary>
     public UiNodeView()
     {
@@ -29,6 +33,17 @@ public sealed class UiNodeView : ContentControl
     {
         get => (UiNode?)GetValue(NodeProperty);
         set => SetValue(NodeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the tree is drawn flat, for content the host already places on its own surface (dashboard widgets):
+    /// <see cref="UiCard"/> renders without border, background, padding and header (its title, subtitle and icon are always dropped)
+    /// and <see cref="UiStatTile"/> without its tile, so nothing is boxed inside the host's surface.
+    /// </summary>
+    public bool IsFlat
+    {
+        get => (bool)GetValue(IsFlatProperty);
+        set => SetValue(IsFlatProperty, value);
     }
 
     private static void OnNodeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) => ((UiNodeView)d).Rebuild();
@@ -49,7 +64,7 @@ public sealed class UiNodeView : ContentControl
             return;
         }
 
-        FrameworkElement visual = new UiVisualBuilder(action => ActionInvoked?.Invoke(this, action)).Build(node);
+        FrameworkElement visual = new UiVisualBuilder(action => ActionInvoked?.Invoke(this, action), IsFlat).Build(node);
         Content = node is UiPage
             ? new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = visual }
             : visual;

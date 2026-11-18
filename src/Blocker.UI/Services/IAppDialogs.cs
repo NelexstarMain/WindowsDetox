@@ -66,9 +66,16 @@ internal interface INavigator
     /// <summary>Raised when a page should be shown.</summary>
     event EventHandler<AppPage>? NavigationRequested;
 
+    /// <summary>Raised when a plugin's own page should be shown. The argument is the plugin id.</summary>
+    event EventHandler<string>? PluginPageRequested;
+
     /// <summary>Requests navigation.</summary>
     /// <param name="page">Target page.</param>
     void GoTo(AppPage page);
+
+    /// <summary>Requests the first page of a plugin, or the Plugins page when it has none.</summary>
+    /// <param name="pluginId">The plugin.</param>
+    void GoToPluginPage(string pluginId);
 }
 
 /// <summary>Default <see cref="INavigator"/>; the shell subscribes to it.</summary>
@@ -78,5 +85,11 @@ internal sealed class Navigator : INavigator
     public event EventHandler<AppPage>? NavigationRequested;
 
     /// <inheritdoc />
+    public event EventHandler<string>? PluginPageRequested;
+
+    /// <inheritdoc />
     public void GoTo(AppPage page) => NavigationRequested?.Invoke(this, page);
+
+    /// <inheritdoc />
+    public void GoToPluginPage(string pluginId) => PluginPageRequested?.Invoke(this, pluginId);
 }
