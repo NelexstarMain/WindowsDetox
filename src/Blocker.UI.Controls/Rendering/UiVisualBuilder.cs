@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using Blocker.UI.Sdk;
 using NumberBox = Wpf.Ui.Controls.NumberBox;
 using NumberBoxSpinButtonPlacementMode = Wpf.Ui.Controls.NumberBoxSpinButtonPlacementMode;
@@ -43,6 +45,9 @@ internal sealed class UiVisualBuilder
         UiProgress progress => BuildProgress(progress),
         UiBarChart chart => BuildBarChart(chart),
         UiLineChart chart => BuildLineChart(chart),
+        UiDonutChart donut => BuildDonutChart(donut),
+        UiHeatmap heatmap => BuildHeatmap(heatmap),
+        UiGlyph glyph => BuildGlyph(glyph),
         UiTable table => BuildTable(table),
         UiButton button => BuildButton(button),
         UiToggle toggle => BuildToggle(toggle),
@@ -326,6 +331,266 @@ internal sealed class UiVisualBuilder
         var element = new LineChartElement(chart.Series, chart.ValueSuffix) { HorizontalAlignment = HorizontalAlignment.Stretch };
         string summary = string.Join("; ", chart.Series.Select(s => s.Name + ": " + string.Join(", ", s.Points.Select(p => p.Label + " " + ChartScale.FormatValue(p.Value, chart.ValueSuffix)))));
         return WithChartTitle(element, chart.Title, summary);
+    }
+
+    private static FrameworkElement BuildDonutChart(UiDonutChart chart)
+    {
+        const double diameter = 160;
+        double thickness = DonutMath.Thickness(diameter);
+        double outer = diameter / 2;
+        double inner = outer - thickness;
+        double[] values = [.. chart.Slices.Select(s => s.Value)];
+        IReadOnlyList<DonutArc> arcs = DonutMath.Arcs(values);
+        double total = values.Where(v => double.IsFinite(v) && v > 0).Sum();
+
+        var ring = new Grid { Width = diameter, Height = diameter, VerticalAlignment = VerticalAlignment.Center };
+        var canvas = new Canvas { Width = diameter, Height = diameter };
+        if (total <= 0)
+        {
+            var empty = new Ellipse { Width = diameter - thickness, Height = diameter - thickness, StrokeThickness = thickness };
+            empty.SetResourceReference(Shape.StrokeProperty, "Blocker.Bg.Raised");
+            Canvas.SetLeft(empty, thickness / 2);
+            Canvas.SetTop(empty, thickness / 2);
+            canvas.Children.Add(empty);
+        }
+        else
+        {
+            for (int i = 0; i < arcs.Count; i++)
+            {
+                if (arcs[i].Sweep <= 0)
+                {
+                    continue;
+                }
+
+                UiDataPoint slice = chart.Slices[i];
+                var path = new Path
+                {
+                    Data = DonutSlice(outer, inner, arcs[i]),
+                    StrokeThickness = 2,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    ToolTip = slice.Label + ": " + ChartScale.FormatValue(slice.Value) + " (" + DonutMath.Percent(arcs[i].Fraction) + ")",
+                };
+                path.SetResourceReference(Shape.FillProperty, UiMetrics.SeriesKey(i));
+                path.SetResourceReference(Shape.StrokeProperty, "Blocker.Bg.Card");
+                canvas.Children.Add(path);
+            }
+        }
+
+        ring.Children.Add(canvas);
+        var center = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        string centerValue = total <= 0 ? "No data" : chart.CenterValue ?? string.Empty;
+        if (centerValue.Length > 0)
+        {
+            TextBlock big = Styled(new TextBlock { Text = centerValue, TextAlignment = TextAlignment.Center }, "Blocker.Text.Mono");
+            big.FontSize = total <= 0 ? 12 : 26;
+            big.FontWeight = FontWeights.SemiBold;
+            big.SetResourceReference(TextBlock.ForegroundProperty, total <= 0 ? "Blocker.Text.Muted" : "Blocker.Text.Primary");
+            center.Children.Add(big);
+        }
+
+        if (total > 0 && !string.IsNullOrEmpty(chart.CenterLabel))
+        {
+            TextBlock caption = Caption(chart.CenterLabel);
+            caption.TextAlignment = TextAlignment.Center;
+            caption.MaxWidth = inner * 1.6;
+            caption.TextTrimming = TextTrimming.CharacterEllipsis;
+            center.Children.Add(caption);
+        }
+
+        ring.Children.Add(center);
+
+        var legend = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(24, 0, 0, 0) };
+        for (int i = 0; i < chart.Slices.Count; i++)
+        {
+            UiDataPoint slice = chart.Slices[i];
+            var row = new Grid { Margin = new Thickness(0, i == 0 ? 0 : 6, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 40 });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var swatch = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+            swatch.SetResourceReference(Border.BackgroundProperty, UiMetrics.SeriesKey(i));
+            TextBlock name = Caption(slice.Label);
+            name.TextTrimming = TextTrimming.CharacterEllipsis;
+            name.Margin = new Thickness(0, 0, 16, 0);
+            name.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
+            string text = ChartScale.FormatValue(slice.Value) + (total > 0 ? "  " + DonutMath.Percent(arcs[i].Fraction) : string.Empty);
+            TextBlock value = Styled(new TextBlock { Text = text }, "Blocker.Text.Mono");
+            value.FontSize = 12;
+            Grid.SetColumn(name, 1);
+            Grid.SetColumn(value, 2);
+            row.Children.Add(swatch);
+            row.Children.Add(name);
+            row.Children.Add(value);
+            legend.Children.Add(row);
+        }
+
+        var layout = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(legend, 1);
+        layout.Children.Add(ring);
+        layout.Children.Add(legend);
+
+        string summary = total <= 0
+            ? "No data"
+            : string.Join(", ", chart.Slices.Select((s, i) => s.Label + " " + ChartScale.FormatValue(s.Value) + " (" + DonutMath.Percent(arcs[i].Fraction) + ")"));
+        return WithChartTitle(layout, chart.Title, summary);
+    }
+
+    private static Geometry DonutSlice(double outer, double inner, DonutArc arc)
+    {
+        double end = arc.StartAngle + arc.Sweep;
+        (double X, double Y) p1 = DonutMath.ArcPoint(outer, outer, outer, arc.StartAngle);
+        (double X, double Y) p2 = DonutMath.ArcPoint(outer, outer, outer, end);
+        (double X, double Y) p3 = DonutMath.ArcPoint(outer, outer, inner, end);
+        (double X, double Y) p4 = DonutMath.ArcPoint(outer, outer, inner, arc.StartAngle);
+        bool large = arc.Sweep > 180;
+        var geometry = new StreamGeometry();
+        using (StreamGeometryContext ctx = geometry.Open())
+        {
+            ctx.BeginFigure(new Point(p1.X, p1.Y), true, true);
+            ctx.ArcTo(new Point(p2.X, p2.Y), new Size(outer, outer), 0, large, SweepDirection.Clockwise, true, false);
+            ctx.LineTo(new Point(p3.X, p3.Y), true, false);
+            ctx.ArcTo(new Point(p4.X, p4.Y), new Size(inner, inner), 0, large, SweepDirection.Counterclockwise, true, false);
+        }
+
+        geometry.Freeze();
+        return geometry;
+    }
+
+    private static FrameworkElement BuildHeatmap(UiHeatmap map)
+    {
+        const double cell = 16;
+        const double gap = 3;
+        double max = HeatmapMath.Max(map.Values);
+        int rows = map.RowLabels.Count;
+        int cols = map.ColumnLabels.Count;
+
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        for (int c = 0; c < cols; c++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cell + gap) });
+        }
+
+        for (int r = 0; r <= rows; r++)
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = r == 0 ? GridLength.Auto : new GridLength(cell + gap) });
+        }
+
+        for (int c = 0; c < cols; c++)
+        {
+            if (string.IsNullOrEmpty(map.ColumnLabels[c]))
+            {
+                continue;
+            }
+
+            TextBlock label = Caption(map.ColumnLabels[c]);
+            label.FontSize = 10;
+            label.TextWrapping = TextWrapping.NoWrap;
+            label.HorizontalAlignment = HorizontalAlignment.Left;
+            label.Margin = new Thickness(0, 0, 0, 4);
+            Grid.SetColumn(label, c + 1);
+            grid.Children.Add(label);
+        }
+
+        for (int r = 0; r < rows; r++)
+        {
+            if (!string.IsNullOrEmpty(map.RowLabels[r]))
+            {
+                TextBlock label = Caption(map.RowLabels[r]);
+                label.FontSize = 10;
+                label.VerticalAlignment = VerticalAlignment.Center;
+                label.Margin = new Thickness(0, 0, 8, 0);
+                Grid.SetRow(label, r + 1);
+                grid.Children.Add(label);
+            }
+
+            for (int c = 0; c < cols; c++)
+            {
+                double value = r < map.Values.Count && c < map.Values[r].Count ? map.Values[r][c] : 0;
+                Border box = HeatCell(HeatmapMath.Intensity(value, max), cell);
+                box.Margin = new Thickness(0, 0, gap, gap);
+                box.ToolTip = map.RowLabels[r] + " · " + map.ColumnLabels[c] + ": " + ChartScale.FormatValue(value, map.ValueSuffix);
+                Grid.SetRow(box, r + 1);
+                Grid.SetColumn(box, c + 1);
+                grid.Children.Add(box);
+            }
+        }
+
+        var legend = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        TextBlock less = Caption("Less");
+        less.FontSize = 10;
+        less.Margin = new Thickness(0, 0, 6, 0);
+        less.VerticalAlignment = VerticalAlignment.Center;
+        legend.Children.Add(less);
+        foreach (double step in new[] { 0, 0.33, 0.66, 1 })
+        {
+            Border swatch = HeatCell(step, 12);
+            swatch.Margin = new Thickness(0, 0, 3, 0);
+            legend.Children.Add(swatch);
+        }
+
+        TextBlock more = Caption("More");
+        more.FontSize = 10;
+        more.Margin = new Thickness(3, 0, 0, 0);
+        more.VerticalAlignment = VerticalAlignment.Center;
+        legend.Children.Add(more);
+
+        var stack = new StackPanel();
+        stack.Children.Add(grid);
+        stack.Children.Add(legend);
+        string summary = string.Join("; ", map.RowLabels.Select((row, r) => row + ": " + string.Join(", ", map.Values[r].Select(v => ChartScale.FormatValue(v, map.ValueSuffix)))));
+        return WithChartTitle(stack, map.Title, summary);
+    }
+
+    private static Border HeatCell(double intensity, double size)
+    {
+        var box = new Border { Width = size, Height = size, CornerRadius = new CornerRadius(2) };
+        if (intensity <= 0)
+        {
+            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x16, 0x18, 0x1F)));
+        }
+        else
+        {
+            (byte r, byte g, byte b) = HeatmapMath.Blend(intensity);
+            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(r, g, b)));
+            box.Opacity = HeatmapMath.Opacity(intensity);
+        }
+
+        return box;
+    }
+
+    private static Brush Frozen(SolidColorBrush brush)
+    {
+        brush.Freeze();
+        return brush;
+    }
+
+    private static FrameworkElement BuildGlyph(UiGlyph glyph)
+    {
+        Geometry geometry;
+        try
+        {
+            geometry = Geometry.Parse(glyph.PathData);
+            geometry.Freeze();
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidOperationException or ArgumentException)
+        {
+            return Caption("Logo unavailable.");
+        }
+
+        var path = new Path
+        {
+            Data = geometry,
+            Stretch = Stretch.Uniform,
+            Width = glyph.Size,
+            Height = glyph.Size,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        path.SetResourceReference(Shape.FillProperty, glyph.Tone == UiTone.Accent ? "Blocker.Logo.Brush" : ToneMap.FillKey(glyph.Tone));
+        AutomationProperties.SetName(path, "Logo");
+        return path;
     }
 
     private static FrameworkElement WithChartTitle(FrameworkElement chart, string? title, string summary)
