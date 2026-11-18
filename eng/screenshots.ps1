@@ -10,6 +10,10 @@ public static class Native {
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
   [DllImport("user32.dll")] public static extern void mouse_event(int f, int x, int y, int d, IntPtr e);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int ht, bool repaint);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+  [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT r, int size);
+  public static RECT Frame(IntPtr h) { RECT r; DwmGetWindowAttribute(h, 9, out r, 16); return r; }
   public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2, 0, 0, 0, IntPtr.Zero); mouse_event(4, 0, 0, 0, IntPtr.Zero); }
 }
 "@
@@ -30,13 +34,14 @@ function Wait-Window([int]$processId, [int]$seconds = 30) {
 function Shot($window, [string]$name) {
   [Native]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle) | Out-Null
   Start-Sleep -Milliseconds 1200
-  $r = $window.Current.BoundingRectangle
-  $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
+  # DWM extended frame bounds: the visible window without its invisible resize border and shadow.
+  $f = [Native]::Frame([IntPtr]$window.Current.NativeWindowHandle)
+  $bmp = New-Object System.Drawing.Bitmap ($f.Right - $f.Left), ($f.Bottom - $f.Top)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
-  $g.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size)
+  $g.CopyFromScreen($f.Left, $f.Top, 0, 0, $bmp.Size)
   $bmp.Save((Join-Path (Resolve-Path shots) "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
   $g.Dispose(); $bmp.Dispose()
-  "saved $name.png ($([int]$r.Width)x$([int]$r.Height))"
+  "saved $name.png ($($bmp.Width)x$($bmp.Height))"
 }
 
 function Click-Named($window, [string]$text) {
@@ -62,15 +67,19 @@ if ($Phase -eq 'installer') {
 $ui = Start-Process (Join-Path $InstallDir 'Blocker.UI.exe') -PassThru
 Start-Sleep -Seconds 6
 $main = Wait-Window $ui.Id
+# The runner screen is small: put the window fully on screen at a size that fits.
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+[Native]::MoveWindow([IntPtr]$main.Current.NativeWindowHandle, 0, 0, [Math]::Min(1000, $screen.Width), [Math]::Min(660, $screen.Height), $true) | Out-Null
+Start-Sleep -Seconds 1
 Shot $main '02-session'
 $n = 3
-foreach ($page in 'Allowlist', 'Setup', 'Plugins', 'Settings') {
-  if (Click-Named $main $page) { Start-Sleep -Seconds 3; Shot $main ('{0:D2}-{1}' -f $n, $page.ToLower()) }
+foreach ($page in 'Allowlist', 'Session setup', 'Plugins', 'Settings') {
+  if (Click-Named $main $page) { Start-Sleep -Seconds 3; Shot $main ('{0:D2}-{1}' -f $n, ($page.ToLower() -replace ' ', '-')) }
   $n++
 }
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 
-$stub = Start-Process (Join-Path $InstallDir 'Blocker.Stub.exe') -ArgumentList '--blocked', "$env:WINDIR\notepad.exe", '--reason', 'Not on your allowlist' -PassThru
+$stub = Start-Process (Join-Path $InstallDir 'Blocker.Stub.exe') -ArgumentList '--blocked', "`"$env:WINDIR\notepad.exe`"", '--reason', '"Not on your allowlist"' -PassThru
 Shot (Wait-Window $stub.Id) '07-block-screen'
 Stop-Process $stub -Force -ErrorAction SilentlyContinue

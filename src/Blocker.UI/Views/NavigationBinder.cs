@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Collections.Specialized;
 using Blocker.UI.Services;
 using Blocker.UI.ViewModels;
@@ -70,6 +71,7 @@ internal sealed class NavigationBinder
                 Icon = new SymbolIcon(SymbolRegular.Document24),
                 TargetPageType = typeof(PluginPage),
                 Tag = page,
+                Style = (Style)_navigation.FindResource("Blocker.NavItem"),
             };
             _pluginItems.Add(item);
             _navigation.MenuItems.Add(item);

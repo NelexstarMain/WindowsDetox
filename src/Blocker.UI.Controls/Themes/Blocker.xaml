@@ -478,7 +478,12 @@
     </Style>
 
     <!-- ============================== Navigation item ============================== -->
-    <Style TargetType="ui:NavigationViewItem">
+    <!-- WPF-UI's NavigationView content panel: transparent so the #0B0C0F canvas and the faint logo watermark show through. -->
+    <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
+
+    <!-- Keyed and set explicitly on each item: NavigationView brings its own item style, which would win over an implicit one. -->
+    <Style x:Key="Blocker.NavItem" TargetType="ui:NavigationViewItem">
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
         <Setter Property="Margin" Value="0,0,0,2" />
         <Setter Property="Cursor" Value="Hand" />

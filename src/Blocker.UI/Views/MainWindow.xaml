@@ -56,29 +56,29 @@
                            IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False"
                            Background="Transparent">
             <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Content="Session" TargetPageType="{x:Type views:DashboardPage}">
+                <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Session" TargetPageType="{x:Type views:DashboardPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="Timer24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem Content="Allowlist" TargetPageType="{x:Type views:AllowlistPage}">
+                <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Allowlist" TargetPageType="{x:Type views:AllowlistPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="Apps24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem Content="Session setup" TargetPageType="{x:Type views:SetupPage}">
+                <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Session setup" TargetPageType="{x:Type views:SetupPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="ShieldLock24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem Content="Plugins" TargetPageType="{x:Type views:PluginsPage}">
+                <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Plugins" TargetPageType="{x:Type views:PluginsPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="PuzzlePiece24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem Content="Settings" TargetPageType="{x:Type views:SettingsPage}">
+                <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Settings" TargetPageType="{x:Type views:SettingsPage}">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="Settings24" />
                     </ui:NavigationViewItem.Icon>
