@@ -66,8 +66,8 @@ public sealed record PluginHostSupervisorOptions
     /// <summary>Gets the time for loading plugins (every plugin is compiled with Roslyn).</summary>
     public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromSeconds(60);
 
-    /// <summary>Gets the time for evaluating a package (compile and run its tests).</summary>
-    public TimeSpan EvaluateTimeout { get; init; } = TimeSpan.FromSeconds(60);
+    /// <summary>Gets the time for evaluating a package: a cold Roslyn compile plus the plugin tests, which alone may take up to 60 s.</summary>
+    public TimeSpan EvaluateTimeout { get; init; } = TimeSpan.FromSeconds(120);
 
     /// <summary>Gets how long a stopping supervisor waits for the host to exit before killing it.</summary>
     public TimeSpan ShutdownTimeout { get; init; } = TimeSpan.FromSeconds(3);

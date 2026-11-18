@@ -34,9 +34,9 @@ internal sealed class LoopbackServer : IAsyncDisposable
                 }
             }
             catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException
-                || (ex is InvalidOperationException && _cts.IsCancellationRequested))
+                || (ex is InvalidOperationException or SocketException && _cts.IsCancellationRequested))
             {
-                // InvalidOperationException ("Not listening") when disposal stops the listener before the loop first accepts.
+                // Disposal races the accept: InvalidOperationException ("Not listening") or, on Linux, SocketException ("Operation canceled").
                 return;
             }
         });

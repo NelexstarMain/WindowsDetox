@@ -19,7 +19,7 @@ namespace Blocker.Platform.Windows.Processes;
 /// (1) the console user's token (fallback when nobody is logged on: this service's own token) restricted by CreateRestrictedToken with
 /// DISABLE_MAX_PRIVILEGE and the Administrators group set deny-only, (2) low integrity level (S-1-16-4096): mandatory integrity
 /// policy blocks writes to every object with a higher label, i.e. user profile, Program Files, HKLM/HKCU and other processes,
-/// and (3) a job object: one process only (no child processes), 512 MB per process, UI restrictions (no clipboard, desktop switching,
+/// and (3) a job object: one process only (no child processes), 1 GB per process, UI restrictions (no clipboard, desktop switching,
 /// foreign USER handles, system parameters, exit-windows) and kill-on-job-close so the host cannot outlive its handle.</para>
 /// <para>Not covered: this is not an AppContainer, so low-IL code can still read what Everyone/Users can read and use the network.
 /// Network and file capabilities are mediated by the plugin API policy, not by this token.</para>
@@ -30,8 +30,11 @@ namespace Blocker.Platform.Windows.Processes;
 [SupportedOSPlatform("windows10.0.19041")]
 public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
 {
-    /// <summary>Per-process memory limit of the job.</summary>
-    public const long ProcessMemoryLimitBytes = 512L * 1024 * 1024;
+    /// <summary>
+    /// Per-process memory limit of the job. Compiling a plugin with Roslyn against the full .NET reference set peaks around 400 MB, and .NET
+    /// caps its heap at 75 % of the job limit, so 512 MB was too tight; 1 GB still stops a runaway plugin.
+    /// </summary>
+    public const long ProcessMemoryLimitBytes = 1024L * 1024 * 1024;
 
     private const string LowIntegritySid = "S-1-16-4096";
 
@@ -163,7 +166,7 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
     /// Adds the UI restrictions (no clipboard, desktop switching, foreign USER handles, system parameters, exit-windows) to a job that
     /// already holds the process. They are applied <em>after</em> the assignment because the service runs in session 0 while the host runs
     /// in the user's session: a job that carries UI limits from the start refuses a process from another session with ACCESS_DENIED
-    /// (seen on Windows CI). The limits that matter most (one process, 512 MB, kill-on-close) are in place before the process runs.
+    /// (seen on Windows CI). The limits that matter most (one process, the memory cap, kill-on-close) are in place before the process runs.
     /// </summary>
     /// <returns><see langword="true"/> when Windows accepted the restrictions; <see langword="false"/> when it refused them (the host still
     /// runs confined by the low-integrity token and the other job limits).</returns>

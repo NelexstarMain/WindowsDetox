@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using Blocker.Core.Events;
 using Blocker.Core.Ipc;
+using Blocker.Core.Logging;
 using Blocker.Core.PluginRuntime;
 using Blocker.PluginHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,11 @@ if (!PluginHostArguments.TryParse(args, out PluginHostArguments? options, out st
 
 // The host's own command line is not host configuration, so no arguments are handed to the builder.
 HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+
+// The default providers do not suit a low-integrity process without a console: the Event Log provider cannot write there and makes
+// every warning throw. Log to the plugin data directory instead, the one place this host may write ("host-logs" is never a plugin id).
+builder.Logging.ClearProviders();
+builder.Logging.AddProvider(new RollingFileLoggerProvider(new FileSystem(), Path.Combine(options.DataDirectory, "host-logs"), TimeProvider.System));
 builder.Services.AddSingleton(options);
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddSingleton(new VerifiedTimeProvider(TimeProvider.System));

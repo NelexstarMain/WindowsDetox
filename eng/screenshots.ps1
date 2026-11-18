@@ -71,6 +71,7 @@ $marker = Join-Path $env:ProgramData 'WindowsDetox\bundled-plugins.txt'
 for ($i = 0; $i -lt 120 -and -not (Test-Path $marker); $i++) { Start-Sleep -Seconds 1 }
 "bundled plugins processed: $(Test-Path $marker)"
 Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin|\[Error\]|\[Critical\]|failed at step' -ErrorAction SilentlyContinue | Select-Object -Last 25 | ForEach-Object { $_.Line }
+Get-ChildItem (Join-Path $env:ProgramData 'WindowsDetox.PluginData\host-logs') -ErrorAction SilentlyContinue | Get-Content -Tail 25 | ForEach-Object { "host: $_" }
 $crash = Join-Path $env:ProgramData 'WindowsDetox.PluginData\plugin-host-crash.log'
 if (Test-Path $crash) { "--- plugin host crash log"; Get-Content $crash | Select-Object -First 30 }
 Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-15) } -ErrorAction SilentlyContinue |
