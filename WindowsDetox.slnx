@@ -6,6 +6,8 @@
     <Project Path="src/Blocker.Plugin.Templates/Blocker.Plugin.Templates.csproj" />
     <Project Path="src/Blocker.Plugin.Testing/Blocker.Plugin.Testing.csproj" />
     <Project Path="src/Blocker.SDK/Blocker.SDK.csproj" />
+    <Project Path="src/Blocker.Stub/Blocker.Stub.csproj" />
+    <Project Path="src/Blocker.UI/Blocker.UI.csproj" />
     <Project Path="src/Blocker.UI.Controls/Blocker.UI.Controls.csproj" />
     <Project Path="src/Blocker.UI.SDK/Blocker.UI.SDK.csproj" />
   </Folder>
@@ -16,5 +18,7 @@
     <Project Path="tests/Blocker.Plugin.Testing.Fixtures/Blocker.Plugin.Testing.Fixtures.csproj" />
     <Project Path="tests/Blocker.Plugin.Testing.Tests/Blocker.Plugin.Testing.Tests.csproj" />
     <Project Path="tests/Blocker.SDK.Tests/Blocker.SDK.Tests.csproj" />
+    <Project Path="tests/Blocker.UI.Controls.Tests/Blocker.UI.Controls.Tests.csproj" />
+    <Project Path="tests/Blocker.UI.Tests/Blocker.UI.Tests.csproj" />
   </Folder>
 </Solution>

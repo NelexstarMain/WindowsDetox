@@ -261,11 +261,11 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
 
         if (response.Success)
         {
-            Snackbar.Show("Allowlist saved", string.Create(CultureInfo.InvariantCulture, $"{SelectedCount} apps and {Domains.Count} domains."), SnackbarTone.Success);
+            Snackbar.Show("Allowlist saved", string.Create(CultureInfo.InvariantCulture, $"{SelectedCount} apps and {Domains.Count} domains."), NotificationSeverity.Success);
         }
         else
         {
-            Snackbar.Show("Allowlist not saved", string.Join(' ', response.Errors), SnackbarTone.Danger);
+            Snackbar.Show("Allowlist not saved", string.Join(' ', response.Errors), NotificationSeverity.Error);
         }
     }
 

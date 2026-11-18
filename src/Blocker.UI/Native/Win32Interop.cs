@@ -66,6 +66,10 @@ internal static unsafe partial class Win32Interop
         s_foregroundCallback = null;
     }
 
+    /// <summary>Returns the handle of the current foreground window, or zero.</summary>
+    /// <returns>Window handle.</returns>
+    public static nint GetForegroundWindowHandle() => GetForegroundWindow();
+
     /// <summary>Returns the id of the process that owns <paramref name="window"/>, or zero.</summary>
     /// <param name="window">Window handle.</param>
     /// <returns>Process id.</returns>
@@ -97,11 +101,11 @@ internal static unsafe partial class Win32Interop
                 return false;
             }
 
-            Span<char> buffer = stackalloc char[1024];
-            uint length = (uint)buffer.Length;
+            char* buffer = stackalloc char[1024];
+            uint length = 1024;
             if (QueryFullProcessImageNameW(handle, 0, buffer, ref length))
             {
-                imagePath = new string(buffer[..(int)length]);
+                imagePath = new string(buffer, 0, (int)length);
             }
 
             return true;
@@ -181,7 +185,7 @@ internal static unsafe partial class Win32Interop
     }
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial nint SetWinEventHook(
         uint eventMin,
         uint eventMax,
@@ -192,50 +196,54 @@ internal static unsafe partial class Win32Interop
         uint flags);
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool UnhookWinEvent(nint hook);
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial uint GetWindowThreadProcessId(nint window, out uint processId);
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetLastInputInfo(ref LastInputInfo info);
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool PostMessageW(nint window, uint message, nint wParam, nint lParam);
 
     [LibraryImport("user32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool EnumWindows(delegate* unmanaged[Stdcall]<nint, nint, int> callback, nint parameter);
 
     [LibraryImport("kernel32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial nint OpenProcess(uint desiredAccess, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, uint processId);
 
     [LibraryImport("kernel32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(nint handle);
 
     [LibraryImport("kernel32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetProcessTimes(nint process, out long creationTime, out long exitTime, out long kernelTime, out long userTime);
 
     [LibraryImport("kernel32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool QueryFullProcessImageNameW(nint process, uint flags, Span<char> buffer, ref uint size);
+    private static partial bool QueryFullProcessImageNameW(nint process, uint flags, char* buffer, ref uint size);
 
     [LibraryImport("kernel32.dll")]
-    [DefaultDllImportSearchPath(DllImportSearchPath.System32)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial uint WaitForSingleObject(nint handle, uint milliseconds);
 
     [StructLayout(LayoutKind.Sequential)]

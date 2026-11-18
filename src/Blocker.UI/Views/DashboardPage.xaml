@@ -1,4 +1,5 @@
 <Page x:Class="Blocker.UI.Views.DashboardPage"
+             x:ClassModifier="internal"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -102,7 +103,7 @@
                                 <TextBlock Text="{Binding PassClockText}" Style="{DynamicResource Blocker.Text.Mono}" FontSize="32"
                                            Foreground="{DynamicResource Blocker.Warning}"
                                            AutomationProperties.Name="Emergency pass time remaining" />
-                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,0">
+                                <TextBlock Margin="0,4,0,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
                                             <Setter Property="Text" Value="Blocking is paused. It resumes when this reaches zero." />

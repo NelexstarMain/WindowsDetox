@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using Blocker.UI.Controls.Rendering;
+using Blocker.UI.Sdk;
 using Blocker.UI.ViewModels;
 
 namespace Blocker.UI.Behaviors;
@@ -53,14 +54,14 @@ internal static class UiNodeActions
         }
     }
 
-    private static void OnActionInvoked(object? sender, UiActionEventArgs e)
+    private static void OnActionInvoked(object? sender, UiAction action)
     {
         if (sender is not UiNodeView view || GetCommand(view) is not { } command || GetContribution(view) is not { } contribution)
         {
             return;
         }
 
-        ContributionAction parameter = new(contribution, e.Action);
+        ContributionAction parameter = new(contribution, action);
         if (command.CanExecute(parameter))
         {
             command.Execute(parameter);

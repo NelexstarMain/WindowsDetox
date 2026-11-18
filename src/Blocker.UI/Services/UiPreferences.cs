@@ -1,50 +1,38 @@
-using System.Windows;
+using Blocker.UI.Controls.Metaballs;
 
 namespace Blocker.UI.Services;
-
-/// <summary>How much visual effect work the UI does. Applies to the metaball layer and animations.</summary>
-internal enum EffectsQuality
-{
-    /// <summary>Full-resolution effects.</summary>
-    High,
-
-    /// <summary>Reduced resolution and frame rate.</summary>
-    Low,
-
-    /// <summary>No animated effects.</summary>
-    Off,
-}
 
 /// <summary>Per-user UI preferences stored next to the application data of the signed-in user.</summary>
 internal interface IUiPreferences
 {
-    /// <summary>Gets or sets the effects quality; setting it persists and applies it immediately.</summary>
-    EffectsQuality Effects { get; set; }
+    /// <summary>Raised after <see cref="Effects"/> changed.</summary>
+    event EventHandler? Changed;
+
+    /// <summary>Gets or sets the effects quality; setting it persists it and raises <see cref="Changed"/>.</summary>
+    MetaballQuality Effects { get; set; }
 }
 
 /// <summary>
-/// Stores the effects quality in <c>%LocalAppData%\WindowsDetox\effects.txt</c> and publishes it to the application resources
-/// as <see cref="ResourceKey"/> so the controls library can read it.
+/// Stores the effects quality in <c>%LocalAppData%\WindowsDetox\effects.txt</c>; the main window applies it to its metaball host.
 /// </summary>
 internal sealed class UiPreferences : IUiPreferences
 {
-    /// <summary>Application resource key that holds the current <see cref="EffectsQuality"/> name.</summary>
-    public const string ResourceKey = "Blocker.Effects.Quality";
-
     private readonly string _path;
-    private EffectsQuality _effects;
+    private MetaballQuality _effects;
 
-    /// <summary>Loads the stored preference, falling back to <see cref="EffectsQuality.High"/>.</summary>
+    /// <summary>Loads the stored preference, falling back to <see cref="MetaballQuality.High"/>.</summary>
     /// <param name="path">File to use; the per-user default when <see langword="null"/>.</param>
     public UiPreferences(string? path = null)
     {
         _path = path ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WindowsDetox", "effects.txt");
         _effects = Load(_path);
-        Publish();
     }
 
     /// <inheritdoc />
-    public EffectsQuality Effects
+    public event EventHandler? Changed;
+
+    /// <inheritdoc />
+    public MetaballQuality Effects
     {
         get => _effects;
         set
@@ -55,33 +43,25 @@ internal sealed class UiPreferences : IUiPreferences
             }
 
             _effects = value;
-            Publish();
             Save();
+            Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 
-    private static EffectsQuality Load(string path)
+    private static MetaballQuality Load(string path)
     {
         if (!File.Exists(path))
         {
-            return EffectsQuality.High;
+            return MetaballQuality.High;
         }
 
         try
         {
-            return Enum.TryParse(File.ReadAllText(path).Trim(), ignoreCase: true, out EffectsQuality value) && Enum.IsDefined(value) ? value : EffectsQuality.High;
+            return Enum.TryParse(File.ReadAllText(path).Trim(), ignoreCase: true, out MetaballQuality value) && Enum.IsDefined(value) ? value : MetaballQuality.High;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return EffectsQuality.High;
-        }
-    }
-
-    private void Publish()
-    {
-        if (Application.Current is { } app)
-        {
-            app.Resources[ResourceKey] = _effects.ToString();
+            return MetaballQuality.High;
         }
     }
 

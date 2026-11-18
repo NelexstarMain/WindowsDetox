@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
 using Blocker.Contracts;
+using Blocker.UI.Controls.Metaballs;
 using Blocker.UI.Controls.Services;
 using Blocker.UI.Sdk;
 using Blocker.UI.Services;
@@ -15,7 +16,7 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
     private readonly IUiPreferences _preferences;
 
     [ObservableProperty]
-    private EffectsQuality _effects;
+    private MetaballQuality _effects;
 
     /// <summary>Creates the view model.</summary>
     /// <param name="connection">Service connection.</param>
@@ -32,7 +33,7 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
     }
 
     /// <summary>Gets the effects choices.</summary>
-    public IReadOnlyList<EffectsQuality> EffectsOptions { get; } = [EffectsQuality.High, EffectsQuality.Low, EffectsQuality.Off];
+    public IReadOnlyList<MetaballQuality> EffectsOptions { get; } = [MetaballQuality.High, MetaballQuality.Low, MetaballQuality.Off];
 
     /// <summary>Gets the plugin settings sections.</summary>
     public ObservableCollection<ContributionViewModel> Sections { get; } = [];
@@ -46,12 +47,12 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
     /// <summary>Gets a description of the effects choice, shown under the selector.</summary>
     public string EffectsDescription => Effects switch
     {
-        EffectsQuality.High => "Smooth metaball field and animations. Recommended.",
-        EffectsQuality.Low => "Lower resolution and frame rate to save battery and GPU time.",
+        MetaballQuality.High => "Smooth metaball field and animations. Recommended.",
+        MetaballQuality.Low => "Lower resolution and frame rate to save battery and GPU time.",
         _ => "No animated effects. The interface stays static.",
     };
 
-    partial void OnEffectsChanged(EffectsQuality value)
+    partial void OnEffectsChanged(MetaballQuality value)
     {
         _preferences.Effects = value;
         OnPropertyChanged(nameof(EffectsDescription));

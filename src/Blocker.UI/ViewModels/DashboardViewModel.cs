@@ -207,16 +207,16 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
         switch (response.Outcome)
         {
             case EmergencyPassOutcome.Started:
-                Snackbar.Show("Emergency pass started", "Blocking is paused. Pause ends automatically.", SnackbarTone.Warning);
+                Snackbar.Show("Emergency pass started", "Blocking is paused. Pause ends automatically.", NotificationSeverity.Warning);
                 break;
             case EmergencyPassOutcome.NoPassesLeft:
-                Snackbar.Show("No passes left", "You have used all emergency passes for today.", SnackbarTone.Danger);
+                Snackbar.Show("No passes left", "You have used all emergency passes for today.", NotificationSeverity.Error);
                 break;
             case EmergencyPassOutcome.AlreadyActive:
-                Snackbar.Show("Pass already running", "An emergency pass is already active.", SnackbarTone.Info);
+                Snackbar.Show("Pass already running", "An emergency pass is already active.", NotificationSeverity.Info);
                 break;
             default:
-                Snackbar.Show("No session running", "Emergency passes only apply during a session.", SnackbarTone.Info);
+                Snackbar.Show("No session running", "Emergency passes only apply during a session.", NotificationSeverity.Info);
                 break;
         }
     }
@@ -239,11 +239,11 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
 
         if (response is { Success: true })
         {
-            Snackbar.Show("Session ended", "Everything is unlocked again.", SnackbarTone.Success);
+            Snackbar.Show("Session ended", "Everything is unlocked again.", NotificationSeverity.Success);
         }
         else
         {
-            Snackbar.Show("Code not accepted", "Check the code and try again.", SnackbarTone.Danger);
+            Snackbar.Show("Code not accepted", "Check the code and try again.", NotificationSeverity.Error);
         }
     }
 

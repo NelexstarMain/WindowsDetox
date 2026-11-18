@@ -4,20 +4,25 @@ using Blocker.UI.Sdk;
 
 namespace Blocker.UI.Controls.Rendering;
 
-/// <summary>SKELETON: event data of <see cref="UiNodeView.ActionInvoked"/>.</summary>
-/// <param name="action">The interaction.</param>
-public sealed class UiActionEventArgs(UiAction action) : EventArgs
+/// <summary>
+/// Renders a plugin-supplied <see cref="UiNode"/> tree with the Blocker theme. The tree is validated first; an invalid
+/// tree produces a small error card instead of the plugin content. Interactions are reported through <see cref="ActionInvoked"/>.
+/// </summary>
+public sealed class UiNodeView : ContentControl
 {
-    /// <summary>Gets the interaction the user performed.</summary>
-    public UiAction Action { get; } = action;
-}
+    /// <summary>Identifies the <see cref="Node"/> dependency property.</summary>
+    public static readonly DependencyProperty NodeProperty = DependencyProperty.Register(
+        nameof(Node), typeof(UiNode), typeof(UiNodeView), new PropertyMetadata(null, OnNodeChanged));
 
-/// <summary>SKELETON: renders a <see cref="UiNode"/> tree with the host's controls. Empty stand-in.</summary>
-public class UiNodeView : Control
-{
-    /// <summary>Identifies <see cref="Node"/>.</summary>
-    public static readonly DependencyProperty NodeProperty =
-        DependencyProperty.Register(nameof(Node), typeof(UiNode), typeof(UiNodeView), new PropertyMetadata(null));
+    /// <summary>Initializes a new instance of the <see cref="UiNodeView"/> class.</summary>
+    public UiNodeView()
+    {
+        IsTabStop = false;
+        BlockerTheme.EnsureApplied();
+    }
+
+    /// <summary>Raised when the user clicks a button, flips a toggle or submits a form. The argument is the action to deliver to the plugin.</summary>
+    public event EventHandler<UiAction>? ActionInvoked;
 
     /// <summary>Gets or sets the tree to render.</summary>
     public UiNode? Node
@@ -26,10 +31,27 @@ public class UiNodeView : Control
         set => SetValue(NodeProperty, value);
     }
 
-    /// <summary>Raised when the user interacts with a button, toggle or form of the tree.</summary>
-    public event EventHandler<UiActionEventArgs>? ActionInvoked;
+    private static void OnNodeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) => ((UiNodeView)d).Rebuild();
 
-    /// <summary>Raises <see cref="ActionInvoked"/>.</summary>
-    /// <param name="action">The interaction.</param>
-    protected void OnActionInvoked(UiAction action) => ActionInvoked?.Invoke(this, new UiActionEventArgs(action));
+    private void Rebuild()
+    {
+        UiNode? node = Node;
+        if (node is null)
+        {
+            Content = null;
+            return;
+        }
+
+        UiValidationResult validation = UiTreeValidator.Validate(node);
+        if (!validation.IsValid)
+        {
+            Content = UiVisualBuilder.BuildErrorCard(validation.Errors);
+            return;
+        }
+
+        FrameworkElement visual = new UiVisualBuilder(action => ActionInvoked?.Invoke(this, action)).Build(node);
+        Content = node is UiPage
+            ? new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = visual }
+            : visual;
+    }
 }

@@ -26,7 +26,7 @@ internal abstract class ServiceViewModel(IServiceConnection connection, ISnackba
         }
         catch (Exception ex) when (ServiceFault.IsExpected(ex))
         {
-            Snackbar.Show(failureTitle, ServiceFault.Describe(ex), SnackbarTone.Danger);
+            Snackbar.Show(failureTitle, ServiceFault.Describe(ex), NotificationSeverity.Error);
             return false;
         }
     }

@@ -211,7 +211,7 @@ internal sealed partial class SetupViewModel : ServiceViewModel
         if (!response.Success)
         {
             StartErrors = response.Errors;
-            Snackbar.Show("Session not started", response.Errors.Count > 0 ? response.Errors[0] : "The service refused the request.", SnackbarTone.Danger);
+            Snackbar.Show("Session not started", response.Errors.Count > 0 ? response.Errors[0] : "The service refused the request.", NotificationSeverity.Error);
             return;
         }
 
@@ -219,7 +219,7 @@ internal sealed partial class SetupViewModel : ServiceViewModel
         string? code = response.BreakGlassCode;
         if (code is null)
         {
-            Snackbar.Show("Session started", "The service did not return a break-glass code.", SnackbarTone.Warning);
+            Snackbar.Show("Session started", "The service did not return a break-glass code.", NotificationSeverity.Warning);
         }
         else
         {

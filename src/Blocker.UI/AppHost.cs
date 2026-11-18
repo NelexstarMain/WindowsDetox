@@ -60,8 +60,8 @@ internal static class AppHost
 
         services.AddSingleton<IContentDialogService, ContentDialogService>();
         services.AddSingleton<Wpf.Ui.ISnackbarService, SnackbarService>();
-        services.AddSingleton<Blocker.UI.Controls.Services.IDialogService, FluentDialogService>();
-        services.AddSingleton<Blocker.UI.Controls.Services.ISnackbarService, FluentSnackbarService>();
+        services.AddSingleton<IDialogService>(sp => new BlockerDialogService(sp.GetRequiredService<IContentDialogService>()));
+        services.AddSingleton<Blocker.UI.Controls.Services.ISnackbarService>(sp => new BlockerSnackbarService(sp.GetRequiredService<Wpf.Ui.ISnackbarService>()));
         services.AddSingleton<IAppDialogs, AppDialogs>();
         services.AddSingleton<INavigationViewPageProvider, DiPageProvider>();
 

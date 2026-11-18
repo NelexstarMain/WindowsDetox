@@ -111,11 +111,11 @@ internal sealed partial class PluginsViewModel : ServiceViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Snackbar.Show("Could not save the template", ex.Message, SnackbarTone.Danger);
+            Snackbar.Show("Could not save the template", ex.Message, NotificationSeverity.Error);
             return;
         }
 
-        Snackbar.Show("Starter template saved", path, SnackbarTone.Success);
+        Snackbar.Show("Starter template saved", path, NotificationSeverity.Success);
     }
 
     [RelayCommand(CanExecute = nameof(CanMutate))]
@@ -134,13 +134,13 @@ internal sealed partial class PluginsViewModel : ServiceViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Snackbar.Show("Could not read the file", ex.Message, SnackbarTone.Danger);
+            Snackbar.Show("Could not read the file", ex.Message, NotificationSeverity.Error);
             return;
         }
 
         if (package.Length > MaxPackageBytes)
         {
-            Snackbar.Show("Package too large", "Plugin packages must be smaller than 3 MB.", SnackbarTone.Danger);
+            Snackbar.Show("Package too large", "Plugin packages must be smaller than 3 MB.", NotificationSeverity.Error);
             return;
         }
 
@@ -158,7 +158,7 @@ internal sealed partial class PluginsViewModel : ServiceViewModel
             await _appDialogs.ShowInstallReportAsync(report, cancellationToken);
             if (report.Succeeded)
             {
-                Snackbar.Show("Plugin installed", report.PluginId ?? "The plugin is ready.", SnackbarTone.Success);
+                Snackbar.Show("Plugin installed", report.PluginId ?? "The plugin is ready.", NotificationSeverity.Success);
                 await RefreshAsync(cancellationToken);
                 PluginsChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -194,7 +194,7 @@ internal sealed partial class PluginsViewModel : ServiceViewModel
             }
             else
             {
-                Snackbar.Show("Plugin unchanged", string.Join(' ', response.Errors), SnackbarTone.Danger);
+                Snackbar.Show("Plugin unchanged", string.Join(' ', response.Errors), NotificationSeverity.Error);
             }
         }
         finally
@@ -233,7 +233,7 @@ internal sealed partial class PluginsViewModel : ServiceViewModel
             }
             else
             {
-                Snackbar.Show("Plugin not removed", string.Join(' ', response.Errors), SnackbarTone.Danger);
+                Snackbar.Show("Plugin not removed", string.Join(' ', response.Errors), NotificationSeverity.Error);
             }
         }
         finally

@@ -1,6 +1,6 @@
 using Blocker.UI.Services;
 using Blocker.UI.ViewModels;
-using Wpf.Ui;
+using Blocker.UI.Controls.Services;
 using Wpf.Ui.Abstractions;
 using Wpf.Ui.Controls;
 
@@ -19,15 +19,15 @@ internal sealed partial class MainWindow : FluentWindow
     /// <param name="pageProvider">Creates pages through DI.</param>
     public MainWindow(
         ShellViewModel viewModel,
-        IContentDialogService dialogs,
-        Wpf.Ui.ISnackbarService snackbars,
+        IDialogService dialogs,
+        Blocker.UI.Controls.Services.ISnackbarService snackbars,
         INavigator navigator,
         INavigationViewPageProvider pageProvider)
     {
         DataContext = viewModel;
         InitializeComponent();
-        dialogs.SetDialogHost(RootContentDialog);
-        snackbars.SetSnackbarPresenter(RootSnackbar);
+        dialogs.SetHost(RootContentDialog);
+        snackbars.SetPresenter(RootSnackbar);
         _binder = new NavigationBinder(RootNavigation, viewModel, navigator, pageProvider);
     }
 

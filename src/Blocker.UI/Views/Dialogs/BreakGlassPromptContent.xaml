@@ -1,4 +1,5 @@
 <UserControl x:Class="Blocker.UI.Views.Dialogs.BreakGlassPromptContent"
+             x:ClassModifier="internal"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel MinWidth="380">
