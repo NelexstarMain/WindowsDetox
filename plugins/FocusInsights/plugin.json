@@ -1,0 +1,16 @@
+{
+  "id": "com.windowsdetox.insights",
+  "name": "Focus Insights",
+  "version": "1.0.0",
+  "author": "WindowsDetox",
+  "description": "Records your detox sessions and blocked distractions on this device and shows focus time, streaks, top blocked apps and when distractions happen.",
+  "sdkVersion": "1.0",
+  "entryType": "FocusInsights.InsightsPlugin",
+  "capabilities": [
+    "events.session",
+    "events.process",
+    "ui.page",
+    "ui.dashboard",
+    "ui.settings"
+  ]
+}
