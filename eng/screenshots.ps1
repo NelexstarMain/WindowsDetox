@@ -15,6 +15,7 @@ public static class Native {
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT r, int size);
   public static RECT Frame(IntPtr h) { RECT r; DwmGetWindowAttribute(h, 9, out r, 16); return r; }
   public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2, 0, 0, 0, IntPtr.Zero); mouse_event(4, 0, 0, 0, IntPtr.Zero); }
+  public static void Wheel(int x, int y, int notches) { SetCursorPos(x, y); mouse_event(0x0800, 0, 0, -120 * notches, IntPtr.Zero); }
 }
 "@
 [Native]::SetProcessDPIAware() | Out-Null
@@ -44,12 +45,12 @@ function Shot($window, [string]$name) {
   "saved $name.png ($($bmp.Width)x$($bmp.Height))"
 }
 
-function Click-Named($window, [string]$text) {
+function Click-Named($window, [string]$text, [switch]$Anywhere) {
   $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $text)
   $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
   foreach ($e in $all) {
     $r = $e.Current.BoundingRectangle
-    if ($r.Width -gt 0 -and $r.X -lt ($window.Current.BoundingRectangle.X + 300)) {
+    if ($r.Width -gt 0 -and ($Anywhere -or $r.X -lt ($window.Current.BoundingRectangle.X + 300))) {
       [Native]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); return $true
     }
   }
@@ -64,6 +65,12 @@ if ($Phase -eq 'installer') {
   exit 0
 }
 
+# Bundled plugins are compiled and tested by the service after install; wait for that before opening the app.
+$marker = Join-Path $env:ProgramData 'WindowsDetox\bundled-plugins.txt'
+for ($i = 0; $i -lt 120 -and -not (Test-Path $marker); $i++) { Start-Sleep -Seconds 1 }
+"bundled plugins processed: $(Test-Path $marker)"
+Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin' -ErrorAction SilentlyContinue | ForEach-Object { $_.Line }
+Start-Sleep -Seconds 3
 $ui = Start-Process (Join-Path $InstallDir 'Blocker.UI.exe') -PassThru
 Start-Sleep -Seconds 6
 $main = Wait-Window $ui.Id
@@ -77,6 +84,21 @@ foreach ($page in 'Allowlist', 'Session setup', 'Plugins', 'Settings') {
   if (Click-Named $main $page) { Start-Sleep -Seconds 3; Shot $main ('{0:D2}-{1}' -f $n, ($page.ToLower() -replace ' ', '-')) }
   $n++
 }
+if (Click-Named $main 'Insights') {
+  Start-Sleep -Seconds 3
+  Shot $main '08-insights-empty'
+  if (Click-Named $main 'Show example' -Anywhere) {
+    Start-Sleep -Seconds 3
+    Shot $main '09-insights'
+    $f = [Native]::Frame([IntPtr]$main.Current.NativeWindowHandle)
+    foreach ($k in 1..3) {
+      [Native]::Wheel([int](($f.Left + $f.Right) / 2 + 100), [int](($f.Top + $f.Bottom) / 2), 5)
+      Start-Sleep -Seconds 1
+      Shot $main ('{0:D2}-insights-{1}' -f (9 + $k), $k)
+    }
+  }
+}
+if (Click-Named $main 'Session') { Start-Sleep -Seconds 3; Shot $main '13-session-with-widget' }
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 
