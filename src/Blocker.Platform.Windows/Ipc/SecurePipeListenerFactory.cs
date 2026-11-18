@@ -50,10 +50,11 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
         | PipeAccessRights.ReadPermissions
         | PipeAccessRights.Synchronize;
 
-    // SY: SYSTEM (GA = all). BA/AU/RC/AC: 0x12008b = READ_CONTROL | SYNCHRONIZE | FILE_READ_ATTRIBUTES | FILE_READ_EA | FILE_WRITE_DATA | FILE_READ_DATA.
+    // SY: SYSTEM gets FA (FILE_ALL_ACCESS: specific rights incl. FILE_CREATE_PIPE_INSTANCE and WRITE_OWNER). Not GA: a generic right in an
+    // ACE given this way is not mapped for the pipe, so later instances were refused WRITE_OWNER (seen on Windows CI). BA/AU/RC/AC: 0x12008b = READ_CONTROL | SYNCHRONIZE | FILE_READ_ATTRIBUTES | FILE_READ_EA | FILE_WRITE_DATA | FILE_READ_DATA.
     // The label S:(ML;;NW;;;LW) makes the pipe writable from Low integrity.
     private const string PluginHostSddl =
-        "D:P(A;;GA;;;SY)(A;;0x12008b;;;BA)(A;;0x12008b;;;AU)(A;;0x12008b;;;RC)(A;;0x12008b;;;AC)";
+        "D:P(A;;FA;;;SY)(A;;0x12008b;;;BA)(A;;0x12008b;;;AU)(A;;0x12008b;;;RC)(A;;0x12008b;;;AC)";
 
     private const string LowLabelSddl = "S:(ML;;NW;;;LW)";
 
