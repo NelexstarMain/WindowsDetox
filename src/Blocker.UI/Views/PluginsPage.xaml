@@ -7,8 +7,8 @@
       xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
       Title="Plugins" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,20,28,28">
-            <Grid Margin="0,0,0,16">
+        <StackPanel Margin="{StaticResource Blocker.Thickness.Page}">
+            <Grid Margin="0,0,0,24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -30,17 +30,19 @@
                 </StackPanel>
             </Grid>
 
-            <Border Margin="0,0,0,16" Padding="14,10" CornerRadius="8" BorderThickness="1"
+            <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="8" BorderThickness="1"
                     Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
                     Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
                 <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="LockClosed24" Foreground="{DynamicResource Blocker.Warning}" Margin="0,0,10,0" />
+                    <ui:SymbolIcon Symbol="LockClosed24" Foreground="{DynamicResource Blocker.Warning}" Margin="0,0,8,0" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Foreground="{DynamicResource Blocker.Text.Primary}"
                                Text="{Binding LockMessage}" VerticalAlignment="Center" />
                 </StackPanel>
             </Border>
 
-            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,0,0,12" Text="{Binding AdminNote}" />
+            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,0,0,16" Text="{Binding AdminNote}" />
+            <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,16" Foreground="{DynamicResource Blocker.Accent}"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" AutomationProperties.Name="Working" />
 
             <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True"
                     Visibility="{Binding HasNoPlugins, Converter={StaticResource BoolToVisible}}">
@@ -54,7 +56,7 @@
             <ItemsControl ItemsSource="{Binding Plugins}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:PluginItemViewModel}">
-                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,12">
+                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,24">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -63,13 +65,13 @@
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Name}" VerticalAlignment="Center" />
-                                        <Border Margin="12,0,0,0" VerticalAlignment="Center">
+                                        <Border Margin="16,0,0,0" VerticalAlignment="Center">
                                             <Border.Style>
                                                 <Style TargetType="Border" BasedOn="{StaticResource App.Chip}">
                                                     <Setter Property="Margin" Value="12,0,0,0" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding State}" Value="Enabled">
-                                                            <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Success}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding State}" Value="Faulted">
                                                             <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Danger}" />
@@ -80,7 +82,7 @@
                                             <TextBlock Text="{Binding StateLabel}" Style="{StaticResource App.ChipText}" />
                                         </Border>
                                     </StackPanel>
-                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,2,0,8">
+                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,8">
                                         <Run Text="Version" /> <Run Text="{Binding Version, Mode=OneWay}" />
                                         <Run Text=" by " /><Run Text="{Binding Author, Mode=OneWay}" />
                                     </TextBlock>

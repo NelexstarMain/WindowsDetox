@@ -6,15 +6,15 @@
     <StackPanel MinWidth="420">
         <TextBlock Style="{DynamicResource Blocker.Text.Body}"
                    Text="This code ends the session early and unlocks everything. It is shown only now and cannot be recovered later. Write it down or store it in a password manager." />
-        <Border Margin="0,16,0,0" Padding="16,14" CornerRadius="8"
+        <Border Margin="0,16,0,0" Padding="16" CornerRadius="8"
                 Background="{DynamicResource Blocker.Bg.Raised}"
                 BorderBrush="{DynamicResource Blocker.Border.Strong}" BorderThickness="1">
             <TextBox Text="{Binding Code, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
-                     FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="22"
+                     FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="20"
                      Foreground="{DynamicResource Blocker.Text.Primary}"
                      AutomationProperties.Name="Break-glass code" />
         </Border>
-        <Button Margin="0,12,0,0" HorizontalAlignment="Left"
+        <Button Margin="0,16,0,0" HorizontalAlignment="Left"
                 Style="{DynamicResource Blocker.Button.Secondary}"
                 Command="{Binding CopyCommand}">
             <StackPanel Orientation="Horizontal">

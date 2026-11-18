@@ -6,7 +6,7 @@
       xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
       Title="Session setup" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="28,20,28,28">
+        <Grid Margin="{StaticResource Blocker.Thickness.Page}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="16" />
@@ -14,12 +14,12 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" Margin="0,0,0,16" />
+                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" Margin="0,0,0,24" />
 
                 <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
                     <StackPanel>
                         <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="How long" />
-                        <ListBox Margin="0,12,0,0" Style="{StaticResource App.PillList}"
+                        <ListBox Margin="0,16,0,0" Style="{StaticResource App.PillList}"
                                  ItemsSource="{Binding DurationOptions}" SelectedItem="{Binding SelectedDuration}"
                                  DisplayMemberPath="Label" AutomationProperties.Name="Session length" />
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
@@ -29,7 +29,7 @@
                                 <ui:NumberBox Width="120" Minimum="0" Maximum="720" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding CustomHours, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
-                            <StackPanel Margin="12,0,0,0">
+                            <StackPanel Margin="16,0,0,0">
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Minutes" Margin="0,0,0,4" />
                                 <ui:NumberBox Width="120" Minimum="0" Maximum="59" SmallChange="5" MaxDecimalPlaces="0"
                                               Value="{Binding CustomMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -41,18 +41,18 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,16,0,0">
+                <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,24,0,0">
                     <StackPanel>
                         <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Emergency passes" />
                         <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,0"
                                    Text="A pass pauses blocking for a short time. Set none for a session that only the break-glass code can end early." />
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <StackPanel>
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Passes per day" Margin="0,0,0,4" />
                                 <ui:NumberBox Width="140" Minimum="0" Maximum="10" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding PassesPerDay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
-                            <StackPanel Margin="12,0,0,0">
+                            <StackPanel Margin="16,0,0,0">
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Minutes per pass" Margin="0,0,0,4" />
                                 <ui:NumberBox Width="140" Minimum="1" Maximum="30" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding PassMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -71,14 +71,14 @@
             <Border Grid.Column="2" Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" VerticalAlignment="Top" Margin="0,48,0,0">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Summary" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Mono}" FontSize="28" Margin="0,12,0,0" Text="{Binding DurationText}" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,2,0,12" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
+                    <TextBlock Style="{DynamicResource Blocker.Text.MonoLarge}" Margin="0,16,0,0" Text="{Binding DurationText}" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,16" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
                                Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding AppsText}" Margin="0,4,0,0" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding DomainsText}" Margin="0,4,0,0" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding PassesText}" Margin="0,4,0,0" />
 
-                    <Button Margin="0,20,0,0" HorizontalAlignment="Stretch" Style="{DynamicResource Blocker.Button.Primary}"
+                    <Button Margin="0,24,0,0" HorizontalAlignment="Stretch" Style="{DynamicResource Blocker.Button.Primary}"
                             Command="{Binding StartSessionCommand}" Content="Start session" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,8,0,0" Text="{Binding StartBlockedReason}"
                                Visibility="{Binding StartBlockedReason, Converter={StaticResource HasTextToVisible}}" />

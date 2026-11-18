@@ -8,15 +8,15 @@
       xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
       Title="Session" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,20,28,28">
-            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session" Margin="0,0,0,16" />
+        <StackPanel Margin="{StaticResource Blocker.Thickness.Page}">
+            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session" Margin="0,0,0,24" />
 
             <!-- Idle: one invitation, one action. -->
             <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Padding="32"
                     Visibility="{Binding IsIdle, Converter={StaticResource BoolToVisible}}">
                 <StackPanel MaxWidth="560" HorizontalAlignment="Left">
-                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="32" Text="Start a detox session" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,12,0,0"
+                    <TextBlock Style="{DynamicResource Blocker.Text.Display}" Text="Start a detox session" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,16,0,0"
                                Text="Pick the apps and sites you still need, choose how long, and Blocker closes everything else until time is up." />
                     <Button Margin="0,24,0,0" HorizontalAlignment="Left" Style="{DynamicResource Blocker.Button.Primary}"
                             Command="{Binding StartSessionCommand}" Content="Set up a session" />
@@ -31,7 +31,7 @@
                     <ColumnDefinition Width="340" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Padding="28">
+                <Border Grid.Column="0" Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Padding="24">
                     <StackPanel>
                         <Border HorizontalAlignment="Left" Margin="0,0,0,8">
                             <Border.Style>
@@ -66,7 +66,7 @@
                         <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="{Binding ClockText}"
                                    AutomationProperties.Name="Time remaining in session" />
                         <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="until the session ends" Margin="4,0,0,0" />
-                        <Button Margin="0,20,0,0" HorizontalAlignment="Left" Style="{DynamicResource Blocker.Button.Subtle}"
+                        <Button Margin="0,24,0,0" HorizontalAlignment="Left" Style="{DynamicResource Blocker.Button.Subtle}"
                                 Command="{Binding EnterBreakGlassCodeCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="Key24" Margin="0,0,8,0" />
@@ -85,7 +85,7 @@
                         </TextBlock>
 
                         <!-- A pass is running: its own countdown, amber in the last minute. -->
-                        <Border Margin="0,16,0,0" Padding="14,12" CornerRadius="8" BorderThickness="1"
+                        <Border Margin="0,16,0,0" Padding="16" CornerRadius="8" BorderThickness="1"
                                 Visibility="{Binding IsPassActive, Converter={StaticResource BoolToVisible}}">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -100,7 +100,7 @@
                                 </Style>
                             </Border.Style>
                             <StackPanel>
-                                <TextBlock Text="{Binding PassClockText}" Style="{DynamicResource Blocker.Text.Mono}" FontSize="32"
+                                <TextBlock Text="{Binding PassClockText}" Style="{DynamicResource Blocker.Text.MonoLarge}"
                                            Foreground="{DynamicResource Blocker.Warning}"
                                            AutomationProperties.Name="Emergency pass time remaining" />
                                 <TextBlock Margin="0,4,0,0">

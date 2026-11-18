@@ -6,20 +6,20 @@
       xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
       xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
       Title="Allowlist" Background="Transparent">
-    <Grid Margin="28,20,28,28">
+    <Grid Margin="{StaticResource Blocker.Thickness.Page}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Style="{DynamicResource Blocker.Text.Title}" Text="Allowlist" Margin="0,0,0,16" />
+        <TextBlock Grid.Row="0" Style="{DynamicResource Blocker.Text.Title}" Text="Allowlist" Margin="0,0,0,24" />
 
-        <Border Grid.Row="1" Margin="0,0,0,16" Padding="14,10" CornerRadius="8" BorderThickness="1"
+        <Border Grid.Row="1" Margin="0,0,0,16" Padding="16,8" CornerRadius="8" BorderThickness="1"
                 Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
                 Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
             <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="LockClosed24" Foreground="{DynamicResource Blocker.Warning}" Margin="0,0,10,0" />
+                <ui:SymbolIcon Symbol="LockClosed24" Foreground="{DynamicResource Blocker.Warning}" Margin="0,0,8,0" />
                 <TextBlock Style="{DynamicResource Blocker.Text.Body}" Foreground="{DynamicResource Blocker.Text.Primary}"
                            Text="{Binding LockMessage}" VerticalAlignment="Center" />
             </StackPanel>
@@ -47,7 +47,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Apps you can keep using" />
-                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,2,0,0" Text="{Binding SelectionSummary}" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,0" Text="{Binding SelectionSummary}" />
                         </StackPanel>
                         <Button Grid.Column="1" Style="{DynamicResource Blocker.Button.Subtle}" Command="{Binding ScanCommand}">
                             <StackPanel Orientation="Horizontal">
@@ -57,7 +57,7 @@
                         </Button>
                     </Grid>
 
-                    <Grid Grid.Row="1" Margin="0,12,0,8">
+                    <Grid Grid.Row="1" Margin="0,16,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -99,7 +99,7 @@
                                                   IsEnabled="{Binding DataContext.CanEditSelection, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                   AutomationProperties.Name="{Binding DisplayName}" />
                                         <Image Grid.Column="1" Width="24" Height="24" Source="{Binding IconPng, Converter={StaticResource PngToImage}}" />
-                                        <StackPanel Grid.Column="2" Margin="10,0,8,0" VerticalAlignment="Center">
+                                        <StackPanel Grid.Column="2" Margin="8,0,8,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding DisplayName}" Style="{DynamicResource Blocker.Text.Body}"
                                                        Foreground="{DynamicResource Blocker.Text.Primary}" TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="{Binding Subtitle}" Style="{DynamicResource Blocker.Text.Caption}"
@@ -128,8 +128,12 @@
                                     Visibility="{Binding HasNoApps, Converter={StaticResource BoolToVisible}}">
                             <ui:ProgressRing IsIndeterminate="True" Width="32" Height="32"
                                              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisible}}" />
-                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,12,0,0" TextAlignment="Center"
-                                       Text="No apps to show. Clear the search or rescan." />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,16,0,0" TextAlignment="Center"
+                                       Text="Scanning installed apps..."
+                                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisible}}" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,16,0,0" TextAlignment="Center"
+                                       Text="No apps to show. Clear the search or rescan."
+                                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToCollapsed}}" />
                         </StackPanel>
                     </Grid>
                 </Grid>
@@ -146,7 +150,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Style="{DynamicResource Blocker.Text.Subtitle}" Text="Websites you can keep using" />
-                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <Grid Grid.Row="1" Margin="0,16,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -162,7 +166,7 @@
                         <Button Grid.Column="1" Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Secondary}"
                                 Command="{Binding AddDomainCommand}" Content="Add" />
                     </Grid>
-                    <TextBlock Grid.Row="2" Margin="0,6,0,0" Text="{Binding DomainHint}">
+                    <TextBlock Grid.Row="2" Margin="0,8,0,0" Text="{Binding DomainHint}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
                                 <Style.Triggers>
@@ -173,10 +177,10 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <ItemsControl Grid.Row="3" Margin="0,12,0,0" ItemsSource="{Binding Domains}">
+                    <ItemsControl Grid.Row="3" Margin="0,16,0,0" ItemsSource="{Binding Domains}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2">
+                                <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
@@ -192,6 +196,18 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock Grid.Row="3" Margin="0,16,0,0" Text="No websites yet. Add the domains you still need.">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Domains.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <Button Grid.Row="4" Margin="0,16,0,0" HorizontalAlignment="Stretch" Style="{DynamicResource Blocker.Button.Primary}"
                             Command="{Binding SaveCommand}" Content="Save allowlist" />
                 </Grid>

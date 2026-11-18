@@ -59,12 +59,15 @@
     <FontFamily x:Key="Blocker.Font.Mono">Cascadia Mono, Consolas</FontFamily>
 
     <!-- ============================== Metrics ============================== -->
-    <sys:Double x:Key="Blocker.Space.Pad">20</sys:Double>
-    <sys:Double x:Key="Blocker.Space.Gap">12</sys:Double>
+    <!-- Spacing steps are multiples of 8 (4 for tight pairs); cards sit 24 apart on the 24 px blueprint grid. -->
+    <sys:Double x:Key="Blocker.Space.Tight">4</sys:Double>
+    <sys:Double x:Key="Blocker.Space.Gap">8</sys:Double>
     <sys:Double x:Key="Blocker.Space.GapLarge">16</sys:Double>
-    <Thickness x:Key="Blocker.Thickness.Pad">20</Thickness>
-    <Thickness x:Key="Blocker.Thickness.Gap">12</Thickness>
+    <sys:Double x:Key="Blocker.Space.Pad">24</sys:Double>
+    <Thickness x:Key="Blocker.Thickness.Gap">8</Thickness>
     <Thickness x:Key="Blocker.Thickness.GapLarge">16</Thickness>
+    <Thickness x:Key="Blocker.Thickness.Pad">24</Thickness>
+    <Thickness x:Key="Blocker.Thickness.Page">24</Thickness>
     <CornerRadius x:Key="Blocker.Radius.Card">12</CornerRadius>
     <CornerRadius x:Key="Blocker.Radius.Control">8</CornerRadius>
 
@@ -158,8 +161,8 @@
             <Setter.Value>
                 <ControlTemplate>
                     <Rectangle Margin="-3"
-                               RadiusX="10"
-                               RadiusY="10"
+                               RadiusX="12"
+                               RadiusY="12"
                                SnapsToDevicePixels="True"
                                Stroke="{DynamicResource Blocker.Accent}"
                                StrokeThickness="1" />
@@ -174,7 +177,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Subtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource Blocker.Radius.Card}" />
-        <Setter Property="Padding" Value="20" />
+        <Setter Property="Padding" Value="24" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
@@ -184,17 +187,21 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Subtle}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource Blocker.Radius.Control}" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="Padding" Value="16" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
     <!-- ============================== Text ============================== -->
     <Style x:Key="Blocker.Text.Title" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Display}" />
-        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontSize" Value="28" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="Blocker.Text.Display" TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Title}">
+        <Setter Property="FontSize" Value="32" />
     </Style>
 
     <Style x:Key="Blocker.Text.Subtitle" TargetType="TextBlock">
@@ -215,7 +222,7 @@
 
     <Style x:Key="Blocker.Text.Body" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
@@ -229,9 +236,23 @@
 
     <Style x:Key="Blocker.Text.Mono" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Mono}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+    </Style>
+
+    <Style x:Key="Blocker.Text.MonoSmall" TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Mono}">
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- Short codes and small timers: break-glass code, toast countdown. -->
+    <Style x:Key="Blocker.Text.Code" TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Mono}">
+        <Setter Property="FontSize" Value="20" />
+    </Style>
+
+    <Style x:Key="Blocker.Text.MonoLarge" TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Mono}">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontWeight" Value="Light" />
     </Style>
 
     <Style x:Key="Blocker.Text.Clock" TargetType="TextBlock">
@@ -246,14 +267,14 @@
     <!-- Hover and pressed states are a white overlay so every variant shares one template. -->
     <Style x:Key="Blocker.Button.Base" TargetType="Button">
         <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16,0" />
-        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Cursor" Value="Hand" />

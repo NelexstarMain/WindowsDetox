@@ -21,6 +21,7 @@
     <Project Path="tests/Blocker.Plugin.Testing.Fixtures/Blocker.Plugin.Testing.Fixtures.csproj" />
     <Project Path="tests/Blocker.Plugin.Testing.Tests/Blocker.Plugin.Testing.Tests.csproj" />
     <Project Path="tests/Blocker.SDK.Tests/Blocker.SDK.Tests.csproj" />
+    <Project Path="tests/Blocker.Service.Tests/Blocker.Service.Tests.csproj" />
     <Project Path="tests/Blocker.UI.Controls.Tests/Blocker.UI.Controls.Tests.csproj" />
     <Project Path="tests/Blocker.UI.Tests/Blocker.UI.Tests.csproj" />
   </Folder>
