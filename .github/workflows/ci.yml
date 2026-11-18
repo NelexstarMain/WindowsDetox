@@ -37,6 +37,8 @@ jobs:
       contents: write # commits refreshed docs/screenshots back to the branch
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -85,7 +87,11 @@ jobs:
           git add docs/screenshots
           git diff --cached --quiet && exit 0
           git commit -m "Update UI screenshots from CI [skip ci]"
-          git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
