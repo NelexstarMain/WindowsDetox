@@ -30,3 +30,19 @@ jobs:
       - name: Vulnerable packages
         if: runner.os == 'Linux'
         run: dotnet list WindowsDetox.slnx package --vulnerable --include-transitive
+
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build installer
+        shell: bash
+        run: eng/build-installer.sh Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WindowsDetox-Setup
+          path: out/WindowsDetox-Setup.exe
+          retention-days: 30
