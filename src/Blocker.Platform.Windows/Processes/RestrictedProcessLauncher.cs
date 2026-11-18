@@ -1,0 +1,178 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Security.Principal;
+using Blocker.Core.Ports;
+using Microsoft.Win32.SafeHandles;
+using Windows.Win32;
+using Windows.Win32.Security;
+using Windows.Win32.System.JobObjects;
+using Windows.Win32.System.Threading;
+
+namespace Blocker.Platform.Windows.Processes;
+
+/// <summary>
+/// Launches the plugin host with a token that cannot do much damage, inside a kill-on-close job object.
+/// </summary>
+/// <remarks>
+/// <para>Threat model: plugin code is compiled and executed in this process, so it must be assumed hostile. The process runs with
+/// (1) the console user's token (fallback when nobody is logged on: this service's own token) restricted by CreateRestrictedToken with
+/// DISABLE_MAX_PRIVILEGE and the Administrators group set deny-only, (2) low integrity level (S-1-16-4096): mandatory integrity
+/// policy blocks writes to every object with a higher label, i.e. user profile, Program Files, HKLM/HKCU and other processes,
+/// and (3) a job object: one process only (no child processes), 512 MB per process, UI restrictions (no clipboard, desktop switching,
+/// foreign USER handles, system parameters, exit-windows) and kill-on-job-close so the host cannot outlive its handle.</para>
+/// <para>Not covered: this is not an AppContainer, so low-IL code can still read what Everyone/Users can read and use the network.
+/// Network and file capabilities are mediated by the plugin API policy, not by this token.</para>
+/// <para>Service integration notes: the named pipe the host connects to must grant access to the Low integrity level
+/// (SACL label <c>S:(ML;;NW;;;LW)</c>) or the connect fails; the host executable and its folder must be readable by Low IL;
+/// disposing the returned <see cref="IRestrictedProcess"/> kills the host.</para>
+/// </remarks>
+[SupportedOSPlatform("windows10.0.19041")]
+public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
+{
+    /// <summary>Per-process memory limit of the job.</summary>
+    public const long ProcessMemoryLimitBytes = 512L * 1024 * 1024;
+
+    private const string LowIntegritySid = "S-1-16-4096";
+
+    /// <inheritdoc/>
+    public IRestrictedProcess Launch(string executablePath, string arguments)
+    {
+        var userToken = TokenProcess.QueryConsoleUserToken();
+        var inUserSession = userToken is not null;
+        using var baseToken = userToken ?? TokenProcess.DuplicateOwnToken();
+        using var restricted = CreateRestrictedToken(baseToken);
+        SetLowIntegrity(restricted);
+
+        var job = CreateJob();
+        StartedProcess? started = null;
+        try
+        {
+            started = TokenProcess.Start(
+                restricted, executablePath, arguments, PROCESS_CREATION_FLAGS.CREATE_SUSPENDED, inUserSession ? TokenProcess.InteractiveDesktop : null);
+
+            // Suspended until it is inside the job, so it can never run (or spawn children) unconfined.
+            if (!PInvoke.AssignProcessToJobObject(job, started.Process))
+            {
+                var error = Marshal.GetLastWin32Error();
+                PInvoke.TerminateProcess(started.Process, 1);
+                throw new Win32Exception(error);
+            }
+
+            started.Resume();
+            started.Thread.Dispose();
+            return new RestrictedProcess(job, started.Process, started.ProcessId);
+        }
+        catch
+        {
+            started?.Dispose();
+            job.Dispose();
+            throw;
+        }
+    }
+
+    private static unsafe SafeFileHandle CreateRestrictedToken(SafeHandle token)
+    {
+        var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        using var identity = new WindowsIdentity(token.DangerousGetHandle());
+        var adminBytes = new byte[admins.BinaryLength];
+        admins.GetBinaryForm(adminBytes, 0);
+
+        // CreateRestrictedToken rejects SIDs that are not in the token, so only deny groups that are present.
+        var denyAdmins = identity.Groups?.Contains(admins) == true;
+        fixed (byte* sid = adminBytes)
+        {
+            Span<SID_AND_ATTRIBUTES> disable = denyAdmins ? [new SID_AND_ATTRIBUTES { Sid = new PSID(sid) }] : [];
+            return PInvoke.CreateRestrictedToken(token, CREATE_RESTRICTED_TOKEN_FLAGS.DISABLE_MAX_PRIVILEGE, disable, default, default, out var result)
+                ? result
+                : throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+    }
+
+    private static unsafe void SetLowIntegrity(SafeHandle token)
+    {
+        var sid = new SecurityIdentifier(LowIntegritySid);
+        var labelSize = sizeof(TOKEN_MANDATORY_LABEL);
+
+        // TOKEN_MANDATORY_LABEL must be followed by its SID in the same buffer.
+        var buffer = new byte[labelSize + sid.BinaryLength];
+        sid.GetBinaryForm(buffer, labelSize);
+        fixed (byte* start = buffer)
+        {
+            var label = (TOKEN_MANDATORY_LABEL*)start;
+            label->Label.Sid = new PSID(start + labelSize);
+            label->Label.Attributes = (uint)PInvoke.SE_GROUP_INTEGRITY;
+            if (!PInvoke.SetTokenInformation(token, TOKEN_INFORMATION_CLASS.TokenIntegrityLevel, buffer))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+    }
+
+    private static unsafe SafeFileHandle CreateJob()
+    {
+        var job = PInvoke.CreateJobObject(null, null);
+        if (job.IsInvalid)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        try
+        {
+            var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION { ProcessMemoryLimit = (nuint)ProcessMemoryLimitBytes };
+            limits.BasicLimitInformation.LimitFlags =
+                JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+            limits.BasicLimitInformation.ActiveProcessLimit = 1;
+            SetInformation(job, JOBOBJECTINFOCLASS.JobObjectExtendedLimitInformation, new ReadOnlySpan<byte>(&limits, sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION)));
+
+            var ui = new JOBOBJECT_BASIC_UI_RESTRICTIONS
+            {
+                UIRestrictionsClass = JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DESKTOP | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DISPLAYSETTINGS
+                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_GLOBALATOMS
+                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_HANDLES | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_READCLIPBOARD
+                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_WRITECLIPBOARD,
+            };
+            SetInformation(job, JOBOBJECTINFOCLASS.JobObjectBasicUIRestrictions, new ReadOnlySpan<byte>(&ui, sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS)));
+            return job;
+        }
+        catch
+        {
+            job.Dispose();
+            throw;
+        }
+    }
+
+    private static void SetInformation(SafeHandle job, JOBOBJECTINFOCLASS information, ReadOnlySpan<byte> data)
+    {
+        if (!PInvoke.SetInformationJobObject(job, information, data))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+    }
+
+    /// <summary>The launched host; disposing closes the job and therefore kills the process.</summary>
+    private sealed class RestrictedProcess(SafeFileHandle job, SafeFileHandle process, int processId) : IRestrictedProcess
+    {
+        private const uint KilledExitCode = 1;
+
+        public int ProcessId { get; } = processId;
+
+        public async Task WaitForExitAsync(CancellationToken cancellationToken) =>
+            await HandleWaiter.WaitAsync(process, Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+
+        public void Kill()
+        {
+            ObjectDisposedException.ThrowIf(job.IsClosed, this);
+            if (!PInvoke.TerminateJobObject(job, KilledExitCode))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+        }
+
+        public void Dispose()
+        {
+            job.Dispose();
+            process.Dispose();
+        }
+    }
+}
