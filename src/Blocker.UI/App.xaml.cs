@@ -36,9 +36,25 @@ internal sealed partial class App : Application
 
         if (!options.IsAgent)
         {
+            EnsureAgentRunning();
             MainWindow window = _host.Services.GetRequiredService<MainWindow>();
             window.Closed += (_, _) => Shutdown();
             window.Show();
+        }
+    }
+
+    /// <summary>Starts this executable with <c>--agent</c> when no agent runs in this session (for example right after installation).</summary>
+    private static void EnsureAgentRunning()
+    {
+        if (Mutex.TryOpenExisting(@"Local\WindowsDetox.Agent", out Mutex? existing))
+        {
+            existing.Dispose();
+            return;
+        }
+
+        if (Environment.ProcessPath is { } self)
+        {
+            using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(self, "--agent") { UseShellExecute = false });
         }
     }
 

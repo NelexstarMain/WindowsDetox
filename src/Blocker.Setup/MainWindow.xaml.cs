@@ -58,7 +58,7 @@ internal sealed partial class MainWindow : Window
             else
             {
                 await engine.InstallAsync(CancellationToken.None);
-                Finish("Windows Detox is installed.", "Open it from the Start menu. The agent starts automatically the next time you sign in.");
+                Finish("Windows Detox is installed.", "Open it from the Start menu. The background agent starts with it and at every sign-in.");
             }
         }
         catch (Exception ex) when (ex is SetupException or IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
