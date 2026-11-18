@@ -17,6 +17,7 @@
     <!-- One NativeMethods.txt per feature area; CsWin32 merges all of them. -->
     <AdditionalFiles Include="Processes\NativeMethods.txt" />
     <AdditionalFiles Include="Changes\NativeMethods.txt" />
+    <AdditionalFiles Include="Ipc\NativeMethods.txt" />
     <AdditionalFiles Include="NativeMethods.json" />
   </ItemGroup>
   <ItemGroup>
