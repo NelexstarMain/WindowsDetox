@@ -99,6 +99,12 @@ public sealed partial class IpcClient : IAsyncDisposable
         _ = await GetConnectionAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Waits until the current connection ends; completes immediately when not connected. Does not reconnect.</summary>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>A task that completes when the connection is gone.</returns>
+    public Task WaitForDisconnectAsync(CancellationToken cancellationToken) =>
+        _connection is { } connection ? connection.Completion.WaitAsync(cancellationToken) : Task.CompletedTask;
+
     /// <summary>Sends a request, connecting first when necessary.</summary>
     /// <param name="method">Method name.</param>
     /// <param name="parameters">Parameters, or <see langword="null"/>.</param>

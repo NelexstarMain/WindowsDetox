@@ -5,9 +5,11 @@
     <Project Path="src/Blocker.Platform.Windows/Blocker.Platform.Windows.csproj" />
     <Project Path="src/Blocker.Plugin.Templates/Blocker.Plugin.Templates.csproj" />
     <Project Path="src/Blocker.Plugin.Testing/Blocker.Plugin.Testing.csproj" />
+    <Project Path="src/Blocker.PluginHost/Blocker.PluginHost.csproj" />
     <Project Path="src/Blocker.SDK/Blocker.SDK.csproj" />
     <Project Path="src/Blocker.UI.Controls/Blocker.UI.Controls.csproj" />
     <Project Path="src/Blocker.UI.SDK/Blocker.UI.SDK.csproj" />
+    <Project Path="src/Blocker.Watchdog/Blocker.Watchdog.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Blocker.Core.Tests/Blocker.Core.Tests.csproj" />

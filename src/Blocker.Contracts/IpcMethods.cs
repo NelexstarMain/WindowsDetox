@@ -78,8 +78,47 @@ public static class IpcMethods
     /// <summary>Block screen asks why it was shown.</summary>
     public const string StubGetBlockInfo = "stub.getBlockInfo";
 
-    /// <summary>Plugin host hello on its dedicated low-integrity pipe.</summary>
+    /// <summary>Plugin host hello on its dedicated low-integrity pipe (<see cref="PluginHostRegisterRequest"/>).</summary>
     public const string PluginHostRegister = "pluginHost.register";
+
+    /// <summary>Plugin host reports that a plugin was faulted by its circuit breaker (notification, <see cref="PluginFaultedNotification"/>).</summary>
+    public const string PluginHostPluginFaulted = "pluginHost.pluginFaulted";
+
+    /// <summary>Plugin host reports that a contribution asked to be rendered again (notification, <see cref="RenderRequestedNotification"/>).</summary>
+    public const string PluginHostRenderRequested = "pluginHost.renderRequested";
+
+    /// <summary>Service asks the host to (re)load all enabled plugins (<see cref="LoadPluginsRequest"/>). Service to host.</summary>
+    public const string HostLoadPlugins = "host.loadPlugins";
+
+    /// <summary>Service asks the host to run the full install pipeline, tests included, on a package (<see cref="EvaluatePackageRequest"/>). Service to host.</summary>
+    public const string HostEvaluatePackage = "host.evaluatePackage";
+
+    /// <summary>Service asks the host for the process interceptors' verdict (<see cref="InterceptProcessRequest"/>). Service to host.</summary>
+    public const string HostInterceptProcess = "host.interceptProcess";
+
+    /// <summary>Service asks the host for the window interceptors' verdict (<see cref="InterceptWindowRequest"/>). Service to host.</summary>
+    public const string HostInterceptWindow = "host.interceptWindow";
+
+    /// <summary>Service asks the host for the lock-policy votes on an action (<see cref="EvaluateLockRequest"/>). Service to host.</summary>
+    public const string HostEvaluateLock = "host.evaluateLock";
+
+    /// <summary>Service asks the host to render all contributions of a slot (<see cref="GetContributionsRequest"/>). Service to host.</summary>
+    public const string HostRenderSlot = "host.renderSlot";
+
+    /// <summary>Service forwards a user interaction to a plugin contribution (<see cref="SendActionRequest"/>). Service to host.</summary>
+    public const string HostSendUiAction = "host.sendUiAction";
+
+    /// <summary>Service forwards a plugin IPC call (<see cref="InvokePluginMethodRequest"/>). Service to host.</summary>
+    public const string HostInvokePluginMethod = "host.invokePluginMethod";
+
+    /// <summary>Service tells the host that the session state changed (<see cref="SessionChangedRequest"/>). Service to host.</summary>
+    public const string HostSessionChanged = "host.sessionChanged";
+
+    /// <summary>Service delivers a core event to the plugins (<see cref="HostEventDto"/>). Service to host.</summary>
+    public const string HostPublishEvent = "host.publishEvent";
+
+    /// <summary>Service asks the host to shut its plugins down and exit. Service to host.</summary>
+    public const string HostShutdown = "host.shutdown";
 
     /// <summary>Subscribes the connection to server pushes (<see cref="EventSessionChanged"/>, <see cref="EventNotification"/>).</summary>
     public const string EventsSubscribe = "events.subscribe";

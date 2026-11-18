@@ -18,6 +18,7 @@
     <AdditionalFiles Include="Processes\NativeMethods.txt" />
     <AdditionalFiles Include="Changes\NativeMethods.txt" />
     <AdditionalFiles Include="Ipc\NativeMethods.txt" />
+    <AdditionalFiles Include="Supervision\NativeMethods.txt" />
     <AdditionalFiles Include="NativeMethods.json" />
   </ItemGroup>
   <ItemGroup>
