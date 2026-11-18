@@ -1,0 +1,14 @@
+<Page x:Class="Blocker.UI.Views.PluginPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
+      xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
+      Title="Plugin" Background="Transparent">
+    <!-- Shows whichever plugin page is selected in the navigation; the shell view model tracks the selection. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <rd:UiNodeView Margin="28,20,28,28"
+                       Node="{Binding CurrentPluginPage.Node}"
+                       bh:UiNodeActions.Contribution="{Binding CurrentPluginPage}"
+                       bh:UiNodeActions.Command="{Binding SendPageActionCommand}" />
+    </ScrollViewer>
+</Page>

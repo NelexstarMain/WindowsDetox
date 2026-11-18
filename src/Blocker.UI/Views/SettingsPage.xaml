@@ -1,0 +1,46 @@
+<Page x:Class="Blocker.UI.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
+      xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
+      xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
+      Title="Settings" Background="Transparent">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,20,28,28" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" Margin="0,0,0,16" />
+
+            <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
+                <StackPanel>
+                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Effects quality" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,12" Text="{Binding EffectsDescription}" />
+                    <ListBox Style="{StaticResource App.PillList}" ItemsSource="{Binding EffectsOptions}"
+                             SelectedItem="{Binding Effects}" AutomationProperties.Name="Effects quality" />
+                </StackPanel>
+            </Border>
+
+            <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Sections}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Title}" Margin="0,0,0,12" />
+                                <rd:UiNodeView Node="{Binding Node}"
+                                               bh:UiNodeActions.Contribution="{Binding}"
+                                               bh:UiNodeActions.Command="{Binding DataContext.SendSectionActionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
+                <StackPanel>
+                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="About" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Mono}" Margin="0,8,0,0" Text="{Binding VersionText}" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,0"
+                               Text="Blocking is decided by the Blocker service. This app only shows state and sends your requests." />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Blocker.UI</RootNamespace>
+    <AssemblyName>Blocker.UI</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>WPF-UI shell: session dashboard, allowlist, setup, plugins and settings; --agent mode reports foreground window and idle state.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.UI.Controls\Blocker.UI.Controls.csproj" />
+    <ProjectReference Include="..\Blocker.Contracts\Blocker.Contracts.csproj" />
+    <ProjectReference Include="..\Blocker.Core\Blocker.Core.csproj" />
+    <ProjectReference Include="..\Blocker.Plugin.Templates\Blocker.Plugin.Templates.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blocker.UI.Tests" />
+  </ItemGroup>
+</Project>
