@@ -78,10 +78,10 @@ internal sealed class BarChartElement : ChartElementBase
             return;
         }
 
-        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x6B, 0x72, 0x80));
-        Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9C, 0xA3, 0xAF));
-        Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xF4, 0xF4, 0xF5));
-        Brush accent = ThemeBrush("Blocker.Accent", Color.FromRgb(0x3D, 0xD9, 0xC1));
+        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x5C, 0x62, 0x70));
+        Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9A, 0xA0, 0xAE));
+        Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xEE, 0xF0, 0xF4));
+        Brush accent = ThemeBrush("Blocker.Accent", Color.FromRgb(0x5F, 0x6F, 0x2E));
         Typeface mono = MonoFace();
         Typeface ui = UiFace();
         Pen grid = HairPen();
@@ -166,10 +166,10 @@ internal sealed class LineChartElement : ChartElementBase
             return;
         }
 
-        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x6B, 0x72, 0x80));
-        Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9C, 0xA3, 0xAF));
-        Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xF4, 0xF4, 0xF5));
-        Brush card = ThemeBrush("Blocker.Bg.Card", Color.FromRgb(0x18, 0x1A, 0x1F));
+        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x5C, 0x62, 0x70));
+        Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9A, 0xA0, 0xAE));
+        Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xEE, 0xF0, 0xF4));
+        Brush card = ThemeBrush("Blocker.Bg.Card", Color.FromRgb(0x0B, 0x0C, 0x0F));
         Typeface mono = MonoFace();
         Typeface ui = UiFace();
         Pen grid = HairPen();
@@ -219,7 +219,7 @@ internal sealed class LineChartElement : ChartElementBase
                 continue;
             }
 
-            Brush stroke = ThemeBrush(UiMetrics.SeriesKey(s), Color.FromRgb(0x3D, 0xD9, 0xC1));
+            Brush stroke = ThemeBrush(UiMetrics.SeriesKey(s), Color.FromRgb(0x5F, 0x6F, 0x2E));
             var line = new StreamGeometry();
             using (StreamGeometryContext ctx = line.Open())
             {
@@ -258,7 +258,7 @@ internal sealed class LineChartElement : ChartElementBase
             double y = height - 15;
             for (int s = 0; s < _series.Count; s++)
             {
-                Brush swatch = ThemeBrush(UiMetrics.SeriesKey(s), Color.FromRgb(0x3D, 0xD9, 0xC1));
+                Brush swatch = ThemeBrush(UiMetrics.SeriesKey(s), Color.FromRgb(0x5F, 0x6F, 0x2E));
                 FormattedText name = Text(_series[s].Name, ui, secondary, 140);
                 if (x + 16 + name.Width > width)
                 {

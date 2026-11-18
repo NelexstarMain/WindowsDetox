@@ -3,22 +3,21 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
       Title="Session setup" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid Margin="{StaticResource Blocker.Thickness.Page}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="1.4*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="280" />
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
                 <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" Margin="0,0,0,24" />
 
-                <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
+                <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24">
                     <StackPanel>
-                        <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="How long" />
+                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="HOW LONG" />
                         <ListBox Margin="0,16,0,0" Style="{StaticResource App.PillList}"
                                  ItemsSource="{Binding DurationOptions}" SelectedItem="{Binding SelectedDuration}"
                                  DisplayMemberPath="Label" AutomationProperties.Name="Session length" />
@@ -41,11 +40,17 @@
                     </StackPanel>
                 </Border>
 
-                <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,24,0,0">
+                <Border Margin="0,24,0,0">
                     <StackPanel>
-                        <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Emergency passes" />
-                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,0"
-                                   Text="A pass pauses blocking for a short time. Set none for a session that only the break-glass code can end early." />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="EMERGENCY PASSES" VerticalAlignment="Center" />
+                            <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
+                                <ContentControl.ToolTip>
+                                    <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
+                                             Content="A pass pauses blocking for a short time. Set none for a session that only the break-glass code can end early." />
+                                </ContentControl.ToolTip>
+                            </ContentControl>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <StackPanel>
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Passes per day" Margin="0,0,0,4" />
@@ -68,9 +73,10 @@
             </StackPanel>
 
             <!-- Summary and the single primary action. -->
-            <Border Grid.Column="2" Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" VerticalAlignment="Top" Margin="0,48,0,0">
+            <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
+            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,48,0,0">
                 <StackPanel>
-                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Summary" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="SUMMARY" />
                     <TextBlock Style="{DynamicResource Blocker.Text.MonoLarge}" Margin="0,16,0,0" Text="{Binding DurationText}" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,16" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
                                Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />

@@ -3,7 +3,6 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
       xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
       Title="Plugins" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -13,9 +12,17 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" VerticalAlignment="Center" />
+                    <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
+                        <ContentControl.ToolTip>
+                            <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
+                                     Content="Download the starter template, describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed." />
+                        </ContentControl.ToolTip>
+                    </ContentControl>
+                </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Style="{DynamicResource Blocker.Button.Secondary}" Command="{Binding DownloadTemplateCommand}">
+                    <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="ArrowDownload24" Margin="0,0,8,0" />
                             <TextBlock Text="Download starter template (.zip)" />
@@ -30,7 +37,7 @@
                 </StackPanel>
             </Grid>
 
-            <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="8" BorderThickness="1"
+            <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="4" BorderThickness="1"
                     Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
                     Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
                 <StackPanel Orientation="Horizontal">
@@ -44,19 +51,14 @@
             <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,16" Foreground="{DynamicResource Blocker.Accent}"
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" AutomationProperties.Name="Working" />
 
-            <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True"
-                    Visibility="{Binding HasNoPlugins, Converter={StaticResource BoolToVisible}}">
-                <StackPanel>
-                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="No plugins installed" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,0"
-                               Text="Download the starter template, describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed." />
-                </StackPanel>
-            </Border>
+            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Foreground="{DynamicResource Blocker.Text.Secondary}"
+                       Text="No plugins installed."
+                       Visibility="{Binding HasNoPlugins, Converter={StaticResource BoolToVisible}}" />
 
             <ItemsControl ItemsSource="{Binding Plugins}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:PluginItemViewModel}">
-                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,24">
+                        <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,20" Margin="0,0,0,20">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />

@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>Blocker.Stub</RootNamespace>
     <AssemblyName>Blocker.Stub</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Block screen shown instead of a blocked application: reason, remaining session time, emergency exit and plugin content.</Description>
@@ -17,6 +18,9 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.IO" />

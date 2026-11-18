@@ -27,6 +27,8 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
     private readonly TimeProvider _time;
     private readonly SessionTimeline _timeline;
     private long _widgetsRefreshedAt;
+    private Guid? _trackedSession;
+    private TimeSpan _longestRemaining;
 
     [ObservableProperty]
     private string _stateLabel = "Idle";
@@ -36,6 +38,9 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
 
     [ObservableProperty]
     private bool _isSessionRunning;
+
+    [ObservableProperty]
+    private double _progressRatio;
 
     [ObservableProperty]
     private bool _isPassActive;
@@ -121,6 +126,7 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
             _ => "Idle",
         };
         ClockText = DurationFormat.Clock(_timeline.Remaining);
+        ProgressRatio = ComputeProgress(snapshot, _timeline.Remaining);
 
         TimeSpan? passRemaining = snapshot.Phase == SessionPhase.EmergencyPass ? _timeline.PassRemaining : null;
         IsPassActive = passRemaining is not null;
@@ -246,6 +252,33 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
             Snackbar.Show("Code not accepted", "Check the code and try again.", NotificationSeverity.Error);
         }
     }
+
+    /// <summary>Elapsed fraction (0 to 1) of the running session, measured against the longest remaining time seen for it.</summary>
+    private double ComputeProgress(SessionSnapshot snapshot, TimeSpan? remaining)
+    {
+        if (!snapshot.IsSessionRunning || remaining is not { } left)
+        {
+            _trackedSession = null;
+            _longestRemaining = TimeSpan.Zero;
+            return 0;
+        }
+
+        if (_trackedSession != snapshot.SessionId)
+        {
+            _trackedSession = snapshot.SessionId;
+            _longestRemaining = TimeSpan.Zero;
+        }
+
+        if (left > _longestRemaining)
+        {
+            _longestRemaining = left;
+        }
+
+        return _longestRemaining <= TimeSpan.Zero ? 0 : Math.Clamp(1 - (left / _longestRemaining), 0, 1);
+    }
+
+    [RelayCommand]
+    private void OpenAllowlist() => _navigator.GoTo(AppPage.Allowlist);
 
     [RelayCommand]
     private void StartSession() => _navigator.GoTo(AppPage.Setup);

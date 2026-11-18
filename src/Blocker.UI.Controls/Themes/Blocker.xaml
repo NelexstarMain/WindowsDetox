@@ -9,25 +9,29 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ============================== Palette ============================== -->
-    <Color x:Key="Blocker.Bg.Base.Color">#111215</Color>
-    <Color x:Key="Blocker.Bg.Card.Color">#181A1F</Color>
-    <Color x:Key="Blocker.Bg.Raised.Color">#20232A</Color>
-    <Color x:Key="Blocker.Border.Subtle.Color">#12FFFFFF</Color>
-    <Color x:Key="Blocker.Border.Strong.Color">#24FFFFFF</Color>
-    <Color x:Key="Blocker.Text.Primary.Color">#F4F4F5</Color>
-    <Color x:Key="Blocker.Text.Secondary.Color">#9CA3AF</Color>
-    <Color x:Key="Blocker.Text.Muted.Color">#6B7280</Color>
-    <Color x:Key="Blocker.Text.OnAccent.Color">#06201B</Color>
-    <Color x:Key="Blocker.Accent.Color">#3DD9C1</Color>
-    <Color x:Key="Blocker.Accent.Soft.Color">#2E3DD9C1</Color>
+    <Color x:Key="Blocker.Bg.Base.Color">#07080A</Color>
+    <Color x:Key="Blocker.Bg.Canvas.Color">#0B0C0F</Color>
+    <Color x:Key="Blocker.Bg.Card.Color">#111215</Color>
+    <Color x:Key="Blocker.Bg.Raised.Color">#1A1D25</Color>
+    <Color x:Key="Blocker.Border.Subtle.Color">#181A21</Color>
+    <Color x:Key="Blocker.Border.Strong.Color">#323746</Color>
+    <Color x:Key="Blocker.Text.Primary.Color">#EEF0F4</Color>
+    <Color x:Key="Blocker.Text.Secondary.Color">#9AA0AE</Color>
+    <Color x:Key="Blocker.Text.Muted.Color">#5C6270</Color>
+    <Color x:Key="Blocker.Text.OnAccent.Color">#F4F7EE</Color>
+    <Color x:Key="Blocker.Accent.Color">#5F6F2E</Color>
+    <Color x:Key="Blocker.Accent.Hover.Color">#6E8036</Color>
+    <Color x:Key="Blocker.Accent.Bar.Color">#7C913D</Color>
+    <Color x:Key="Blocker.Accent.Soft.Color">#252C15</Color>
     <Color x:Key="Blocker.Warning.Color">#F5A524</Color>
     <Color x:Key="Blocker.Warning.Soft.Color">#2EF5A524</Color>
     <Color x:Key="Blocker.Danger.Color">#F87171</Color>
     <Color x:Key="Blocker.Danger.Soft.Color">#2EF87171</Color>
-    <Color x:Key="Blocker.Success.Color">#34D399</Color>
-    <Color x:Key="Blocker.Success.Soft.Color">#2E34D399</Color>
+    <Color x:Key="Blocker.Success.Color">#BFD0B4</Color>
+    <Color x:Key="Blocker.Success.Soft.Color">#2EBFD0B4</Color>
 
     <SolidColorBrush x:Key="Blocker.Bg.Base" Color="{StaticResource Blocker.Bg.Base.Color}" />
+    <SolidColorBrush x:Key="Blocker.Bg.Canvas" Color="{StaticResource Blocker.Bg.Canvas.Color}" />
     <SolidColorBrush x:Key="Blocker.Bg.Card" Color="{StaticResource Blocker.Bg.Card.Color}" />
     <SolidColorBrush x:Key="Blocker.Bg.Raised" Color="{StaticResource Blocker.Bg.Raised.Color}" />
     <SolidColorBrush x:Key="Blocker.Border.Subtle" Color="{StaticResource Blocker.Border.Subtle.Color}" />
@@ -37,6 +41,8 @@
     <SolidColorBrush x:Key="Blocker.Text.Muted" Color="{StaticResource Blocker.Text.Muted.Color}" />
     <SolidColorBrush x:Key="Blocker.Text.OnAccent" Color="{StaticResource Blocker.Text.OnAccent.Color}" />
     <SolidColorBrush x:Key="Blocker.Accent" Color="{StaticResource Blocker.Accent.Color}" />
+    <SolidColorBrush x:Key="Blocker.Accent.Hover" Color="{StaticResource Blocker.Accent.Hover.Color}" />
+    <SolidColorBrush x:Key="Blocker.Accent.Bar" Color="{StaticResource Blocker.Accent.Bar.Color}" />
     <SolidColorBrush x:Key="Blocker.Accent.Soft" Color="{StaticResource Blocker.Accent.Soft.Color}" />
     <SolidColorBrush x:Key="Blocker.Warning" Color="{StaticResource Blocker.Warning.Color}" />
     <SolidColorBrush x:Key="Blocker.Warning.Soft" Color="{StaticResource Blocker.Warning.Soft.Color}" />
@@ -45,13 +51,24 @@
     <SolidColorBrush x:Key="Blocker.Success" Color="{StaticResource Blocker.Success.Color}" />
     <SolidColorBrush x:Key="Blocker.Success.Soft" Color="{StaticResource Blocker.Success.Soft.Color}" />
 
+    <!-- Brand logo: four wedges, sage. -->
+    <Color x:Key="Blocker.Logo.Color">#BFD0B4</Color>
+    <SolidColorBrush x:Key="Blocker.Logo.Brush" Color="{StaticResource Blocker.Logo.Color}" />
+
+    <GeometryGroup x:Key="Blocker.Logo.Geometry" FillRule="Nonzero">
+        <PathGeometry Figures="M 552.13 60.03 C 547.74 60.32, 543.72 61.96, 540.98 65.50 C 538.61 68.57, 537.68 72.47, 536.50 76.09 C 534.49 82.19, 532.50 88.30, 530.52 94.41 C 523.79 115.18, 517.17 135.99, 510.68 156.83 C 499.35 193.22, 488.39 229.71, 477.81 266.32 C 474.36 278.24, 470.95 290.18, 467.58 302.13 C 465.84 308.31, 464.03 314.48, 462.39 320.69 C 460.43 328.04, 459.52 336.30, 463.61 343.14 C 467.20 349.15, 473.79 352.39, 480.33 354.18 C 485.68 355.65, 491.20 356.63, 496.62 357.83 C 507.07 360.13, 517.52 362.47, 527.96 364.84 C 545.08 368.72, 562.14 372.83, 579.26 376.72 C 595.96 380.51, 612.71 384.09, 629.41 387.88 C 685.77 400.70, 741.93 414.40, 797.86 428.97 C 828.52 436.96, 859.11 445.21, 889.63 453.72 C 899.11 456.36, 908.59 459.03, 918.06 461.73 C 920.95 462.55, 923.83 463.37, 926.71 464.19 C 928.74 464.77, 930.83 465.52, 932.97 465.52 C 935.22 465.53, 937.21 464.88, 938.53 462.96 C 940.25 460.48, 940.00 457.08, 940.00 454.23 C 940.04 395.57, 940.00 336.92, 940.00 278.26 C 940.00 254.72, 940.00 231.17, 940.00 207.62 C 940.00 185.41, 940.18 162.94, 935.48 141.12 C 931.33 121.83, 923.02 103.32, 908.70 89.44 C 894.39 75.57, 875.63 67.80, 856.30 63.98 C 834.83 59.75, 812.81 60.00, 791.03 60.00 C 767.05 60.00, 743.08 60.00, 719.10 60.00 C 681.85 60.00, 644.60 60.00, 607.36 60.00 C 595.37 60.00, 583.38 60.00, 571.39 60.00 C 567.11 60.00, 562.83 60.00, 558.55 60.00 C 556.42 60.00, 554.25 59.89, 552.13 60.03 Z" />
+        <PathGeometry Figures="M 939.97 552.13 C 939.68 547.74, 938.04 543.72, 934.50 540.98 C 931.43 538.61, 927.53 537.68, 923.91 536.50 C 917.81 534.49, 911.70 532.50, 905.59 530.52 C 884.82 523.79, 864.01 517.17, 843.17 510.68 C 806.78 499.35, 770.29 488.39, 733.68 477.81 C 721.76 474.36, 709.82 470.95, 697.87 467.58 C 691.69 465.84, 685.52 464.03, 679.31 462.39 C 671.96 460.43, 663.70 459.52, 656.86 463.61 C 650.85 467.20, 647.61 473.79, 645.82 480.33 C 644.35 485.68, 643.37 491.20, 642.17 496.62 C 639.87 507.07, 637.53 517.52, 635.16 527.96 C 631.28 545.08, 627.17 562.14, 623.28 579.26 C 619.49 595.96, 615.91 612.71, 612.12 629.41 C 599.30 685.77, 585.60 741.93, 571.03 797.86 C 563.04 828.52, 554.79 859.11, 546.28 889.63 C 543.64 899.11, 540.97 908.59, 538.27 918.06 C 537.45 920.95, 536.63 923.83, 535.81 926.71 C 535.23 928.74, 534.48 930.83, 534.48 932.97 C 534.47 935.22, 535.12 937.21, 537.04 938.53 C 539.52 940.25, 542.92 940.00, 545.77 940.00 C 604.43 940.04, 663.08 940.00, 721.74 940.00 C 745.28 940.00, 768.83 940.00, 792.38 940.00 C 814.59 940.00, 837.06 940.18, 858.88 935.48 C 878.17 931.33, 896.68 923.02, 910.56 908.70 C 924.43 894.39, 932.20 875.63, 936.02 856.30 C 940.25 834.83, 940.00 812.81, 940.00 791.03 C 940.00 767.05, 940.00 743.08, 940.00 719.10 C 940.00 681.85, 940.00 644.60, 940.00 607.36 C 940.00 595.37, 940.00 583.38, 940.00 571.39 C 940.00 567.11, 940.00 562.83, 940.00 558.55 C 940.00 556.42, 940.11 554.25, 939.97 552.13 Z" />
+        <PathGeometry Figures="M 447.87 939.97 C 452.26 939.68, 456.28 938.04, 459.02 934.50 C 461.39 931.43, 462.32 927.53, 463.50 923.91 C 465.51 917.81, 467.50 911.70, 469.48 905.59 C 476.21 884.82, 482.83 864.01, 489.32 843.17 C 500.65 806.78, 511.61 770.29, 522.19 733.68 C 525.64 721.76, 529.05 709.82, 532.42 697.87 C 534.16 691.69, 535.97 685.52, 537.61 679.31 C 539.57 671.96, 540.48 663.70, 536.39 656.86 C 532.80 650.85, 526.21 647.61, 519.67 645.82 C 514.32 644.35, 508.80 643.37, 503.38 642.17 C 492.93 639.87, 482.48 637.53, 472.04 635.16 C 454.92 631.28, 437.86 627.17, 420.74 623.28 C 404.04 619.49, 387.29 615.91, 370.59 612.12 C 314.23 599.30, 258.07 585.60, 202.14 571.03 C 171.48 563.04, 140.89 554.79, 110.37 546.28 C 100.89 543.64, 91.41 540.97, 81.94 538.27 C 79.05 537.45, 76.17 536.63, 73.29 535.81 C 71.26 535.23, 69.17 534.48, 67.03 534.48 C 64.78 534.47, 62.79 535.12, 61.47 537.04 C 59.75 539.52, 60.00 542.92, 60.00 545.77 C 59.96 604.43, 60.00 663.08, 60.00 721.74 C 60.00 745.28, 60.00 768.83, 60.00 792.38 C 60.00 814.59, 59.82 837.06, 64.52 858.88 C 68.67 878.17, 76.98 896.68, 91.30 910.56 C 105.61 924.43, 124.37 932.20, 143.70 936.02 C 165.17 940.25, 187.19 940.00, 208.97 940.00 C 232.95 940.00, 256.92 940.00, 280.90 940.00 C 318.15 940.00, 355.40 940.00, 392.64 940.00 C 404.63 940.00, 416.62 940.00, 428.61 940.00 C 432.89 940.00, 437.17 940.00, 441.45 940.00 C 443.58 940.00, 445.75 940.11, 447.87 939.97 Z" />
+        <PathGeometry Figures="M 60.03 447.87 C 60.32 452.26, 61.96 456.28, 65.50 459.02 C 68.57 461.39, 72.47 462.32, 76.09 463.50 C 82.19 465.51, 88.30 467.50, 94.41 469.48 C 115.18 476.21, 135.99 482.83, 156.83 489.32 C 193.22 500.65, 229.71 511.61, 266.32 522.19 C 278.24 525.64, 290.18 529.05, 302.13 532.42 C 308.31 534.16, 314.48 535.97, 320.69 537.61 C 328.04 539.57, 336.30 540.48, 343.14 536.39 C 349.15 532.80, 352.39 526.21, 354.18 519.67 C 355.65 514.32, 356.63 508.80, 357.83 503.38 C 360.13 492.93, 362.47 482.48, 364.84 472.04 C 368.72 454.92, 372.83 437.86, 376.72 420.74 C 380.51 404.04, 384.09 387.29, 387.88 370.59 C 400.70 314.23, 414.40 258.07, 428.97 202.14 C 436.96 171.48, 445.21 140.89, 453.72 110.37 C 456.36 100.89, 459.03 91.41, 461.73 81.94 C 462.55 79.05, 463.37 76.17, 464.19 73.29 C 464.77 71.26, 465.52 69.17, 465.52 67.03 C 465.53 64.78, 464.88 62.79, 462.96 61.47 C 460.48 59.75, 457.08 60.00, 454.23 60.00 C 395.57 59.96, 336.92 60.00, 278.26 60.00 C 254.72 60.00, 231.17 60.00, 207.62 60.00 C 185.41 60.00, 162.94 59.82, 141.12 64.52 C 121.83 68.67, 103.32 76.98, 89.44 91.30 C 75.57 105.61, 67.80 124.37, 63.98 143.70 C 59.75 165.17, 60.00 187.19, 60.00 208.97 C 60.00 232.95, 60.00 256.92, 60.00 280.90 C 60.00 318.15, 60.00 355.40, 60.00 392.64 C 60.00 404.63, 60.00 416.62, 60.00 428.61 C 60.00 432.89, 60.00 437.17, 60.00 441.45 C 60.00 443.58, 59.89 445.75, 60.03 447.87 Z" />
+    </GeometryGroup>
+
     <!-- Chart series palette: accent first, then warm and cool tones that stay distinct on the dark surface. -->
-    <SolidColorBrush x:Key="Blocker.Chart.Series1" Color="#3DD9C1" />
+    <SolidColorBrush x:Key="Blocker.Chart.Series1" Color="#7C913D" />
     <SolidColorBrush x:Key="Blocker.Chart.Series2" Color="#F5A524" />
     <SolidColorBrush x:Key="Blocker.Chart.Series3" Color="#60A5FA" />
     <SolidColorBrush x:Key="Blocker.Chart.Series4" Color="#A78BFA" />
     <SolidColorBrush x:Key="Blocker.Chart.Series5" Color="#F87171" />
-    <SolidColorBrush x:Key="Blocker.Chart.Series6" Color="#94A3B8" />
+    <SolidColorBrush x:Key="Blocker.Chart.Series6" Color="#9AA0AE" />
 
     <!-- ============================== Typography ============================== -->
     <FontFamily x:Key="Blocker.Font.Ui">Segoe UI Variable Text, Segoe UI</FontFamily>
@@ -59,7 +76,7 @@
     <FontFamily x:Key="Blocker.Font.Mono">Cascadia Mono, Consolas</FontFamily>
 
     <!-- ============================== Metrics ============================== -->
-    <!-- Spacing steps are multiples of 8 (4 for tight pairs); cards sit 24 apart on the 24 px blueprint grid. -->
+    <!-- Spacing steps are multiples of 8 (4 for tight pairs); sections sit 24 apart. -->
     <sys:Double x:Key="Blocker.Space.Tight">4</sys:Double>
     <sys:Double x:Key="Blocker.Space.Gap">8</sys:Double>
     <sys:Double x:Key="Blocker.Space.GapLarge">16</sys:Double>
@@ -68,92 +85,57 @@
     <Thickness x:Key="Blocker.Thickness.GapLarge">16</Thickness>
     <Thickness x:Key="Blocker.Thickness.Pad">24</Thickness>
     <Thickness x:Key="Blocker.Thickness.Page">24</Thickness>
-    <CornerRadius x:Key="Blocker.Radius.Card">12</CornerRadius>
-    <CornerRadius x:Key="Blocker.Radius.Control">8</CornerRadius>
-
-    <!-- ============================== Blueprint grid ============================== -->
-    <!-- 96 px tile = 4 x 4 cells of 24 px. Minor lines 3.5 %, every fourth line 6 %. Lines are 1 px, aliased for crispness. -->
-    <DrawingBrush x:Key="Blocker.Brush.BlueprintGrid"
-                  TileMode="Tile"
-                  Stretch="None"
-                  ViewportUnits="Absolute"
-                  ViewboxUnits="Absolute"
-                  Viewport="0,0,96,96"
-                  Viewbox="0,0,96,96"
-                  RenderOptions.EdgeMode="Aliased">
-        <DrawingBrush.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Brush="#09FFFFFF">
-                    <GeometryDrawing.Geometry>
-                        <GeometryGroup FillRule="Nonzero">
-                            <RectangleGeometry Rect="24,0,1,96" />
-                            <RectangleGeometry Rect="48,0,1,96" />
-                            <RectangleGeometry Rect="72,0,1,96" />
-                            <RectangleGeometry Rect="0,24,96,1" />
-                            <RectangleGeometry Rect="0,48,96,1" />
-                            <RectangleGeometry Rect="0,72,96,1" />
-                        </GeometryGroup>
-                    </GeometryDrawing.Geometry>
-                </GeometryDrawing>
-                <GeometryDrawing Brush="#0FFFFFFF">
-                    <GeometryDrawing.Geometry>
-                        <GeometryGroup FillRule="Nonzero">
-                            <RectangleGeometry Rect="0,0,1,96" />
-                            <RectangleGeometry Rect="0,0,96,1" />
-                        </GeometryGroup>
-                    </GeometryDrawing.Geometry>
-                </GeometryDrawing>
-            </DrawingGroup>
-        </DrawingBrush.Drawing>
-    </DrawingBrush>
+    <CornerRadius x:Key="Blocker.Radius.Card">4</CornerRadius>
+    <CornerRadius x:Key="Blocker.Radius.Control">4</CornerRadius>
+    <CornerRadius x:Key="Blocker.Radius.Pill">20</CornerRadius>
 
     <!-- ============================== WPF-UI palette overrides ============================== -->
-    <Color x:Key="ApplicationBackgroundColor">#111215</Color>
+    <Color x:Key="ApplicationBackgroundColor">#0B0C0F</Color>
     <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="{StaticResource ApplicationBackgroundColor}" />
 
-    <Color x:Key="TextFillColorPrimary">#F4F4F5</Color>
-    <Color x:Key="TextFillColorSecondary">#9CA3AF</Color>
-    <Color x:Key="TextFillColorTertiary">#6B7280</Color>
+    <Color x:Key="TextFillColorPrimary">#EEF0F4</Color>
+    <Color x:Key="TextFillColorSecondary">#9AA0AE</Color>
+    <Color x:Key="TextFillColorTertiary">#5C6270</Color>
     <Color x:Key="TextFillColorDisabled">#4B5160</Color>
     <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
     <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
     <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
     <SolidColorBrush x:Key="TextFillColorDisabledBrush" Color="{StaticResource TextFillColorDisabled}" />
 
-    <Color x:Key="ControlFillColorDefault">#20232A</Color>
-    <Color x:Key="ControlFillColorSecondary">#262A32</Color>
-    <Color x:Key="ControlFillColorTertiary">#1C1F25</Color>
-    <Color x:Key="ControlFillColorDisabled">#1A1C21</Color>
-    <Color x:Key="ControlFillColorInputActive">#14161A</Color>
+    <Color x:Key="ControlFillColorDefault">#161820</Color>
+    <Color x:Key="ControlFillColorSecondary">#1A1D25</Color>
+    <Color x:Key="ControlFillColorTertiary">#121419</Color>
+    <Color x:Key="ControlFillColorDisabled">#111215</Color>
+    <Color x:Key="ControlFillColorInputActive">#0B0C0F</Color>
     <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
     <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
     <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="{StaticResource ControlFillColorTertiary}" />
     <SolidColorBrush x:Key="ControlFillColorDisabledBrush" Color="{StaticResource ControlFillColorDisabled}" />
     <SolidColorBrush x:Key="ControlFillColorInputActiveBrush" Color="{StaticResource ControlFillColorInputActive}" />
 
-    <Color x:Key="ControlStrokeColorDefault">#24FFFFFF</Color>
-    <Color x:Key="ControlStrokeColorSecondary">#12FFFFFF</Color>
+    <Color x:Key="ControlStrokeColorDefault">#2B303C</Color>
+    <Color x:Key="ControlStrokeColorSecondary">#181A21</Color>
     <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
     <SolidColorBrush x:Key="ControlStrokeColorSecondaryBrush" Color="{StaticResource ControlStrokeColorSecondary}" />
 
-    <Color x:Key="CardBackgroundFillColorDefault">#181A1F</Color>
-    <Color x:Key="CardBackgroundFillColorSecondary">#20232A</Color>
-    <Color x:Key="CardStrokeColorDefault">#12FFFFFF</Color>
+    <Color x:Key="CardBackgroundFillColorDefault">#111215</Color>
+    <Color x:Key="CardBackgroundFillColorSecondary">#1A1D25</Color>
+    <Color x:Key="CardStrokeColorDefault">#181A21</Color>
     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
     <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
     <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
 
-    <Color x:Key="SystemAccentColorPrimary">#3DD9C1</Color>
-    <Color x:Key="SystemAccentColorSecondary">#3DD9C1</Color>
-    <Color x:Key="SystemAccentColorTertiary">#3DD9C1</Color>
+    <Color x:Key="SystemAccentColorPrimary">#5F6F2E</Color>
+    <Color x:Key="SystemAccentColorSecondary">#6E8036</Color>
+    <Color x:Key="SystemAccentColorTertiary">#7C913D</Color>
     <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="{StaticResource SystemAccentColorPrimary}" />
     <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="{StaticResource SystemAccentColorSecondary}" />
     <SolidColorBrush x:Key="SystemAccentColorTertiaryBrush" Color="{StaticResource SystemAccentColorTertiary}" />
-    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#3DD9C1" />
-    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#CC3DD9C1" />
-    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#993DD9C1" />
-    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#3DD9C1" />
-    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#06201B" />
+    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#5F6F2E" />
+    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#CC5F6F2E" />
+    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#995F6F2E" />
+    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#BFD0B4" />
+    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#F4F7EE" />
 
     <!-- ============================== Focus ring ============================== -->
     <Style x:Key="Blocker.FocusVisual">
@@ -161,10 +143,10 @@
             <Setter.Value>
                 <ControlTemplate>
                     <Rectangle Margin="-3"
-                               RadiusX="12"
-                               RadiusY="12"
+                               RadiusX="5"
+                               RadiusY="5"
                                SnapsToDevicePixels="True"
-                               Stroke="{DynamicResource Blocker.Accent}"
+                               Stroke="{DynamicResource Blocker.Logo.Brush}"
                                StrokeThickness="1" />
                 </ControlTemplate>
             </Setter.Value>
@@ -181,7 +163,7 @@
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
-    <!-- A tile nested inside a card: raised instead of a second card, and not part of the metaball field. -->
+    <!-- A tile nested inside a card: raised instead of a second card. -->
     <Style x:Key="Blocker.InsetBorder" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Subtle}" />
@@ -255,9 +237,10 @@
         <Setter Property="FontWeight" Value="Light" />
     </Style>
 
+    <!-- Display face so zeros stay open (0, not a slashed zero). -->
     <Style x:Key="Blocker.Text.Clock" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Mono}" />
-        <Setter Property="FontSize" Value="56" />
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Display}" />
+        <Setter Property="FontSize" Value="74" />
         <Setter Property="FontWeight" Value="Light" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
@@ -270,8 +253,8 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
-        <Setter Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
+        <Setter Property="Background" Value="#161820" />
+        <Setter Property="BorderBrush" Value="#2B303C" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16,0" />
         <Setter Property="MinHeight" Value="40" />
@@ -320,21 +303,221 @@
 
     <Style x:Key="Blocker.Button.Primary" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
         <Setter Property="Background" Value="{DynamicResource Blocker.Accent}" />
-        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.OnAccent}" />
     </Style>
 
     <Style x:Key="Blocker.Button.Secondary" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}" />
 
     <Style x:Key="Blocker.Button.Warning" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
-        <Setter Property="Background" Value="{DynamicResource Blocker.Warning.Soft}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Warning}" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Warning}" />
+    </Style>
+
+    <!-- Pill variants: the shared template with the pill corner radius. -->
+    <Style x:Key="Blocker.Button.SecondaryPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource Blocker.Radius.Pill}"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Border x:Name="Overlay"
+                                    Background="White"
+                                    CornerRadius="{StaticResource Blocker.Radius.Pill}"
+                                    IsHitTestVisible="False"
+                                    Opacity="0" />
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="0.08" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Overlay" Property="Opacity" Value="0.16" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Blocker.Button.GhostPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
+        <Setter Property="Background" Value="#121419" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
     </Style>
 
     <Style x:Key="Blocker.Button.Subtle" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+    </Style>
+
+    <!-- ============================== Dividers, info badge, tooltip ============================== -->
+    <Style x:Key="Blocker.SectionDivider" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Subtle}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <!-- Small square "?" that carries an explanation as a tooltip (set ToolTip with Blocker.InfoTip.ToolTip). -->
+    <Style x:Key="Blocker.InfoBadge" TargetType="ContentControl">
+        <Setter Property="Width" Value="14" />
+        <Setter Property="Height" Value="14" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Cursor" Value="Help" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Border x:Name="Box"
+                            Background="#121419"
+                            BorderBrush="#2B303C"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            SnapsToDevicePixels="True">
+                        <TextBlock Text="?"
+                                   FontFamily="{DynamicResource Blocker.Font.Ui}"
+                                   FontSize="9"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Blocker.Text.Secondary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Blocker.InfoTip.ToolTip" TargetType="ToolTip">
+        <Setter Property="MaxWidth" Value="280" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{DynamicResource Blocker.Bg.Card}"
+                            BorderBrush="{DynamicResource Blocker.Border.Strong}"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================== Square toggle switch ============================== -->
+    <Style TargetType="ui:ToggleSwitch">
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ui:ToggleSwitch">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Border x:Name="Track"
+                                Width="42"
+                                Height="22"
+                                CornerRadius="5"
+                                Background="#161820"
+                                BorderBrush="#2B303C"
+                                BorderThickness="1"
+                                VerticalAlignment="Center">
+                            <Border x:Name="Thumb"
+                                    Width="14"
+                                    Height="14"
+                                    CornerRadius="3"
+                                    Background="{DynamicResource Blocker.Text.Secondary}"
+                                    HorizontalAlignment="Left"
+                                    Margin="3,0,0,0" />
+                        </Border>
+                        <ContentPresenter Margin="12,0,0,0"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"
+                                          Content="{TemplateBinding Content}" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource Blocker.Accent}" />
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0" />
+                            <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource Blocker.Text.OnAccent}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================== Navigation item ============================== -->
+    <Style TargetType="ui:NavigationViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ui:NavigationViewItem">
+                    <Border x:Name="Item"
+                            Padding="10,8"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <StackPanel Orientation="Horizontal">
+                            <ContentPresenter x:Name="IconHost"
+                                              Content="{TemplateBinding Icon}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              VerticalAlignment="Center" />
+                            <ContentPresenter Margin="12,0,0,0"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              Content="{TemplateBinding Content}" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Item" Property="Background" Value="#0F1116" />
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsActive" Value="True">
+                            <Setter TargetName="Item" Property="Background" Value="#14171E" />
+                            <Setter TargetName="Item" Property="BorderBrush" Value="#222632" />
+                            <Setter TargetName="IconHost" Property="TextElement.Foreground" Value="{DynamicResource Blocker.Logo.Brush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

@@ -85,6 +85,35 @@ public sealed class DashboardViewModelTests
         Assert.Equal("00:01:00", vm.PassClockText);
     }
 
+    [Fact]
+    public void Progress_ratio_tracks_elapsed_fraction_and_resets_when_idle()
+    {
+        DashboardViewModel vm = Create();
+        Assert.Equal(0, vm.ProgressRatio);
+
+        _connection.Push(Snapshots.Active(TimeSpan.FromHours(1)));
+        Assert.Equal(0, vm.ProgressRatio);
+
+        _time.Advance(TimeSpan.FromMinutes(15));
+        _ticker.Raise();
+        Assert.Equal(0.25, vm.ProgressRatio, 3);
+
+        _connection.Push(SessionSnapshot.Idle);
+        Assert.Equal(0, vm.ProgressRatio);
+    }
+
+    [Fact]
+    public void Open_allowlist_requests_the_allowlist_page()
+    {
+        DashboardViewModel vm = Create();
+        AppPage? requested = null;
+        _navigator.NavigationRequested += (_, page) => requested = page;
+
+        vm.OpenAllowlistCommand.Execute(null);
+
+        Assert.Equal(AppPage.Allowlist, requested);
+    }
+
     [Theory]
     [InlineData(true, SessionPhase.Active, 1, true)]
     [InlineData(true, SessionPhase.Active, 0, false)]

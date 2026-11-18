@@ -4,7 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <StackPanel MinWidth="380">
         <TextBlock Style="{DynamicResource Blocker.Text.Body}"
-                   Text="Enter the recovery code you saved when the session started. A correct code ends the session and unlocks everything." />
+                   Text="Enter the break-glass code to end the session." />
         <TextBox Margin="0,16,0,0" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"
                  FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="20"
                  AutomationProperties.Name="Break-glass code" />

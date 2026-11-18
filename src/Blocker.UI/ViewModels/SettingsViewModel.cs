@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
 using Blocker.Contracts;
-using Blocker.UI.Controls.Metaballs;
 using Blocker.UI.Controls.Services;
 using Blocker.UI.Sdk;
 using Blocker.UI.Services;
@@ -10,30 +9,19 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Blocker.UI.ViewModels;
 
-/// <summary>Settings page: effects quality, about information and plugin settings sections.</summary>
+/// <summary>Settings page: about information and plugin settings sections.</summary>
 internal sealed partial class SettingsViewModel : ServiceViewModel
 {
-    private readonly IUiPreferences _preferences;
-
-    [ObservableProperty]
-    private MetaballQuality _effects;
-
     /// <summary>Creates the view model.</summary>
     /// <param name="connection">Service connection.</param>
-    /// <param name="preferences">Per-user UI preferences.</param>
     /// <param name="snackbar">Snackbars.</param>
-    public SettingsViewModel(IServiceConnection connection, IUiPreferences preferences, ISnackbarService snackbar)
+    public SettingsViewModel(IServiceConnection connection, ISnackbarService snackbar)
         : base(connection, snackbar)
     {
-        _preferences = preferences;
-        _effects = preferences.Effects;
         connection.ConnectionChanged += OnConnectionChanged;
         connection.SessionChanged += (_, _) => _ = RefreshSectionsAsync(CancellationToken.None);
         OnConnectionChanged(this, EventArgs.Empty);
     }
-
-    /// <summary>Gets the effects choices.</summary>
-    public IReadOnlyList<MetaballQuality> EffectsOptions { get; } = [MetaballQuality.High, MetaballQuality.Low, MetaballQuality.Off];
 
     /// <summary>Gets the plugin settings sections.</summary>
     public ObservableCollection<ContributionViewModel> Sections { get; } = [];
@@ -43,20 +31,6 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
 
     /// <summary>Gets the application name and version.</summary>
     public string VersionText { get; } = DescribeVersion();
-
-    /// <summary>Gets a description of the effects choice, shown under the selector.</summary>
-    public string EffectsDescription => Effects switch
-    {
-        MetaballQuality.High => "Smooth metaball field and animations. Recommended.",
-        MetaballQuality.Low => "Lower resolution and frame rate to save battery and GPU time.",
-        _ => "No animated effects. The interface stays static.",
-    };
-
-    partial void OnEffectsChanged(MetaballQuality value)
-    {
-        _preferences.Effects = value;
-        OnPropertyChanged(nameof(EffectsDescription));
-    }
 
     /// <summary>Reloads the plugin settings sections.</summary>
     /// <param name="cancellationToken">Cancellation.</param>

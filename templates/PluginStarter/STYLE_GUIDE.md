@@ -1,7 +1,7 @@
 # Blocker plugin UI style guide
 
 Plugins never draw. They return a tree of declarative blocks (`Blocker.UI.Sdk`, built with the `Ui` factory) and Blocker
-renders it in its own style: dark graphite base, card surfaces, blueprint grid, soft metaball layer behind cards, Segoe UI
+renders it in its own style: deep-black monochrome surfaces with hairline borders, olive accent and sage highlights, Segoe UI
 Variable for text and Cascadia Mono for numbers. Your plugin looks native automatically; your job is to choose the right
 block and the right words.
 

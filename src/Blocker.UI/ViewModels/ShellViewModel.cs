@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using Blocker.Contracts;
-using Blocker.UI.Controls.Metaballs;
 using Blocker.UI.Controls.Services;
 using Blocker.UI.Sdk;
 using Blocker.UI.Services;
@@ -18,19 +17,13 @@ internal sealed partial class ShellViewModel : ServiceViewModel
     [ObservableProperty]
     private ContributionViewModel? _currentPluginPage;
 
-    [ObservableProperty]
-    private MetaballQuality _effects;
-
     /// <summary>Creates the view model.</summary>
     /// <param name="connection">Service connection.</param>
     /// <param name="plugins">Plugins page, whose changes reload plugin pages.</param>
-    /// <param name="preferences">Per-user UI preferences.</param>
     /// <param name="snackbar">Snackbars.</param>
-    public ShellViewModel(IServiceConnection connection, PluginsViewModel plugins, IUiPreferences preferences, ISnackbarService snackbar)
+    public ShellViewModel(IServiceConnection connection, PluginsViewModel plugins, ISnackbarService snackbar)
         : base(connection, snackbar)
     {
-        _effects = preferences.Effects;
-        preferences.Changed += (_, _) => Effects = preferences.Effects;
         IsDisconnected = !connection.IsConnected;
         connection.ConnectionChanged += OnConnectionChanged;
         connection.NotificationReceived += OnNotification;

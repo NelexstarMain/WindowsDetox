@@ -58,7 +58,6 @@ internal static class AppHost
     {
         services.AddSingleton<IUiTicker, DispatcherUiTicker>();
         services.AddSingleton<INavigator, Navigator>();
-        services.AddSingleton<IUiPreferences, UiPreferences>();
         services.AddSingleton<IFileDialogs, FileDialogs>();
 
         services.AddSingleton<IContentDialogService, ContentDialogService>();

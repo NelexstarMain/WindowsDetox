@@ -22,7 +22,7 @@
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding Status}" Value="Passed">
                                 <Setter TargetName="Glyph" Property="Symbol" Value="CheckmarkCircle24" />
-                                <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Blocker.Accent}" />
+                                <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Blocker.Success}" />
                                 <Setter TargetName="Result" Property="Text" Value="Passed" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Status}" Value="Failed">
@@ -67,7 +67,7 @@
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding Passed}" Value="True">
                                     <Setter TargetName="Verdict" Property="Text" Value="Pass" />
-                                    <Setter TargetName="Verdict" Property="Foreground" Value="{DynamicResource Blocker.Accent}" />
+                                    <Setter TargetName="Verdict" Property="Foreground" Value="{DynamicResource Blocker.Success}" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>Blocker.UI</RootNamespace>
     <AssemblyName>Blocker.UI</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -20,6 +21,9 @@
     <PackageReference Include="WPF-UI" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.IO" />
