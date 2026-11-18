@@ -6,6 +6,7 @@
   "description": "Records your detox sessions and blocked distractions on this device and shows focus time, streaks, top blocked apps and when distractions happen.",
   "sdkVersion": "1.0",
   "entryType": "FocusInsights.InsightsPlugin",
+  "icon": "M81.95 16.91 A46 46 0 1 1 56.4 4.45 L55.29 12.37 A38 38 0 1 0 76.4 22.67 Z M26 56 H38 V74 H26 Z M44 32 H56 V74 H44 Z M62 8 H74 V74 H62 Z",
   "capabilities": [
     "events.session",
     "events.process",

@@ -17,12 +17,16 @@ internal sealed partial class ContributionViewModel : ObservableObject
     [ObservableProperty]
     private string _title;
 
+    [ObservableProperty]
+    private string? _icon;
+
     private ContributionViewModel(UiContributionDto dto, UiNode node)
     {
         PluginId = dto.PluginId;
         ContributionId = dto.ContributionId;
         _title = dto.Title ?? dto.PluginId;
         _json = dto.Json;
+        _icon = dto.Icon;
         _node = node;
     }
 
@@ -69,6 +73,7 @@ internal sealed partial class ContributionViewModel : ObservableObject
     public void Update(UiContributionDto dto, UiNode node)
     {
         Title = dto.Title ?? dto.PluginId;
+        Icon = dto.Icon;
         if (!string.Equals(_json, dto.Json, StringComparison.Ordinal))
         {
             _json = dto.Json;

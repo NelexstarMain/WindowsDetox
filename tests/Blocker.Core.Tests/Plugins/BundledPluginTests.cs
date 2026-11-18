@@ -46,6 +46,7 @@ public sealed class BundledPluginTests
         Assert.Equal("com.windowsdetox.insights", manifest.Id.Value);
         Assert.Equal(new Version(1, 0, 0), manifest.Version);
         Assert.Equal("FocusInsights.InsightsPlugin", manifest.EntryType);
+        Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
         PluginTestReport tests = Assert.IsType<PluginTestReport>(report.TestReport);
         Assert.True(tests.Succeeded);
         Assert.True(tests.Passed >= 20, $"Only {tests.Passed} plugin tests ran.");

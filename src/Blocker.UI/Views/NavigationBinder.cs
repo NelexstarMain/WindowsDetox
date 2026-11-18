@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Collections.Specialized;
 using Blocker.UI.Services;
 using Blocker.UI.ViewModels;
@@ -15,7 +16,7 @@ internal sealed class NavigationBinder
 {
     private readonly NavigationView _navigation;
     private readonly ShellViewModel _shell;
-    private readonly List<NavigationViewItem> _pluginItems = [];
+    private readonly List<Control> _pluginItems = [];
 
     /// <summary>Creates the binder and connects it to the rail.</summary>
     /// <param name="navigation">The navigation rail.</param>
@@ -57,25 +58,56 @@ internal sealed class NavigationBinder
 
     private void RebuildPluginItems()
     {
-        foreach (NavigationViewItem old in _pluginItems)
+        foreach (Control old in _pluginItems)
         {
             _navigation.MenuItems.Remove(old);
         }
 
         _pluginItems.Clear();
+        if (_shell.PluginPages.Count == 0)
+        {
+            return;
+        }
+
+        int index = _navigation.MenuItems.Cast<object>().ToList().FindIndex(i => i is NavigationViewItem { TargetPageType: { } t } && t == typeof(PluginsPage));
+        if (index < 0)
+        {
+            index = _navigation.MenuItems.Count;
+        }
+
+        List<Control> group = [CreateSeparator()];
         foreach (ContributionViewModel page in _shell.PluginPages)
         {
-            NavigationViewItem item = new()
+            group.Add(new NavigationViewItem
             {
                 Content = page.Title,
-                Icon = new SymbolIcon(SymbolRegular.Document24),
+                Icon = (IconElement?)PluginPathIcon.TryCreate(page.Icon) ?? new SymbolIcon(SymbolRegular.PuzzlePiece24),
                 TargetPageType = typeof(PluginPage),
                 Tag = page,
                 Style = (Style)_navigation.FindResource("Blocker.NavItem"),
-            };
-            _pluginItems.Add(item);
-            _navigation.MenuItems.Add(item);
+            });
         }
+
+        group.Add(CreateSeparator());
+        foreach (Control item in group)
+        {
+            _pluginItems.Add(item);
+            _navigation.MenuItems.Insert(index++, item);
+        }
+    }
+
+    private NavigationViewItemSeparator CreateSeparator()
+    {
+        var line = new FrameworkElementFactory(typeof(Border));
+        line.SetValue(FrameworkElement.HeightProperty, 1.0);
+        line.SetValue(FrameworkElement.MarginProperty, new Thickness(14, 6, 14, 6));
+        line.SetResourceReference(Border.BackgroundProperty, "Blocker.Border.Subtle");
+        return new NavigationViewItemSeparator
+        {
+            Focusable = false,
+            IsHitTestVisible = false,
+            Template = new ControlTemplate(typeof(NavigationViewItemSeparator)) { VisualTree = line },
+        };
     }
 }
 

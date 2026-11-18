@@ -35,6 +35,16 @@ public static partial class UiTreeValidator
     private const int MaxGridColumns = 6;
     private const int MaxNavigationTitle = 32;
 
+    /// <summary>Checks SVG path data as accepted for <see cref="UiGlyph"/> and plugin icons: 1-4096 characters of path commands, numbers, spaces and commas.</summary>
+    /// <param name="pathData">Path data.</param>
+    /// <returns><see langword="true"/> when the data is acceptable.</returns>
+    public static bool IsValidPathData(string? pathData) =>
+        !string.IsNullOrWhiteSpace(pathData) && pathData.Length <= MaxGlyphPathLength && pathData.All(IsGlyphPathChar);
+
+    private static bool IsGlyphPathChar(char c) =>
+        char.IsAsciiDigit(c) || c is ' ' or ',' or '.' or '-' or '+' or 'e' or 'E'
+        || "MmLlHhVvCcSsQqTtAaZz".Contains(c, StringComparison.Ordinal);
+
     /// <summary>Validates <paramref name="root"/> against <paramref name="limits"/>.</summary>
     /// <param name="root">Root node.</param>
     /// <param name="limits">Limits; <see langword="null"/> uses <see cref="UiLimits.Default"/>.</param>
@@ -220,8 +230,7 @@ public static partial class UiTreeValidator
                     Heatmap(heatmap);
                     break;
                 case UiGlyph glyph:
-                    if (string.IsNullOrWhiteSpace(glyph.PathData) || glyph.PathData.Length > MaxGlyphPathLength
-                        || !glyph.PathData.All(IsGlyphPathChar))
+                    if (!IsValidPathData(glyph.PathData))
                     {
                         Errors.Add($"UiGlyph.PathData must be 1-{MaxGlyphPathLength} characters of path commands (MLHVCSQTAZ), numbers, spaces and commas.");
                     }
@@ -285,10 +294,6 @@ public static partial class UiTreeValidator
                 Visit(child, depth + 1, isRoot: false);
             }
         }
-
-        private static bool IsGlyphPathChar(char c) =>
-            char.IsAsciiDigit(c) || c is ' ' or ',' or '.' or '-' or '+' or 'e' or 'E'
-            || "MmLlHhVvCcSsQqTtAaZz".Contains(c, StringComparison.Ordinal);
 
         private void Heatmap(UiHeatmap heatmap)
         {

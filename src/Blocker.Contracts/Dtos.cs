@@ -266,7 +266,8 @@ public sealed record GetContributionsRequest(UiSlot Slot);
 /// <param name="ContributionId">Id of the contribution within the plugin.</param>
 /// <param name="Title">Navigation or section title, if the slot has one.</param>
 /// <param name="Json">Tree produced by <c>UiJson.Serialize</c>. Receivers must use <c>UiJson.Deserialize</c> and <c>UiTreeValidator</c>.</param>
-public sealed record UiContributionDto(string PluginId, string ContributionId, string? Title, string Json);
+/// <param name="Icon">SVG path data of the plugin's navigation icon (validated by the service), if it declares one.</param>
+public sealed record UiContributionDto(string PluginId, string ContributionId, string? Title, string Json, string? Icon = null);
 
 /// <summary>Result of <see cref="IpcMethods.UiGetContributions"/>.</summary>
 /// <param name="Slot">Requested slot.</param>

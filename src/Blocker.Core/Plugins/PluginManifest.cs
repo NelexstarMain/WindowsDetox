@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Blocker.Sdk;
+using Blocker.UI.Sdk;
 
 namespace Blocker.Core.Plugins;
 
@@ -15,6 +16,7 @@ namespace Blocker.Core.Plugins;
 /// <param name="SdkVersion">SDK contract version (<c>major.minor</c>) the plugin was written for.</param>
 /// <param name="EntryType">Full name of the public class that implements <c>IBlockerPlugin</c>.</param>
 /// <param name="Capabilities">Declared capabilities, without duplicates.</param>
+/// <param name="Icon">Optional SVG path data of the navigation icon.</param>
 public sealed record PluginManifest(
     PluginId Id,
     string Name,
@@ -23,7 +25,8 @@ public sealed record PluginManifest(
     string? Description,
     Version SdkVersion,
     string EntryType,
-    IReadOnlyList<PluginCapability> Capabilities);
+    IReadOnlyList<PluginCapability> Capabilities,
+    string? Icon = null);
 
 /// <summary>Outcome of <see cref="PluginManifestParser.Parse"/>: a manifest, or a non-empty list of errors.</summary>
 /// <param name="Manifest">The manifest; <see langword="null"/> when <paramref name="Errors"/> is not empty.</param>
@@ -45,7 +48,7 @@ public static partial class PluginManifestParser
     private const int MaxEntryTypeLength = 256;
     private const string FileName = "plugin.json";
 
-    private static readonly string[] Known = ["id", "name", "version", "author", "description", "sdkVersion", "entryType", "capabilities"];
+    private static readonly string[] Known = ["id", "name", "version", "author", "description", "sdkVersion", "entryType", "capabilities", "icon"];
 
     /// <summary>Parses and validates a manifest.</summary>
     /// <param name="json">Manifest text.</param>
@@ -99,6 +102,11 @@ public static partial class PluginManifestParser
         string? description = Text(props, "description", required: false, errors);
         string? sdkText = Text(props, "sdkVersion", required: true, errors);
         string? entryType = Text(props, "entryType", required: true, errors);
+        string? icon = Text(props, "icon", required: false, errors);
+        if (icon is not null && !UiTreeValidator.IsValidPathData(icon))
+        {
+            errors.Add("'icon' must be 1-4096 characters of SVG path data (commands MLHVCSQTAZ, numbers, spaces and commas).");
+        }
 
         if (id is not null && !PluginId.IsValid(id))
         {
@@ -133,7 +141,7 @@ public static partial class PluginManifestParser
         return errors.Count > 0
             ? new PluginManifestParseResult(null, errors)
             : new PluginManifestParseResult(
-                new PluginManifest(new PluginId(id!), name!, version!, author!, description, sdk!, entryType!, capabilities), []);
+                new PluginManifest(new PluginId(id!), name!, version!, author!, description, sdk!, entryType!, capabilities, icon), []);
     }
 
     private static Version? ParseSdkVersion(string text, List<string> errors)

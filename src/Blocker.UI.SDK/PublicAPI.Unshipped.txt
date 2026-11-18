@@ -632,6 +632,7 @@ static Blocker.UI.Sdk.UiTextField.operator !=(Blocker.UI.Sdk.UiTextField? left, 
 static Blocker.UI.Sdk.UiTextField.operator ==(Blocker.UI.Sdk.UiTextField? left, Blocker.UI.Sdk.UiTextField? right) -> bool
 static Blocker.UI.Sdk.UiToggle.operator !=(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
 static Blocker.UI.Sdk.UiToggle.operator ==(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
+static Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(string? pathData) -> bool
 static Blocker.UI.Sdk.UiTreeValidator.Validate(Blocker.UI.Sdk.UiNode? root, Blocker.UI.Sdk.UiLimits? limits = null) -> Blocker.UI.Sdk.UiValidationResult!
 static Blocker.UI.Sdk.UiTreeValidator.ValidateNavigation(Blocker.UI.Sdk.UiNavigationItem? item) -> Blocker.UI.Sdk.UiValidationResult!
 static Blocker.UI.Sdk.UiValidationResult.operator !=(Blocker.UI.Sdk.UiValidationResult? left, Blocker.UI.Sdk.UiValidationResult? right) -> bool

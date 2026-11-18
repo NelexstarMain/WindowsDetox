@@ -62,13 +62,6 @@ public static class InsightsLayout
     private static readonly string[] Weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     private static readonly string[] HourLabels = ["0", string.Empty, "4", string.Empty, "8", string.Empty, "12", string.Empty, "16", string.Empty, "20", string.Empty];
 
-    /// <summary>Logo and title.</summary>
-    public static UiNode Header() => Ui.Row(
-        InsightsLogo.Glyph(48),
-        Ui.Column(
-            Ui.Text("Focus Insights", UiTextStyle.Title),
-            Ui.Text("Recorded on this device only.", UiTextStyle.Caption)));
-
     /// <summary>Stat tiles, charts, heatmap and table, in page order.</summary>
     public static List<UiNode> Body(InsightsView view, TimeZoneInfo zone) =>
     [
@@ -216,7 +209,7 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     public ValueTask<UiPage> RenderAsync(UiRenderContext context, CancellationToken cancellationToken)
     {
         Remember(context);
-        List<UiNode> children = [InsightsLayout.Header()];
+        List<UiNode> children = [];
         if (Volatile.Read(ref _showExample) == 1)
         {
             children.Add(Ui.Row(Ui.Text(ExampleCaption, UiTextStyle.Caption), Ui.Button(HideExampleButtonId, "Hide example", UiButtonVariant.Secondary)));

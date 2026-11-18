@@ -23,6 +23,7 @@ internal sealed class LoadedPlugin
 
     public LoadedPlugin(
         PluginInfo info,
+        string? icon,
         string packageHash,
         PluginCircuitBreaker breaker,
         PluginExtensionRegistry extensions,
@@ -34,6 +35,7 @@ internal sealed class LoadedPlugin
         Action<LoadedPlugin, string> onFaulted)
     {
         Info = info;
+        Icon = icon;
         PackageHash = packageHash;
         Breaker = breaker;
         Extensions = extensions;
@@ -48,6 +50,8 @@ internal sealed class LoadedPlugin
     }
 
     public PluginInfo Info { get; }
+
+    public string? Icon { get; }
 
     public PluginId Id => Info.Id;
 

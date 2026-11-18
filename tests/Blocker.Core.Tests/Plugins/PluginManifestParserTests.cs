@@ -17,6 +17,24 @@ public sealed class PluginManifestParserTests
         ("capabilities", "[\"events.session\", \"tick\"]"),
     ];
 
+    [Fact]
+    public void Icon_is_optional_and_accepts_path_data()
+    {
+        Assert.Null(PluginManifestParser.Parse(Json()).Manifest!.Icon);
+        Assert.Equal("M0 0 L10 10 Z", PluginManifestParser.Parse(Json(("icon", "\"M0 0 L10 10 Z\""))).Manifest!.Icon);
+    }
+
+    [Theory]
+    [InlineData("\"<svg/>\"")]
+    [InlineData("\"\"")]
+    [InlineData("5")]
+    public void Invalid_icon_is_rejected(string raw)
+    {
+        PluginManifestParseResult result = PluginManifestParser.Parse(Json(("icon", raw)));
+
+        Assert.False(result.Succeeded);
+    }
+
     /// <summary>Builds a manifest from <see cref="Base"/>; a null raw value removes the property, an unknown key adds one.</summary>
     private static string Json(params (string Key, string? Raw)[] overrides)
     {

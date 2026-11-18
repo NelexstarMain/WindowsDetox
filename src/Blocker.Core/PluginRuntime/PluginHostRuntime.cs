@@ -453,7 +453,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         string contributionId = ContributionIds.For(slot, entry.Index);
         var context = new UiRenderContext(_session.Current, new ContributionSurface(this, plugin.Id, contributionId));
         BreakerResult<UiContributionDto?> result = await plugin.GuardAsync<UiContributionDto?>(
-            token => RenderCoreAsync(plugin.Id, entry.Extension, slot, contributionId, context, token), null, cancellationToken).ConfigureAwait(false);
+            token => RenderCoreAsync(plugin, entry.Extension, slot, contributionId, context, token), null, cancellationToken).ConfigureAwait(false);
         if (result.Error is { } error)
         {
             LogRenderFailed(_logger, plugin.Id.Value, contributionId, error.GetType().Name);
@@ -462,8 +462,9 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         return result.Value;
     }
 
-    private async ValueTask<UiContributionDto?> RenderCoreAsync(PluginId pluginId, IPluginExtension extension, UiSlot slot, string contributionId, UiRenderContext context, CancellationToken token)
+    private async ValueTask<UiContributionDto?> RenderCoreAsync(LoadedPlugin plugin, IPluginExtension extension, UiSlot slot, string contributionId, UiRenderContext context, CancellationToken token)
     {
+        PluginId pluginId = plugin.Id;
         switch (slot)
         {
             case UiSlot.Page when extension is IUiPagePlugin page:
@@ -473,7 +474,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
                     throw new InvalidContributionException(invalid.Errors[0]);
                 }
 
-                return Serialize(pluginId, contributionId, navigation.Title, slot, await page.RenderAsync(context, token).ConfigureAwait(false));
+                return Serialize(pluginId, contributionId, navigation.Title, slot, await page.RenderAsync(context, token).ConfigureAwait(false), plugin.Icon);
             case UiSlot.DashboardWidget when extension is IDashboardWidgetPlugin widget:
                 return Serialize(pluginId, contributionId, null, slot, await widget.RenderAsync(context, token).ConfigureAwait(false));
             case UiSlot.SettingsSection when extension is ISettingsSectionPlugin section:
@@ -487,7 +488,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         }
     }
 
-    private UiContributionDto Serialize(PluginId pluginId, string contributionId, string? title, UiSlot slot, UiNode? tree)
+    private UiContributionDto Serialize(PluginId pluginId, string contributionId, string? title, UiSlot slot, UiNode? tree, string? icon = null)
     {
         if (UiTreeValidator.Validate(tree) is { IsValid: false } invalid)
         {
@@ -502,7 +503,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         string json = UiJson.Serialize(tree!);
         return Encoding.UTF8.GetByteCount(json) > _options.MaxContributionBytes
             ? throw new InvalidContributionException($"The UI tree exceeds {_options.MaxContributionBytes} bytes.")
-            : new UiContributionDto(pluginId.Value, contributionId, title, json);
+            : new UiContributionDto(pluginId.Value, contributionId, title, json, icon);
     }
 
     private async Task EnsureLoadedAsync(PluginId id, CancellationToken cancellationToken)
@@ -581,7 +582,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         var extensions = new PluginExtensionRegistry(info);
         var ipc = new PluginIpcRegistry(info);
         var plugin = new LoadedPlugin(
-            info, hash, breaker, extensions, ipc, _store.OpenStorage(id, _logger, _options.StorageQuotaBytes), new PluginLoadContext(id.Value), _session, _clock, OnPluginFaulted);
+            info, manifest.Icon, hash, breaker, extensions, ipc, _store.OpenStorage(id, _logger, _options.StorageQuotaBytes), new PluginLoadContext(id.Value), _session, _clock, OnPluginFaulted);
         var context = new PluginHostContext(
             info, _bus.CreatePluginView(info, breaker), extensions, ipc, plugin.Storage, _session, _clock, new RateLimitedPluginLogger(id, _logger, _clock));
 
@@ -614,7 +615,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
                 string contributionId = ContributionIds.For(slot, entry.Index);
                 var context = new UiRenderContext(_session.Current, new ContributionSurface(this, plugin.Id, contributionId));
                 BreakerResult<UiContributionDto?> result = await warmUp.ExecuteAsync<UiContributionDto?>(
-                    token => RenderCoreAsync(plugin.Id, entry.Extension, slot, contributionId, context, token), null, cancellationToken).ConfigureAwait(false);
+                    token => RenderCoreAsync(plugin, entry.Extension, slot, contributionId, context, token), null, cancellationToken).ConfigureAwait(false);
                 if (result.Error is { } error)
                 {
                     LogRenderFailed(_logger, plugin.Id.Value, contributionId, error.GetType().Name);

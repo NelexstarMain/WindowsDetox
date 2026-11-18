@@ -658,9 +658,8 @@ public sealed class InsightsTests
 
         Assert.Equal("Insights", page.Title);
         Assert.True(UiTreeValidator.Validate(page).IsValid);
-        UiGlyph logo = Descendants(page).OfType<UiGlyph>().Single();
-        Assert.Equal(InsightsLogo.PathData, logo.PathData);
-        Assert.Contains(Descendants(page).OfType<UiText>(), t => t.Text == "Focus Insights" && t.Style == UiTextStyle.Title);
+        Assert.Empty(Descendants(page).OfType<UiGlyph>());
+        Assert.DoesNotContain(Descendants(page).OfType<UiText>(), t => t.Text == "Focus Insights");
 
         UiGrid tiles = Descendants(page).OfType<UiGrid>().First();
         Assert.Equal(4, tiles.Columns);
@@ -735,7 +734,7 @@ public sealed class InsightsTests
         UiPage page = await RenderPageAsync(ctx);
 
         Assert.True(UiTreeValidator.Validate(page).IsValid);
-        Assert.Equal(InsightsLogo.PathData, Single<UiGlyph>(page).PathData);
+        Assert.Empty(Descendants(page).OfType<UiGlyph>());
         UiCard card = Descendants(page).OfType<UiCard>().Single();
         Assert.Equal("No data yet", card.Title);
         Assert.Contains(card.Children.OfType<UiText>(), t => t.Text.Contains("after your first detox session", StringComparison.Ordinal));
@@ -759,7 +758,7 @@ public sealed class InsightsTests
         Assert.True(UiTreeValidator.Validate(page).IsValid);
         Assert.Contains(Descendants(page).OfType<UiText>(), t => t.Text == "Example data — your own stats appear after your first session.");
         Assert.Equal(new UiButton("insights-example-hide", "Hide example", UiButtonVariant.Secondary), Single<UiButton>(page));
-        Assert.Single(Descendants(page).OfType<UiGlyph>());
+        Assert.Empty(Descendants(page).OfType<UiGlyph>());
         Assert.Equal(4, Descendants(page).OfType<UiGrid>().First().Children.Count);
         Assert.Equal(14, Assert.Single(Single<UiLineChart>(page).Series).Points.Count);
         Assert.NotEmpty(Single<UiBarChart>(page).Points);
