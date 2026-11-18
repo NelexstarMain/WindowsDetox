@@ -51,20 +51,11 @@ function Click-Named($window, [string]$text) {
   "could not find '$text'"; return $false
 }
 
-function Dump-Shots {
-  Get-ChildItem shots\*.png | ForEach-Object {
-    "=====BEGIN $($_.Name)====="
-    $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName))
-    for ($i = 0; $i -lt $b64.Length; $i += 4000) { $b64.Substring($i, [Math]::Min(4000, $b64.Length - $i)) }
-    "=====END $($_.Name)====="
-  }
-}
 
 if ($Phase -eq 'installer') {
   $p = Start-Process $Setup -PassThru
   Shot (Wait-Window $p.Id) '01-installer'
   Stop-Process $p -Force
-  Dump-Shots
   exit 0
 }
 
@@ -83,4 +74,3 @@ Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 $stub = Start-Process (Join-Path $InstallDir 'Blocker.Stub.exe') -ArgumentList '--blocked', "$env:WINDIR\notepad.exe", '--reason', 'Not on your allowlist' -PassThru
 Shot (Wait-Window $stub.Id) '07-block-screen'
 Stop-Process $stub -Force -ErrorAction SilentlyContinue
-Dump-Shots
