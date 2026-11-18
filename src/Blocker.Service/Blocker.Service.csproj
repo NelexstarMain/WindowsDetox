@@ -20,4 +20,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blocker.Service.Tests" />
+  </ItemGroup>
 </Project>

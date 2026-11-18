@@ -7,7 +7,7 @@
       Title="Plugin" Background="Transparent">
     <!-- Shows whichever plugin page is selected in the navigation; the shell view model tracks the selection. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <rd:UiNodeView Margin="28,20,28,28"
+        <rd:UiNodeView Margin="{StaticResource Blocker.Thickness.Page}"
                        Node="{Binding CurrentPluginPage.Node}"
                        bh:UiNodeActions.Contribution="{Binding CurrentPluginPage}"
                        bh:UiNodeActions.Command="{Binding SendPageActionCommand}" />

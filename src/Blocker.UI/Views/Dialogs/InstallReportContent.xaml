@@ -13,16 +13,16 @@
             <ItemsControl ItemsSource="{Binding Stages}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:InstallStage}">
-                        <StackPanel Orientation="Horizontal" Margin="0,3">
-                            <ui:SymbolIcon x:Name="Glyph" Symbol="Dismiss24" Margin="0,0,10,0" FontSize="16"
+                        <StackPanel Orientation="Horizontal" Margin="0,4">
+                            <ui:SymbolIcon x:Name="Glyph" Symbol="Dismiss24" Margin="0,0,8,0" FontSize="16"
                                            Foreground="{DynamicResource Blocker.Text.Muted}" />
                             <TextBlock x:Name="Label" Text="{Binding Name}" Style="{DynamicResource Blocker.Text.Body}" />
-                            <TextBlock x:Name="Result" Margin="10,0,0,0" Style="{DynamicResource Blocker.Text.Caption}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="Result" Margin="8,0,0,0" Style="{DynamicResource Blocker.Text.Caption}" VerticalAlignment="Center" />
                         </StackPanel>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding Status}" Value="Passed">
                                 <Setter TargetName="Glyph" Property="Symbol" Value="CheckmarkCircle24" />
-                                <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Blocker.Success}" />
+                                <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Blocker.Accent}" />
                                 <Setter TargetName="Result" Property="Text" Value="Passed" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Status}" Value="Failed">
@@ -43,9 +43,8 @@
                 <ItemsControl ItemsSource="{Binding Errors}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Margin="0,3" TextWrapping="Wrap"
-                                       FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="12"
-                                       Foreground="{DynamicResource Blocker.Danger}" />
+                            <TextBlock Text="{Binding}" Margin="0,4" Style="{DynamicResource Blocker.Text.MonoSmall}"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource Blocker.Danger}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -63,12 +62,12 @@
                                                FontFamily="{DynamicResource Blocker.Font.Mono}" />
                                     <TextBlock Text="{Binding Name}" Style="{DynamicResource Blocker.Text.Body}" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding Detail}" Margin="40,2,0,0" Style="{DynamicResource Blocker.Text.Caption}" />
+                                <TextBlock Text="{Binding Detail}" Margin="40,4,0,0" Style="{DynamicResource Blocker.Text.Caption}" />
                             </StackPanel>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding Passed}" Value="True">
                                     <Setter TargetName="Verdict" Property="Text" Value="Pass" />
-                                    <Setter TargetName="Verdict" Property="Foreground" Value="{DynamicResource Blocker.Success}" />
+                                    <Setter TargetName="Verdict" Property="Foreground" Value="{DynamicResource Blocker.Accent}" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

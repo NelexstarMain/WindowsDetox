@@ -8,7 +8,7 @@
         Background="{DynamicResource Blocker.Bg.Base}">
     <!-- Always-on-top notification in the bottom-right corner. The agent positions it and closes it when the view model expires. -->
     <mb:MetaballHost>
-        <Border Margin="8" Padding="16,14" CornerRadius="12" BorderThickness="1" mb:Metaball.IsBody="True">
+        <Border Margin="8" Padding="16,16" CornerRadius="12" BorderThickness="1" mb:Metaball.IsBody="True">
             <Border.Style>
                 <Style TargetType="Border" BasedOn="{StaticResource Blocker.CardBorder}">
                     <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
@@ -29,7 +29,7 @@
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,0" Text="{Binding Message}" />
                 </StackPanel>
                 <TextBlock Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center"
-                           Style="{DynamicResource Blocker.Text.Mono}" FontSize="28"
+                           Style="{DynamicResource Blocker.Text.Code}"
                            Foreground="{DynamicResource Blocker.Warning}" Text="{Binding CountdownText}"
                            Visibility="{Binding HasCountdown, Converter={StaticResource BoolToVisible}}"
                            AutomationProperties.Name="Time until blocking resumes" />

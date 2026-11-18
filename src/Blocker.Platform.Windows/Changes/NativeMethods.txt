@@ -59,3 +59,7 @@ FWP_ACTION_TYPE
 FWP_MATCH_TYPE
 FWP_DATA_TYPE
 WIN32_ERROR
+SetNamedSecurityInfoW
+GetSecurityDescriptorDacl
+GetSecurityDescriptorSacl
+SE_OBJECT_TYPE

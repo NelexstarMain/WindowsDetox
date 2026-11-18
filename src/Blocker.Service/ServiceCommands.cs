@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using System.Security.Principal;
 using Blocker.Core.Journal;
+using Blocker.Core.Ports;
 using Blocker.Core.Security;
 using Blocker.Core.ServiceHost;
 using Blocker.Platform.Windows.Changes;
@@ -20,18 +21,38 @@ internal static class ExitCodes
     public const int NotAdministrator = 5;
 }
 
+/// <summary>The collaborators of the one-shot commands; tests substitute fakes.</summary>
+/// <param name="Installer">Installs, starts and removes the services.</param>
+/// <param name="PluginData">Creates and removes the plugin data directory.</param>
+/// <param name="Rollback">Rolls everything back while idle and returns an exit code.</param>
+/// <param name="IsAdministrator">Whether the caller is an elevated administrator.</param>
+internal sealed record ServiceCommandPorts(IServiceInstaller Installer, IPluginDataDirectory PluginData, Func<CancellationToken, Task<int>> Rollback, Func<bool> IsAdministrator);
+
 /// <summary>The one-shot commands <c>--install</c>, <c>--uninstall</c> and <c>--recover</c>. All of them need an elevated administrator.</summary>
 internal static class ServiceCommands
 {
-    /// <summary>Runs a one-shot command.</summary>
+    /// <summary>Runs a one-shot command against the real system.</summary>
     /// <param name="command">The command.</param>
     /// <param name="paths">File locations.</param>
     /// <param name="loggers">Logger factory (console and file).</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>The process exit code.</returns>
-    public static async Task<int> RunAsync(ServiceCommandKind command, BlockerPaths paths, ILoggerFactory loggers, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(ServiceCommandKind command, BlockerPaths paths, ILoggerFactory loggers, CancellationToken cancellationToken) =>
+        RunAsync(
+            command,
+            paths,
+            new ServiceCommandPorts(new ScmServiceInstaller(), new PluginDataDirectory(new FileSystem()), ct => RollbackAsync(paths, loggers, ct), IsElevatedAdministrator),
+            cancellationToken);
+
+    /// <summary>Runs a one-shot command.</summary>
+    /// <param name="command">The command.</param>
+    /// <param name="paths">File locations.</param>
+    /// <param name="ports">Collaborators.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The process exit code.</returns>
+    public static async Task<int> RunAsync(ServiceCommandKind command, BlockerPaths paths, ServiceCommandPorts ports, CancellationToken cancellationToken)
     {
-        if (!IsElevatedAdministrator())
+        if (!ports.IsAdministrator())
         {
             await Console.Error.WriteLineAsync("This command needs an elevated administrator.").ConfigureAwait(false);
             return ExitCodes.NotAdministrator;
@@ -41,9 +62,9 @@ internal static class ServiceCommands
         {
             return command switch
             {
-                ServiceCommandKind.Install => Install(paths),
-                ServiceCommandKind.Uninstall => await UninstallAsync(paths, loggers, cancellationToken).ConfigureAwait(false),
-                ServiceCommandKind.Recover => await RecoverAsync(paths, loggers, cancellationToken).ConfigureAwait(false),
+                ServiceCommandKind.Install => Install(paths, ports),
+                ServiceCommandKind.Uninstall => await UninstallAsync(paths, ports, cancellationToken).ConfigureAwait(false),
+                ServiceCommandKind.Recover => await RecoverAsync(ports, cancellationToken).ConfigureAwait(false),
                 _ => ExitCodes.BadArguments,
             };
         }
@@ -54,9 +75,11 @@ internal static class ServiceCommands
         }
     }
 
-    private static int Install(BlockerPaths paths)
+    private static int Install(BlockerPaths paths, ServiceCommandPorts ports)
     {
-        var installer = new ScmServiceInstaller();
+        // The directory exists before the services start, so the plugin host never races its creation.
+        ports.PluginData.Provision(paths.PluginDataDirectory);
+        IServiceInstaller installer = ports.Installer;
         installer.InstallOrUpdate(BlockerServiceNames.Service, "WindowsDetox Blocker", paths.ServiceExecutablePath, string.Empty);
         installer.InstallOrUpdate(
             BlockerServiceNames.Watchdog,
@@ -69,10 +92,10 @@ internal static class ServiceCommands
         return ExitCodes.Success;
     }
 
-    /// <summary>Rolls everything back while no session runs (the services keep protecting a running one), then removes the watchdog and the service.</summary>
-    private static async Task<int> UninstallAsync(BlockerPaths paths, ILoggerFactory loggers, CancellationToken cancellationToken)
+    /// <summary>Rolls everything back while no session runs (the services keep protecting a running one), then removes the watchdog, the service and the plugin data directory.</summary>
+    private static async Task<int> UninstallAsync(BlockerPaths paths, ServiceCommandPorts ports, CancellationToken cancellationToken)
     {
-        int code = await RollbackAsync(paths, loggers, cancellationToken).ConfigureAwait(false);
+        int code = await ports.Rollback(cancellationToken).ConfigureAwait(false);
         if (code != ExitCodes.Success)
         {
             await Console.Error.WriteLineAsync("The services were not removed.").ConfigureAwait(false);
@@ -80,17 +103,17 @@ internal static class ServiceCommands
         }
 
         // The watchdog goes first: while it runs it could restart the service it supervises.
-        var installer = new ScmServiceInstaller();
-        installer.Uninstall(BlockerServiceNames.Watchdog);
-        installer.Uninstall(BlockerServiceNames.Service);
+        ports.Installer.Uninstall(BlockerServiceNames.Watchdog);
+        ports.Installer.Uninstall(BlockerServiceNames.Service);
+        ports.PluginData.Remove(paths.PluginDataDirectory);
         Console.WriteLine("Both services were removed.");
         return ExitCodes.Success;
     }
 
     /// <summary>Offline rollback: the break-glass alternative for installations whose service cannot run, as long as no session is persisted.</summary>
-    private static async Task<int> RecoverAsync(BlockerPaths paths, ILoggerFactory loggers, CancellationToken cancellationToken)
+    private static async Task<int> RecoverAsync(ServiceCommandPorts ports, CancellationToken cancellationToken)
     {
-        int code = await RollbackAsync(paths, loggers, cancellationToken).ConfigureAwait(false);
+        int code = await ports.Rollback(cancellationToken).ConfigureAwait(false);
         if (code == ExitCodes.Success)
         {
             Console.WriteLine("Recovery finished. Start the service again with: net start " + BlockerServiceNames.Service);

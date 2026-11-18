@@ -6,7 +6,7 @@
         <TextBlock Style="{DynamicResource Blocker.Text.Body}"
                    Text="Enter the recovery code you saved when the session started. A correct code ends the session and unlocks everything." />
         <TextBox Margin="0,16,0,0" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"
-                 FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="18"
+                 FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="20"
                  AutomationProperties.Name="Break-glass code" />
     </StackPanel>
 </UserControl>

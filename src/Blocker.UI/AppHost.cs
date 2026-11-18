@@ -46,6 +46,9 @@ internal static class AppHost
     private static void AddAgent(IServiceCollection services)
     {
         services.AddSingleton<IToastPresenter, ToastPresenter>();
+        services.AddSingleton<IMainWindowLauncher, MainWindowLauncher>();
+        services.AddSingleton<TrayService>();
+        services.AddHostedService(sp => sp.GetRequiredService<TrayService>());
         services.AddSingleton<AgentService>();
         services.AddSingleton<IConnectionInitializer>(sp => sp.GetRequiredService<AgentService>());
         services.AddHostedService(sp => sp.GetRequiredService<AgentService>());

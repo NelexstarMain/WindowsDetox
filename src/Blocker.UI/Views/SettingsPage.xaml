@@ -7,24 +7,24 @@
       xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
       Title="Settings" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,20,28,28" MaxWidth="760" HorizontalAlignment="Left">
-            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" Margin="0,0,0,16" />
+        <StackPanel Margin="{StaticResource Blocker.Thickness.Page}" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" Margin="0,0,0,24" />
 
-            <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
+            <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,24">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Effects quality" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,12" Text="{Binding EffectsDescription}" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,4,0,16" Text="{Binding EffectsDescription}" />
                     <ListBox Style="{StaticResource App.PillList}" ItemsSource="{Binding EffectsOptions}"
                              SelectedItem="{Binding Effects}" AutomationProperties.Name="Effects quality" />
                 </StackPanel>
             </Border>
 
-            <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Sections}">
+            <ItemsControl ItemsSource="{Binding Sections}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,16">
+                        <Border Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True" Margin="0,0,0,24">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Title}" Margin="0,0,0,12" />
+                                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Title}" Margin="0,0,0,16" />
                                 <rd:UiNodeView Node="{Binding Node}"
                                                bh:UiNodeActions.Contribution="{Binding}"
                                                bh:UiNodeActions.Command="{Binding DataContext.SendSectionActionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
