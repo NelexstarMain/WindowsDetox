@@ -29,7 +29,8 @@ public sealed class SystemIntegrationTests
             await handler.RestoreAsync(root, original, _ct); // idempotent
             string restored = new DirectoryInfo(root).GetAccessControl(AccessControlSections.Access).GetSecurityDescriptorSddlForm(AccessControlSections.Access);
             Assert.False(new NtfsDenyAcl().HasDenyAces(restored));
-            Assert.Equal(originalSddl, restored);
+            // Windows recomputes inherited ACEs on write and marks the DACL auto-inherited ("AI"); the ACEs themselves must match exactly.
+            Assert.Equal(WithoutAutoInheritFlag(originalSddl), WithoutAutoInheritFlag(restored));
         }
         finally
         {
@@ -66,4 +67,7 @@ public sealed class SystemIntegrationTests
         await firewall.DisableAsync(_ct);
         Assert.False(firewall.IsEnabled);
     }
+
+    private static string WithoutAutoInheritFlag(string sddl) =>
+        sddl.StartsWith("D:AI", StringComparison.Ordinal) ? "D:" + sddl[4..] : sddl;
 }

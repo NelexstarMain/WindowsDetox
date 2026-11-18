@@ -75,7 +75,10 @@ public sealed class PluginInstallPipelineTests
     public async Task A_skipped_plugin_test_fails_at_the_tests_stage()
     {
         PluginInstallReport report = await EvaluateStarterAsync(files =>
-            files["PluginTests.cs"] = files["PluginTests.cs"].Replace("[Fact]\n    public async Task Counts_blocked_processes_during_a_session", "[Fact(Skip = \"later\")]\n    public async Task Counts_blocked_processes_during_a_session", StringComparison.Ordinal));
+            files["PluginTests.cs"] = System.Text.RegularExpressions.Regex.Replace(
+                files["PluginTests.cs"],
+                @"\[Fact\](\r?\n    public async Task Counts_blocked_processes_during_a_session)",
+                "[Fact(Skip = \"later\")]$1")); // \r?\n: Windows checkouts may use CRLF
 
         Assert.Equal(PluginInstallStage.Tests, report.Stage);
         Assert.Equal(["Failed: FocusCounter.Tests.FocusCounterTests.Counts_blocked_processes_during_a_session: Skipped tests are not allowed."], report.Errors);
