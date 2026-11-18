@@ -1,0 +1,105 @@
+<!-- SKELETON ONLY: simple values for the agreed resource keys. The real theme replaces this file at merge. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <SolidColorBrush x:Key="Blocker.Bg.Base" Color="#0E1116" />
+    <SolidColorBrush x:Key="Blocker.Bg.Card" Color="#161B22" />
+    <SolidColorBrush x:Key="Blocker.Bg.Raised" Color="#1F2630" />
+    <SolidColorBrush x:Key="Blocker.Border.Subtle" Color="#262E3A" />
+    <SolidColorBrush x:Key="Blocker.Border.Strong" Color="#3A4556" />
+    <SolidColorBrush x:Key="Blocker.Text.Primary" Color="#E6EDF3" />
+    <SolidColorBrush x:Key="Blocker.Text.Secondary" Color="#A8B3C1" />
+    <SolidColorBrush x:Key="Blocker.Text.Muted" Color="#6E7B8C" />
+    <SolidColorBrush x:Key="Blocker.Accent" Color="#3FB8E8" />
+    <SolidColorBrush x:Key="Blocker.Accent.Soft" Color="#173A4B" />
+    <SolidColorBrush x:Key="Blocker.Warning" Color="#F2A33A" />
+    <SolidColorBrush x:Key="Blocker.Warning.Soft" Color="#4A3414" />
+    <SolidColorBrush x:Key="Blocker.Danger" Color="#F0645A" />
+    <SolidColorBrush x:Key="Blocker.Success" Color="#4CC38A" />
+
+    <DrawingBrush x:Key="Blocker.Brush.BlueprintGrid" TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute" Viewbox="0,0,24,24" ViewboxUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <GeometryDrawing Geometry="M0,0 L24,0 M0,0 L0,24">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#1A212B" Thickness="1" />
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+    <FontFamily x:Key="Blocker.Font.Ui">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Blocker.Font.Display">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="Blocker.Font.Mono">Cascadia Mono, Consolas</FontFamily>
+
+    <sys:Double x:Key="Blocker.Space.Pad">20</sys:Double>
+    <sys:Double x:Key="Blocker.Space.Gap">12</sys:Double>
+    <sys:Double x:Key="Blocker.Space.GapLarge">16</sys:Double>
+    <CornerRadius x:Key="Blocker.Radius.Card">12</CornerRadius>
+    <CornerRadius x:Key="Blocker.Radius.Control">8</CornerRadius>
+
+    <Style x:Key="Blocker.CardBorder" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Blocker.Bg.Card}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Blocker.Border.Subtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource Blocker.Radius.Card}" />
+        <Setter Property="Padding" Value="20" />
+    </Style>
+
+    <Style x:Key="Blocker.Text.Title" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Display}" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Primary}" />
+    </Style>
+    <Style x:Key="Blocker.Text.Subtitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Primary}" />
+    </Style>
+    <Style x:Key="Blocker.Text.Body" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Secondary}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="Blocker.Text.Caption" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Muted}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="Blocker.Text.Mono" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Mono}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Primary}" />
+    </Style>
+    <Style x:Key="Blocker.Text.Clock" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource Blocker.Font.Mono}" />
+        <Setter Property="FontSize" Value="72" />
+        <Setter Property="FontWeight" Value="Light" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Primary}" />
+    </Style>
+
+    <Style x:Key="Blocker.Button.Primary" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Blocker.Accent}" />
+        <Setter Property="Foreground" Value="#0E1116" />
+        <Setter Property="Padding" Value="16,8" />
+    </Style>
+    <Style x:Key="Blocker.Button.Secondary" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Blocker.Bg.Raised}" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Primary}" />
+        <Setter Property="Padding" Value="16,8" />
+    </Style>
+    <Style x:Key="Blocker.Button.Warning" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Blocker.Warning}" />
+        <Setter Property="Foreground" Value="#0E1116" />
+        <Setter Property="Padding" Value="16,8" />
+    </Style>
+    <Style x:Key="Blocker.Button.Subtle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Text.Secondary}" />
+        <Setter Property="Padding" Value="12,6" />
+    </Style>
+</ResourceDictionary>
