@@ -54,7 +54,8 @@ function Click-Named($window, [string]$text, [switch]$Anywhere) {
       [Native]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2)); return $true
     }
   }
-  "could not find '$text'"; return $false
+  Write-Host "could not find '$text'"
+  return $false
 }
 
 

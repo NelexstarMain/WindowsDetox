@@ -36,7 +36,7 @@ public sealed class DonutHeatmapMathTests
     }
 
     [Theory]
-    [InlineData(0, 100, 50, 0)]
+    [InlineData(0, 100, 50, 50)]
     [InlineData(90, 150, 100, 50)]
     [InlineData(180, 100, 150, 50)]
     [InlineData(270, 50, 100, 50)]

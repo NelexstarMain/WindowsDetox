@@ -38,20 +38,41 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
     /// <inheritdoc/>
     public IRestrictedProcess Launch(string executablePath, string arguments)
     {
+        var stage = "start";
+        try
+        {
+            return LaunchCore(executablePath, arguments, name => stage = name);
+        }
+        catch (Win32Exception ex)
+        {
+            // The bare Win32 message ("Access is denied") does not say which of the steps failed.
+            throw new Win32Exception(ex.NativeErrorCode, $"Starting the restricted process failed at step '{stage}' for '{executablePath}': {ex.Message}");
+        }
+    }
+
+    private static RestrictedProcess LaunchCore(string executablePath, string arguments, Action<string> stage)
+    {
+        stage("query the console user token");
         var userToken = TokenProcess.QueryConsoleUserToken();
         var inUserSession = userToken is not null;
+        stage(inUserSession ? "use the console user token" : "duplicate the service token");
         using var baseToken = userToken ?? TokenProcess.DuplicateOwnToken();
+        stage("create the restricted token");
         using var restricted = CreateRestrictedToken(baseToken);
+        stage("lower the integrity level");
         SetLowIntegrity(restricted);
 
+        stage("create the job object");
         var job = CreateJob();
         StartedProcess? started = null;
         try
         {
+            stage("create the process (CreateProcessAsUser)");
             started = TokenProcess.Start(
                 restricted, executablePath, arguments, PROCESS_CREATION_FLAGS.CREATE_SUSPENDED, inUserSession ? TokenProcess.InteractiveDesktop : null);
 
             // Suspended until it is inside the job, so it can never run (or spawn children) unconfined.
+            stage("assign the process to the job");
             if (!PInvoke.AssignProcessToJobObject(job, started.Process))
             {
                 var error = Marshal.GetLastWin32Error();
@@ -59,6 +80,7 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
                 throw new Win32Exception(error);
             }
 
+            stage("resume the process");
             started.Resume();
             started.Thread.Dispose();
             return new RestrictedProcess(job, started.Process, started.ProcessId);
