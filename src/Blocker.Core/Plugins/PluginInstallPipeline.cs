@@ -46,6 +46,12 @@ public sealed record PluginInstallReport(
     public bool Succeeded => Stage == PluginInstallStage.Ready;
 }
 
+/// <summary>Result of <see cref="PluginInstallPipeline.BuildAsync"/>.</summary>
+/// <param name="Manifest">The manifest; set once it was parsed.</param>
+/// <param name="Image">The compiled plugin; set when every stage up to compilation passed.</param>
+/// <param name="Failure">The failure report; set when <paramref name="Image"/> is <see langword="null"/>.</param>
+public sealed record PluginBuildResult(PluginManifest? Manifest, byte[]? Image, PluginInstallReport? Failure);
+
 /// <summary>
 /// Validates, analyzes, compiles, loads and tests an uploaded plugin ZIP: package, manifest, API policy, compile, load,
 /// tests. The plugin is unloaded again before the method returns.
@@ -62,11 +68,26 @@ public static class PluginInstallPipeline
     /// <returns>A report; it never throws for problems in the plugin.</returns>
     public static async Task<PluginInstallReport> EvaluateAsync(Stream zip, CancellationToken cancellationToken = default)
     {
+        PluginBuildResult build = await BuildAsync(zip, cancellationToken).ConfigureAwait(false);
+        return build is { Manifest: { } manifest, Image: { } image }
+            ? await LoadAndTestAsync(manifest, image, cancellationToken).ConfigureAwait(false)
+            : build.Failure ?? new PluginInstallReport(PluginInstallStage.Package, ["The package could not be built."]);
+    }
+
+    /// <summary>
+    /// Runs the stages up to and including compilation (package, manifest, API policy, compile) without loading or testing the plugin.
+    /// The plugin host uses it on every start to re-validate installed plugins; tests run only at install.
+    /// </summary>
+    /// <param name="zip">Readable stream with the ZIP. It is not disposed.</param>
+    /// <param name="cancellationToken">Cancels the build with <see cref="OperationCanceledException"/>.</param>
+    /// <returns>The compiled image, or the failure report; it never throws for problems in the plugin.</returns>
+    public static async Task<PluginBuildResult> BuildAsync(Stream zip, CancellationToken cancellationToken = default)
+    {
         ArgumentNullException.ThrowIfNull(zip);
         PluginPackageReadResult read = await PluginPackageReader.ReadAsync(zip, cancellationToken).ConfigureAwait(false);
         if (read.Package is not { } package)
         {
-            return new PluginInstallReport(read.FailedStage ?? PluginInstallStage.Package, read.Errors);
+            return new PluginBuildResult(null, null, new PluginInstallReport(read.FailedStage ?? PluginInstallStage.Package, read.Errors));
         }
 
         PluginManifest manifest = package.Manifest;
@@ -74,13 +95,13 @@ public static class PluginInstallPipeline
         IReadOnlyList<PluginDiagnostic> violations = ApiPolicyAnalyzer.Analyze(compilation, manifest.Capabilities.ToHashSet(), cancellationToken);
         if (violations.Count > 0)
         {
-            return Failed(PluginInstallStage.Policy, manifest, [.. violations.Select(v => v.ToString())]);
+            return new PluginBuildResult(manifest, null, Failed(PluginInstallStage.Policy, manifest, [.. violations.Select(v => v.ToString())]));
         }
 
         CompileResult compiled = PluginCompiler.Compile(compilation, cancellationToken);
         return compiled.Assembly is { } image
-            ? await LoadAndTestAsync(manifest, image, cancellationToken).ConfigureAwait(false)
-            : Failed(PluginInstallStage.Compile, manifest, [.. compiled.Diagnostics.Select(d => d.ToString())]);
+            ? new PluginBuildResult(manifest, image, null)
+            : new PluginBuildResult(manifest, null, Failed(PluginInstallStage.Compile, manifest, [.. compiled.Diagnostics.Select(d => d.ToString())]));
     }
 
     /// <summary>Loads the plugin and runs its tests. Kept separate so no plugin type is referenced once the context is unloaded.</summary>
@@ -117,7 +138,8 @@ public static class PluginInstallPipeline
         }
     }
 
-    private static string? EntryTypeProblem(Assembly assembly, string entryType)
+    /// <summary>Returns why <paramref name="entryType"/> cannot serve as the plugin entry point, or <see langword="null"/> when it can.</summary>
+    internal static string? EntryTypeProblem(Assembly assembly, string entryType)
     {
         Type? type = assembly.GetType(entryType, throwOnError: false);
         return type switch

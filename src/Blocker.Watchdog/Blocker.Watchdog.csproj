@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Blocker.Watchdog</RootNamespace>
+    <AssemblyName>Blocker.Watchdog</AssemblyName>
+    <Description>Windows service that restarts Blocker.Service within a second while a session is active.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.Core\Blocker.Core.csproj" />
+    <ProjectReference Include="..\Blocker.Platform.Windows\Blocker.Platform.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+  </ItemGroup>
+</Project>

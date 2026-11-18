@@ -314,7 +314,8 @@ public sealed record BlockInfoResponse(string Subject, SessionStatusDto Status);
 
 /// <summary>Parameters of <see cref="IpcMethods.PluginHostRegister"/>.</summary>
 /// <param name="ProtocolVersion">Protocol version the host speaks.</param>
-public sealed record PluginHostRegisterRequest(int ProtocolVersion);
+/// <param name="Token">Launch token the service passed on the command line (<c>--token</c>); lets the service tell its hosts apart.</param>
+public sealed record PluginHostRegisterRequest(int ProtocolVersion, string? Token = null);
 
 /// <summary>Result of <see cref="IpcMethods.EventsSubscribe"/>; the current status is returned so the subscriber needs no extra call.</summary>
 /// <param name="Status">Current session state.</param>

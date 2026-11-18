@@ -1,0 +1,11 @@
+OpenSCManagerW
+OpenServiceW
+QueryServiceStatusEx
+StartServiceW
+CloseServiceHandle
+SC_MANAGER_CONNECT
+SC_STATUS_TYPE
+SERVICE_STATUS_PROCESS
+OpenProcess
+WaitForSingleObject
+WIN32_ERROR
