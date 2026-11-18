@@ -9,32 +9,15 @@ before you put it on a real machine. This guide sets up a VM where you can alway
    This is the configuration the threat model assumes.
 3. **Take a snapshot now.** If anything goes wrong, reverting the snapshot is the guaranteed way out.
 
-## 2. Build a developer-mode build
+## 2. Build a developer-mode installer
 Developer abort exists only in **Debug** builds, which define the `DEVMODE` symbol. Release builds cannot abort
-a session. Publish all executables into the same folder, because the service recognises its own components by
-their location:
+a session.
 
 ```bash
-dotnet publish src/Blocker.Service -c Debug -r win-x64 -o out/WindowsDetox
+eng/build-installer.sh Debug
 ```
 
-```bash
-dotnet publish src/Blocker.Watchdog -c Debug -r win-x64 -o out/WindowsDetox
-```
-
-```bash
-dotnet publish src/Blocker.PluginHost -c Debug -r win-x64 -o out/WindowsDetox
-```
-
-```bash
-dotnet publish src/Blocker.Stub -c Debug -r win-x64 -o out/WindowsDetox
-```
-
-```bash
-dotnet publish src/Blocker.UI -c Debug -r win-x64 -o out/WindowsDetox
-```
-
-Copy `out/WindowsDetox` to `C:\Program Files\WindowsDetox` in the VM.
+Copy `out/WindowsDetox-Setup.exe` into the VM. Do not run it yet: create the dev key first (step 3).
 
 ## 3. Turn developer mode on
 Developer mode needs three things to be true:
@@ -52,11 +35,13 @@ mkdir C:\ProgramData\WindowsDetox
 echo dev > C:\ProgramData\WindowsDetox\devmode.key
 ```
 
+Run `WindowsDetox-Setup.exe`, then re-register the service with the developer flag:
+
 ```bash
 "C:\Program Files\WindowsDetox\Blocker.Service.exe" --install --dev-mode
 ```
 
-This command installs and starts two services, `WindowsDetoxService` and `WindowsDetoxWatchdog`. If you want to
+This command updates and restarts the two services, `WindowsDetoxService` and `WindowsDetoxWatchdog`. If you want to
 watch the logs live instead, run the service in a console:
 
 ```bash
