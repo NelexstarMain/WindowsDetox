@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Reflection;
 using System.Text.Json;
+using Blocker.Core.Plugins;
 using Blocker.Plugin.Templates;
 using Blocker.Plugin.Testing;
 using Blocker.Plugin.Testing.Runner;
@@ -22,7 +23,14 @@ public sealed class PluginStarterTemplateTests
         "README.md",
         "STYLE_GUIDE.md",
         "plugin.json",
+        ".claude/skills/windowsdetox-plugin/SKILL.md",
+        ".claude/skills/windowsdetox-plugin-icon/SKILL.md",
+        ".claude/skills/windowsdetox-plugin-icon/preview_icon.py",
+        ".claude/skills/windowsdetox-plugin-page/SKILL.md",
+        ".claude/skills/windowsdetox-widget/SKILL.md",
     ];
+
+    private static readonly string[] PluginFiles = [.. ExpectedFiles.Where(f => !f.StartsWith(".claude/", StringComparison.Ordinal))];
 
     private static readonly string[] AllowedExtensions = [".cs", ".json", ".md"];
 
@@ -44,13 +52,14 @@ public sealed class PluginStarterTemplateTests
     }
 
     [Fact]
-    public void FileNames_lists_every_expected_file()
+    public void FileNames_lists_every_expected_file_with_forward_slashes()
     {
         Assert.Equal(ExpectedFiles.Order(StringComparer.Ordinal), PluginStarterTemplate.FileNames);
+        Assert.DoesNotContain(PluginStarterTemplate.FileNames, name => name.Contains('\\'));
     }
 
     [Fact]
-    public async Task Zip_contains_exactly_the_expected_files_at_the_root()
+    public async Task Zip_contains_exactly_the_expected_files()
     {
         using ZipArchive zip = await OpenZipAsync();
 
@@ -58,9 +67,38 @@ public sealed class PluginStarterTemplateTests
         Assert.All(zip.Entries, entry =>
         {
             Assert.True(entry.Length > 0, $"{entry.FullName} is empty.");
-            Assert.Contains(Path.GetExtension(entry.FullName), AllowedExtensions);
+            Assert.True(entry.FullName.StartsWith(".claude/", StringComparison.Ordinal) || AllowedExtensions.Contains(Path.GetExtension(entry.FullName)), entry.FullName);
         });
         Assert.True(zip.Entries.Sum(e => e.Length) < 2 * 1024 * 1024, "Unpacked size must stay below the 2 MB plugin limit.");
+    }
+
+    [Fact]
+    public async Task Zip_installs_with_the_agent_skills_ignored()
+    {
+        var stream = new MemoryStream();
+        await PluginStarterTemplate.WriteZipAsync(stream, TestContext.Current.CancellationToken);
+        stream.Position = 0;
+
+        PluginPackageReadResult result = await PluginPackageReader.ReadAsync(stream, TestContext.Current.CancellationToken);
+
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        Assert.Equal(PluginFiles.Order(StringComparer.Ordinal), result.Package!.Sources.Keys.Concat(result.Package.Files.Keys).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Skills_have_front_matter_and_no_repository_paths()
+    {
+        using ZipArchive zip = await OpenZipAsync();
+        foreach (ZipArchiveEntry entry in zip.Entries.Where(e => e.FullName.EndsWith("SKILL.md", StringComparison.Ordinal)))
+        {
+            using var reader = new StreamReader(await entry.OpenAsync(TestContext.Current.CancellationToken));
+            string text = await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
+            Assert.StartsWith("---\nname: ", text.ReplaceLineEndings("\n"), StringComparison.Ordinal);
+            foreach (string forbidden in new[] { "plugins/", "eng/", "src/", "BundledPluginTests", "screenshots.ps1", "build-installer" })
+            {
+                Assert.DoesNotContain(forbidden, text, StringComparison.Ordinal);
+            }
+        }
     }
 
     [Fact]

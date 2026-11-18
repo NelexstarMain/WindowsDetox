@@ -46,6 +46,8 @@ public static class PluginPackageReader
     public const int MaxDepth = 3;
 
     private const int MaxNameLength = 200;
+    private const int MaxIgnoredEntries = 200;
+    private const string IgnoredRoot = ".claude";
     private const string ManifestName = "plugin.json";
 
     private static readonly FrozenSet<string> AllowedExtensions = new[] { ".cs", ".json", ".md" }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
@@ -80,22 +82,29 @@ public static class PluginPackageReader
 
     private static async Task<PluginPackageReadResult> ReadArchiveAsync(ZipArchive archive, CancellationToken cancellationToken)
     {
-        if (archive.Entries.Count > MaxEntries)
+        if (archive.Entries.Count > MaxEntries + MaxIgnoredEntries)
         {
             return Fail($"The ZIP contains {archive.Entries.Count} entries; at most {MaxEntries} are allowed.");
         }
 
         List<string> errors = [];
+        int counted = 0;
         List<(ZipArchiveEntry Entry, string Name)> files = [];
         Dictionary<string, string> seen = new(StringComparer.OrdinalIgnoreCase);
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
+            string name = entry.FullName.Replace('\\', '/');
+            if (IsIgnored(name))
+            {
+                continue;
+            }
+
+            counted++;
             if (entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\'))
             {
                 continue;
             }
 
-            string name = entry.FullName.Replace('\\', '/');
             string label = PluginText.Printable(entry.FullName, MaxNameLength);
             string? problem = NameProblem(name) ?? ExtensionProblem(name);
             if (problem is not null)
@@ -110,6 +119,11 @@ public static class PluginPackageReader
             {
                 files.Add((entry, name));
             }
+        }
+
+        if (counted > MaxEntries)
+        {
+            return Fail($"The ZIP contains {counted} entries; at most {MaxEntries} are allowed.");
         }
 
         if (errors.Count == 0 && !files.Any(f => string.Equals(f.Name, ManifestName, StringComparison.OrdinalIgnoreCase)))
@@ -180,7 +194,14 @@ public static class PluginPackageReader
             : new PluginPackageReadResult(null, parsed.Errors, PluginInstallStage.Manifest);
     }
 
-    private static string? NameProblem(string name)
+    /// <summary>
+    /// Authoring tooling (<c>.claude/</c> at the ZIP root, e.g. AI agent skills shipped in the starter template) is never
+    /// read, compiled or counted. The name must still be safe; only the depth and extension rules are waived.
+    /// </summary>
+    private static bool IsIgnored(string name) =>
+        (name.StartsWith(IgnoredRoot + "/", StringComparison.OrdinalIgnoreCase)) && NameProblem(name.TrimEnd('/'), checkDepth: false) is null;
+
+    private static string? NameProblem(string name, bool checkDepth = true)
     {
         if (name.Length > MaxNameLength)
         {
@@ -213,7 +234,7 @@ public static class PluginPackageReader
             return "path segments must not be empty or end with '.' or a space.";
         }
 
-        return segments.Length > MaxDepth ? $"the path is nested deeper than {MaxDepth} levels." : null;
+        return checkDepth && segments.Length > MaxDepth ? $"the path is nested deeper than {MaxDepth} levels." : null;
     }
 
     private static string? ExtensionProblem(string name)

@@ -13,16 +13,18 @@ public static class PluginStarterTemplate
 
     private static readonly Assembly Source = typeof(PluginStarterTemplate).Assembly;
 
-    /// <summary>Gets the names of the files contained in the starter ZIP, in ordinal order. They all live at the ZIP root.</summary>
-    public static IReadOnlyList<string> FileNames { get; } =
-    [
-        .. Source.GetManifestResourceNames()
-            .Where(name => name.StartsWith(Prefix, StringComparison.Ordinal))
-            .Select(name => name[Prefix.Length..])
-            .Order(StringComparer.Ordinal),
-    ];
+    // Resource names keep the platform's directory separator (RecursiveDir uses '\\' on Windows), so map normalized names back.
+    private static readonly Dictionary<string, string> ResourceByFileName = Source.GetManifestResourceNames()
+        .Where(name => name.StartsWith(Prefix, StringComparison.Ordinal))
+        .ToDictionary(name => name[Prefix.Length..].Replace('\\', '/'), name => name, StringComparer.Ordinal);
 
-    /// <summary>Writes the starter template as a ZIP archive with every file at the archive root.</summary>
+    /// <summary>
+    /// Gets the relative paths (forward slashes) of the files contained in the starter ZIP, in ordinal order. Plugin files
+    /// live at the ZIP root; AI agent skills live under <c>.claude/</c>, which the plugin installer ignores.
+    /// </summary>
+    public static IReadOnlyList<string> FileNames { get; } = [.. ResourceByFileName.Keys.Order(StringComparer.Ordinal)];
+
+    /// <summary>Writes the starter template as a ZIP archive with every file at its relative path.</summary>
     /// <param name="destination">Writable stream that receives the archive. It is left open.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when the archive has been written and flushed.</returns>
@@ -37,7 +39,7 @@ public static class PluginStarterTemplate
             cancellationToken.ThrowIfCancellationRequested();
             ZipArchiveEntry entry = archive.CreateEntry(fileName, CompressionLevel.Optimal);
             await using Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false);
-            await using Stream resource = Source.GetManifestResourceStream(Prefix + fileName)
+            await using Stream resource = Source.GetManifestResourceStream(ResourceByFileName[fileName])
                 ?? throw new InvalidOperationException($"Embedded resource '{Prefix}{fileName}' is missing.");
             await resource.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
         }

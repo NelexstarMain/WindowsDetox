@@ -4,6 +4,9 @@ You are editing a Blocker plugin. Follow this document exactly; it is the contra
 `STYLE_GUIDE.md`. The user will zip this folder and upload it in Blocker, which validates, compiles, analyses and
 tests it before installing. A plugin that does not pass is not installed, so correctness beats cleverness.
 
+Skills for authoring plugins (plugin workflow, icon, dashboard widget, page and settings design) are in `.claude/skills`; load them
+before you start. Blocker ignores the `.claude` folder on upload, so you can leave it in the ZIP.
+
 ## 1. File layout
 
 ```
@@ -13,6 +16,7 @@ PluginTests.cs         tests (required; at least one [Fact]/[Theory] must exist 
 AGENT_INSTRUCTIONS.md  this file (optional in the ZIP)
 STYLE_GUIDE.md         UI rules (optional in the ZIP)
 README.md              human notes (optional in the ZIP)
+.claude/skills/         AI agent skills (ignored by Blocker on upload)
 ```
 
 * Allowed file types: `.cs`, `.json`, `.md`. Anything else is rejected. Sub-folders are allowed (`plugin.json` stays at the root),

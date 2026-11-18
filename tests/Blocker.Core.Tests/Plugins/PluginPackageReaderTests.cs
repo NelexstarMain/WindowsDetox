@@ -91,6 +91,57 @@ public sealed class PluginPackageReaderTests
         await AssertFailsAsync(PluginTestSupport.ZipWithManifest(files), PluginInstallStage.Package, "The ZIP contains 51 entries; at most 50 are allowed.");
     }
 
+    [Fact]
+    public async Task Ignores_everything_under_a_top_level_claude_directory()
+    {
+        PluginPackageReadResult result = await ReadAsync(PluginTestSupport.ZipWithManifest(
+            (".claude/", string.Empty),
+            (".claude/skills/x/SKILL.md", "# skill"),
+            (".claude\\skills\\x\\tool.py", "print(1)"),
+            (".CLAUDE/skills/y/Evil.cs", "this is not C#"),
+            ("Main.cs", Class)));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(["Main.cs"], result.Package!.Sources.Keys);
+        Assert.Equal(["plugin.json"], result.Package.Files.Keys);
+    }
+
+    [Fact]
+    public async Task Ignored_claude_entries_do_not_count_toward_the_entry_limit()
+    {
+        (string, string)[] files =
+        [
+            .. Enumerable.Range(0, PluginPackageReader.MaxEntries - 1).Select(i => ($"F{i}.cs", Class)),
+            .. Enumerable.Range(0, 20).Select(i => ($".claude/skills/s{i}/SKILL.md", "# s")),
+        ];
+
+        PluginPackageReadResult result = await ReadAsync(PluginTestSupport.ZipWithManifest(files));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(PluginPackageReader.MaxEntries - 1, result.Package!.Sources.Count);
+    }
+
+    [Theory]
+    [InlineData(".claude/../x.cs", "Entry '.claude/../x.cs': '.' and '..' path segments are not allowed.")]
+    [InlineData(".claude/a/../../x.cs", "Entry '.claude/a/../../x.cs': '.' and '..' path segments are not allowed.")]
+    [InlineData(".claude/C:/x.md", "Entry '.claude/C:/x.md': the name contains ':' (drive letters and alternate data streams are not allowed).")]
+    [InlineData(".claude//x.md", "Entry '.claude//x.md': path segments must not be empty or end with '.' or a space.")]
+    [InlineData("/.claude/x.md", "Entry '/.claude/x.md': absolute paths are not allowed.")]
+    public async Task Claude_directory_does_not_bypass_name_validation(string name, string expected)
+    {
+        await AssertFailsAsync(PluginTestSupport.ZipWithManifest((name, "x")), PluginInstallStage.Package, expected);
+    }
+
+    [Theory]
+    [InlineData("sub/.claude/x/y.md", "Entry 'sub/.claude/x/y.md': the path is nested deeper than 3 levels.")]
+    [InlineData("sub/.claude/tool.py", "Entry 'sub/.claude/tool.py': file type '.py' is not allowed (only .cs, .json and .md).")]
+    [InlineData(".claudex/tool.py", "Entry '.claudex/tool.py': file type '.py' is not allowed (only .cs, .json and .md).")]
+    [InlineData(".claude", "Entry '.claude': file type '.claude' is not allowed (only .cs, .json and .md).")]
+    public async Task Claude_directory_is_only_ignored_at_the_top_level(string name, string expected)
+    {
+        await AssertFailsAsync(PluginTestSupport.ZipWithManifest((name, "x")), PluginInstallStage.Package, expected);
+    }
+
     [Theory]
     [InlineData("../x.cs", "Entry '../x.cs': '.' and '..' path segments are not allowed.")]
     [InlineData("a/../../x.cs", "Entry 'a/../../x.cs': '.' and '..' path segments are not allowed.")]

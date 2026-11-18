@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -23,7 +24,7 @@ internal sealed class LineIcon : IconElement
     /// <inheritdoc />
     protected override UIElement InitializeChildren()
     {
-        var path = new Path
+        var path = new System.Windows.Shapes.Path
         {
             StrokeThickness = 1.6,
             StrokeStartLineCap = PenLineCap.Round,
@@ -31,7 +32,7 @@ internal sealed class LineIcon : IconElement
             StrokeLineJoin = PenLineJoin.Round,
             SnapsToDevicePixels = false,
         };
-        path.SetBinding(Path.DataProperty, new Binding(nameof(Data)) { Source = this });
+        path.SetBinding(System.Windows.Shapes.Path.DataProperty, new Binding(nameof(Data)) { Source = this });
         path.SetBinding(Shape.StrokeProperty, new Binding(nameof(Foreground)) { Source = this });
         return new Canvas { Width = 24, Height = 24, Children = { path }, LayoutTransform = new ScaleTransform(0.78, 0.78) };
     }
