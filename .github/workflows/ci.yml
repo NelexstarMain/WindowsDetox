@@ -46,3 +46,22 @@ jobs:
           name: WindowsDetox-Setup
           path: out/WindowsDetox-Setup.exe
           retention-days: 30
+      - name: Installer smoke test (install, services running, uninstall)
+        shell: pwsh
+        run: |
+          $p = Start-Process out\WindowsDetox-Setup.exe -ArgumentList '--quiet' -Wait -PassThru -RedirectStandardOutput install.log -RedirectStandardError install.err
+          Get-Content install.log, install.err
+          if ($p.ExitCode -ne 0) { throw "install exit code $($p.ExitCode)" }
+          Start-Sleep -Seconds 10
+          Get-ChildItem "$env:ProgramData\WindowsDetox\logs" -ErrorAction SilentlyContinue | Get-Content -Tail 40
+          foreach ($name in 'WindowsDetoxService', 'WindowsDetoxWatchdog') {
+            $svc = Get-Service $name
+            "$name $($svc.Status)"
+            if ($svc.Status -ne 'Running') { throw "$name is not running" }
+          }
+          if (-not (Test-Path "$env:ProgramFiles\WindowsDetox\Blocker.UI.exe")) { throw 'application files missing' }
+          $u = Start-Process "$env:ProgramFiles\WindowsDetox\Blocker.Setup.exe" -ArgumentList '--uninstall', '--quiet' -Wait -PassThru -RedirectStandardOutput uninstall.log -RedirectStandardError uninstall.err
+          Get-Content uninstall.log, uninstall.err
+          if ($u.ExitCode -notin 0, 3) { throw "uninstall exit code $($u.ExitCode)" }
+          if (Get-Service WindowsDetoxService -ErrorAction SilentlyContinue) { throw 'service still registered' }
+          if (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name WindowsDetoxAgent -ErrorAction SilentlyContinue) { throw 'agent autorun left behind' }

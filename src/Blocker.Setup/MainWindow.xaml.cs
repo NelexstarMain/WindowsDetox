@@ -89,4 +89,10 @@ internal sealed partial class MainWindow : Window
         e.Cancel = _busy;
         base.OnClosing(e);
     }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        Application.Current.Shutdown();
+    }
 }
