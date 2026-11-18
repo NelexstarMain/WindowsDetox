@@ -6,6 +6,8 @@
     <!-- Windows-only binaries cannot execute on Linux CI; they run in the windows-latest job. -->
     <IsTestProject Condition="!$([MSBuild]::IsOSPlatform('windows'))">false</IsTestProject>
     <IsTestingPlatformApplication Condition="!$([MSBuild]::IsOSPlatform('windows'))">false</IsTestingPlatformApplication>
+      <!-- Tests reference the self-contained executables only to call their internals (NETSDK1151). -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Blocker.Service\Blocker.Service.csproj" />
