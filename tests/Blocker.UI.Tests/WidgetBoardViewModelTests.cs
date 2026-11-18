@@ -11,7 +11,7 @@ public sealed class WidgetBoardViewModelTests
 
     private static ContributionViewModel Widget(string plugin, string id, string? icon = null)
     {
-        UiContributionDto dto = new(plugin, id, id, UiJson.Serialize(new UiCard([new UiText(id)], id)), icon);
+        UiContributionDto dto = new(plugin, id, plugin, UiJson.Serialize(new UiCard([new UiText(id)], id)), icon);
         Assert.True(ContributionViewModel.TryCreate(dto, out ContributionViewModel? widget));
         return widget;
     }
