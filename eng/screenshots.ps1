@@ -66,10 +66,12 @@ if ($Phase -eq 'installer') {
   exit 0
 }
 
-# Bundled plugins are compiled and tested by the service after install; wait for that before opening the app.
+# Bundled plugins are compiled and tested by the service after install, one after the other; the marker lists each one
+# when it is installed. Wait until every shipped package is listed (or 120 s) before opening the app.
 $marker = Join-Path $env:ProgramData 'WindowsDetox\bundled-plugins.txt'
-for ($i = 0; $i -lt 120 -and -not (Test-Path $marker); $i++) { Start-Sleep -Seconds 1 }
-"bundled plugins processed: $(Test-Path $marker)"
+$shipped = @(Get-ChildItem (Join-Path $InstallDir 'bundled-plugins\*.zip') -ErrorAction SilentlyContinue).Count
+for ($i = 0; $i -lt 120 -and -not ((Test-Path $marker) -and @(Get-Content $marker).Count -ge $shipped); $i++) { Start-Sleep -Seconds 1 }
+"bundled plugins processed: $(Test-Path $marker) ($(if (Test-Path $marker) { @(Get-Content $marker).Count } else { 0 }) of $shipped)"
 Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin|\[Error\]|\[Critical\]|failed at step' -ErrorAction SilentlyContinue | Select-Object -Last 25 | ForEach-Object { $_.Line }
 Get-ChildItem (Join-Path $env:ProgramData 'WindowsDetox.PluginData\host-logs') -ErrorAction SilentlyContinue | Get-Content -Tail 25 | ForEach-Object { "host: $_" }
 $crash = Join-Path $env:ProgramData 'WindowsDetox.PluginData\plugin-host-crash.log'
@@ -109,6 +111,7 @@ if (Click-Named $main 'Session') {
   if (Click-Named $main 'Add widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '14-widget-picker'; [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1 }
   if (Click-Named $main 'Edit widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '15-widgets-edit' }
 }
+if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 

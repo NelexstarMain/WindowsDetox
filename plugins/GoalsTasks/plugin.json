@@ -1,0 +1,15 @@
+{
+  "id": "com.windowsdetox.goals",
+  "name": "Goals & Tasks",
+  "version": "1.0.0",
+  "author": "WindowsDetox",
+  "description": "Plan a few focus tasks for today, set a daily goal and tick them off. Everything stays on this device.",
+  "sdkVersion": "1.0",
+  "entryType": "GoalsTasks.GoalsPlugin",
+  "icon": "M87.68 23.62 A46 46 0 1 1 54.01 4.17 L53.31 12.14 A38 38 0 1 0 81.13 28.2 Z M20.76 55.24 L42.37 76.85 L79.24 10.93 L68.76 5.07 L39.63 57.15 L29.24 46.76 Z",
+  "capabilities": [
+    "ui.page",
+    "ui.dashboard",
+    "ui.settings"
+  ]
+}

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Blocker.Core.Plugins;
 using Blocker.Plugin.Testing.Runner;
 using Blocker.Sdk;
@@ -66,4 +67,47 @@ public sealed class BundledPluginTests
             ["events.process", "events.session", "ui.dashboard", "ui.page", "ui.settings"],
             manifest.Capabilities.Select(PluginCapabilities.ToManifestName).Order(StringComparer.Ordinal));
     }
+
+    [Fact]
+    public async Task Goals_and_Tasks_passes_every_install_stage_and_all_of_its_tests()
+    {
+        using MemoryStream zip = ZipOfFolder("GoalsTasks");
+
+        PluginInstallReport report = await PluginInstallPipeline.EvaluateAsync(zip, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Errors.Count == 0, string.Join(Environment.NewLine, report.Errors));
+        Assert.True(report.Succeeded);
+        Assert.Equal(PluginInstallStage.Ready, report.Stage);
+        PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
+        Assert.Equal("com.windowsdetox.goals", manifest.Id.Value);
+        Assert.Equal("Goals & Tasks", manifest.Name);
+        Assert.Equal(new Version(1, 0, 0), manifest.Version);
+        Assert.Equal("GoalsTasks.GoalsPlugin", manifest.EntryType);
+        Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
+        Assert.NotEqual(FocusInsightsIcon(), manifest.Icon);
+        PluginTestReport tests = Assert.IsType<PluginTestReport>(report.TestReport);
+        Assert.True(tests.Succeeded);
+        Assert.True(tests.Passed >= 25, $"Only {tests.Passed} plugin tests ran.");
+        Assert.Equal(tests.Results.Count, tests.Passed);
+        Assert.Equal(0, tests.Failed + tests.TimedOut + tests.NotSupported);
+        Assert.Equal(
+            ["ui.dashboard", "ui.page", "ui.settings"],
+            manifest.Capabilities.Select(PluginCapabilities.ToManifestName).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void Every_bundled_plugin_folder_has_a_unique_id_and_icon_and_is_covered_by_these_tests()
+    {
+        string[] folders = [.. Directory.EnumerateDirectories(Path.Combine(RepositoryRoot(), "plugins")).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal)];
+        Assert.Equal(["FocusInsights", "GoalsTasks"], folders);
+
+        List<JsonElement> manifests = [.. folders.Select(f => JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "plugins", f, "plugin.json"))).RootElement)];
+
+        Assert.Equal(folders.Length, manifests.Select(m => m.GetProperty("id").GetString()).Distinct().Count());
+        Assert.Equal(folders.Length, manifests.Select(m => m.GetProperty("icon").GetString()).Distinct().Count());
+        Assert.All(manifests, m => Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(m.GetProperty("icon").GetString())));
+    }
+
+    private static string FocusInsightsIcon() =>
+        JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "plugins", "FocusInsights", "plugin.json"))).RootElement.GetProperty("icon").GetString()!;
 }
