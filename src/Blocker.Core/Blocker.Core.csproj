@@ -5,6 +5,7 @@
     <Description>OS-independent core: session clock, rollback journal, secure store, event bus, circuit breaker, plugin compile/analyze/test pipeline.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Blocker.Contracts\Blocker.Contracts.csproj" />
     <ProjectReference Include="..\Blocker.SDK\Blocker.SDK.csproj" />
     <ProjectReference Include="..\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
     <ProjectReference Include="..\Blocker.Plugin.Testing\Blocker.Plugin.Testing.csproj" />

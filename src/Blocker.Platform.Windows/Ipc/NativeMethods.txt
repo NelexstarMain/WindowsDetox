@@ -1,0 +1,5 @@
+GetNamedPipeClientProcessId
+OpenProcess
+QueryFullProcessImageName
+GetTokenInformation
+TOKEN_ELEVATION

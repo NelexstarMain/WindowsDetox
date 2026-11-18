@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Blocker.Contracts/Blocker.Contracts.csproj" />
     <Project Path="src/Blocker.Core/Blocker.Core.csproj" />
     <Project Path="src/Blocker.Platform.Windows/Blocker.Platform.Windows.csproj" />
     <Project Path="src/Blocker.Plugin.Templates/Blocker.Plugin.Templates.csproj" />

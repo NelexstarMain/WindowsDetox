@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Blocker.Contracts</RootNamespace>
+    <Description>IPC contract between Blocker processes: methods, DTOs, envelope, error codes and the per-method access policy. Pure data.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.SDK\Blocker.SDK.csproj" />
+    <ProjectReference Include="..\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Blocker.Core.Tests" />
+  </ItemGroup>
+</Project>
