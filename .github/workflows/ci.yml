@@ -46,7 +46,10 @@ jobs:
           name: WindowsDetox-Setup
           path: out/WindowsDetox-Setup.exe
           retention-days: 30
-      - name: Installer smoke test (install, services running, uninstall)
+      - name: Screenshot installer
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File eng/screenshots.ps1 -Phase installer -Setup out\WindowsDetox-Setup.exe
+      - name: Install (quiet) and check services
         shell: pwsh
         run: |
           $p = Start-Process out\WindowsDetox-Setup.exe -ArgumentList '--quiet' -Wait -PassThru -RedirectStandardOutput install.log -RedirectStandardError install.err
@@ -60,6 +63,21 @@ jobs:
             if ($svc.Status -ne 'Running') { throw "$name is not running" }
           }
           if (-not (Test-Path "$env:ProgramFiles\WindowsDetox\Blocker.UI.exe")) { throw 'application files missing' }
+      - name: Screenshot app
+        if: always()
+        continue-on-error: true
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File eng/screenshots.ps1 -Phase app -InstallDir "$env:ProgramFiles\WindowsDetox"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+          retention-days: 30
+      - name: Uninstall (quiet) and check nothing is left
+        shell: pwsh
+        run: |
+          Get-Process Blocker.UI, Blocker.Stub -ErrorAction SilentlyContinue | Stop-Process -Force
           $u = Start-Process "$env:ProgramFiles\WindowsDetox\Blocker.Setup.exe" -ArgumentList '--uninstall', '--quiet' -Wait -PassThru -RedirectStandardOutput uninstall.log -RedirectStandardError uninstall.err
           Get-Content uninstall.log, uninstall.err
           if ($u.ExitCode -notin 0, 3) { throw "uninstall exit code $($u.ExitCode)" }
