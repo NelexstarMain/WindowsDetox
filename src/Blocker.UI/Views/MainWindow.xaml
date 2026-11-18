@@ -58,29 +58,29 @@
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Session" TargetPageType="{x:Type views:DashboardPage}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="Timer24" />
+                        <views:LineIcon Data="M12 3.4 A8.6 8.6 0 1 1 3.4 12 M13.2 12 A1.2 1.2 0 1 1 10.8 12 A1.2 1.2 0 1 1 13.2 12 Z" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Allowlist" TargetPageType="{x:Type views:AllowlistPage}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="Apps24" />
+                        <views:LineIcon Data="M5 7 H19 M5 12 H15.5 M5 17 H12" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Session setup" TargetPageType="{x:Type views:SetupPage}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="ShieldLock24" />
+                        <views:LineIcon Data="M12 3.2 L19 6 V11.6 C19 15.9 16 19.2 12 20.8 C8 19.2 5 15.9 5 11.6 V6 Z" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Plugins" TargetPageType="{x:Type views:PluginsPage}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="PuzzlePiece24" />
+                        <views:LineIcon Data="M4.5 4.5 H12 V12 H4.5 Z M20 15.5 A4.5 4.5 0 1 1 11 15.5 A4.5 4.5 0 1 1 20 15.5 Z" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
             <ui:NavigationView.FooterMenuItems>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Settings" TargetPageType="{x:Type views:SettingsPage}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="Settings24" />
+                        <views:LineIcon Data="M12 3.3 L19.5 7.6 V16.4 L12 20.7 L4.5 16.4 V7.6 Z M14.6 12 A2.6 2.6 0 1 1 9.4 12 A2.6 2.6 0 1 1 14.6 12 Z" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
             </ui:NavigationView.FooterMenuItems>
