@@ -1,0 +1,264 @@
+using Blocker.Core.Orchestration;
+using Blocker.Core.Ports;
+using Blocker.Core.Session;
+
+namespace Blocker.Core.Tests.Orchestration;
+
+internal sealed class FakeProcessMonitor : IProcessMonitor
+{
+    public event EventHandler<ProcessStartedEventArgs>? ProcessStarted;
+
+    public event EventHandler<ProcessExitedEventArgs>? ProcessExited;
+
+    public List<ProcessInfo> Running { get; } = [];
+
+    public int StartCalls { get; private set; }
+
+    public Exception? StartFault { get; set; }
+
+    public Exception? EnumerateFault { get; set; }
+
+    public Action? OnEnumerate { get; set; }
+
+    public int Handlers => (ProcessStarted?.GetInvocationList().Length ?? 0) + (ProcessExited?.GetInvocationList().Length ?? 0);
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        StartCalls++;
+        return StartFault is { } fault ? Task.FromException(fault) : Task.CompletedTask;
+    }
+
+    public IReadOnlyList<ProcessInfo> EnumerateRunning()
+    {
+        OnEnumerate?.Invoke();
+        return EnumerateFault is { } fault ? throw fault : [.. Running];
+    }
+
+    /// <summary>The process starts: it shows up in the snapshot and a start event is raised.</summary>
+    public void Spawn(ProcessInfo process)
+    {
+        Running.Add(process);
+        ProcessStarted?.Invoke(this, new ProcessStartedEventArgs(process));
+    }
+
+    /// <summary>The process exits: it leaves the snapshot and an exit event is raised.</summary>
+    public void Exit(ProcessInfo process)
+    {
+        Running.Remove(process);
+        ProcessExited?.Invoke(this, new ProcessExitedEventArgs(process.ProcessId, process.StartTimeTicks));
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+internal sealed class FakeProcessController : IProcessController
+{
+    private readonly List<(int ProcessId, long StartTimeTicks)> _terminated = [];
+    private readonly List<int> _closed = [];
+
+    public IReadOnlyList<(int ProcessId, long StartTimeTicks)> Terminated
+    {
+        get
+        {
+            lock (_terminated)
+            {
+                return [.. _terminated];
+            }
+        }
+    }
+
+    public IReadOnlyList<int> GracefullyClosed
+    {
+        get
+        {
+            lock (_closed)
+            {
+                return [.. _closed];
+            }
+        }
+    }
+
+    public Dictionary<int, string> Packages { get; } = [];
+
+    public Exception? TerminateFault { get; set; }
+
+    public bool TryTerminate(int processId, long startTimeTicks)
+    {
+        if (TerminateFault is { } fault)
+        {
+            throw fault;
+        }
+
+        lock (_terminated)
+        {
+            _terminated.Add((processId, startTimeTicks));
+        }
+
+        return true;
+    }
+
+    public Task<bool> TryCloseGracefullyAsync(int processId, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        lock (_closed)
+        {
+            _closed.Add(processId);
+        }
+
+        return Task.FromResult(true);
+    }
+
+    public string? GetPackageFamilyName(int processId) => Packages.GetValueOrDefault(processId);
+}
+
+internal sealed class FakeUserSessionLauncher : IUserSessionLauncher
+{
+    private readonly List<(string Path, string Arguments)> _launches = [];
+
+    public IReadOnlyList<(string Path, string Arguments)> Launches
+    {
+        get
+        {
+            lock (_launches)
+            {
+                return [.. _launches];
+            }
+        }
+    }
+
+    public Exception? Fault { get; set; }
+
+    public int? Result { get; set; } = 4242;
+
+    public int? LaunchInActiveSession(string executablePath, string arguments)
+    {
+        if (Fault is { } fault)
+        {
+            throw fault;
+        }
+
+        lock (_launches)
+        {
+            _launches.Add((executablePath, arguments));
+        }
+
+        return Result;
+    }
+}
+
+internal sealed class FakeSignatureVerifier : ISignatureVerifier
+{
+    private readonly List<string> _calls = [];
+
+    public HashSet<string> Signed { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<string> Calls
+    {
+        get
+        {
+            lock (_calls)
+            {
+                return [.. _calls];
+            }
+        }
+    }
+
+    public bool IsMicrosoftSigned(string path)
+    {
+        lock (_calls)
+        {
+            _calls.Add(path);
+        }
+
+        return Signed.Contains(path);
+    }
+}
+
+internal sealed class FakeBrowserFirewall(List<string> log) : IBrowserFirewall
+{
+    public bool IsEnabled { get; private set; }
+
+    public Exception? EnableFault { get; set; }
+
+    public Exception? DisableFault { get; set; }
+
+    public List<IReadOnlyList<string>> EnabledWith { get; } = [];
+
+    /// <summary>The WFP dynamic session vanishes when the service process exits.</summary>
+    public void ProcessExit() => IsEnabled = false;
+
+    public Task EnableAsync(IReadOnlyList<string> browserExecutables, CancellationToken cancellationToken)
+    {
+        if (EnableFault is { } fault)
+        {
+            return Task.FromException(fault);
+        }
+
+        lock (log)
+        {
+            log.Add("firewall.enable");
+        }
+
+        EnabledWith.Add(browserExecutables);
+        IsEnabled = true;
+        return Task.CompletedTask;
+    }
+
+    public Task DisableAsync(CancellationToken cancellationToken)
+    {
+        if (DisableFault is { } fault)
+        {
+            return Task.FromException(fault);
+        }
+
+        lock (log)
+        {
+            log.Add("firewall.disable");
+        }
+
+        IsEnabled = false;
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+/// <summary>Plans one <c>fake</c> change per IFEO name, then the PAC port, services and directories, so tests can see exactly what the coordinator passed in.</summary>
+internal sealed class FakePlanner : IEnforcementChangePlanner
+{
+    public List<SessionPlanInput> Inputs { get; } = [];
+
+    public Exception? Fault { get; set; }
+
+    public IReadOnlyList<PlannedChange> PlanSessionChanges(SessionPlanInput input)
+    {
+        if (Fault is { } fault)
+        {
+            throw fault;
+        }
+
+        Inputs.Add(input);
+        List<PlannedChange> plan = [];
+        plan.AddRange(input.IfeoImageNames.Select(static n => Change($"ifeo:{n}")));
+        plan.Add(Change($"pac:{input.ProxyPort}"));
+        plan.AddRange(input.ServiceNames.Select(static n => Change($"service:{n}")));
+        plan.AddRange(input.ProtectedDirectories.Select(static d => Change($"dir:{d}")));
+        return plan;
+    }
+
+    private static PlannedChange Change(string target) => new("fake", target, $$"""{"target":"{{target.Replace("\\", "\\\\", StringComparison.Ordinal)}}"}""");
+}
+
+/// <summary>An in-memory session store whose writes can be made to fail.</summary>
+internal sealed class FaultySessionStore : ISessionStore
+{
+    private readonly InMemorySessionStore _inner = new();
+
+    public Exception? SaveFault { get; set; }
+
+    public ValueTask<PersistedSession?> LoadAsync(CancellationToken cancellationToken = default) => _inner.LoadAsync(cancellationToken);
+
+    public ValueTask SaveAsync(PersistedSession session, CancellationToken cancellationToken = default) =>
+        SaveFault is { } fault ? throw fault : _inner.SaveAsync(session, cancellationToken);
+
+    public ValueTask ClearAsync(CancellationToken cancellationToken = default) => _inner.ClearAsync(cancellationToken);
+}
