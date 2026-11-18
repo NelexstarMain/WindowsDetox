@@ -5,9 +5,9 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     <StackPanel MinWidth="420">
         <TextBlock Style="{DynamicResource Blocker.Text.Body}"
-                   Text="This code ends the session early and unlocks everything. It is shown only now and cannot be recovered later. Write it down or store it in a password manager." />
-        <Border Margin="0,16,0,0" Padding="16" CornerRadius="8"
-                Background="{DynamicResource Blocker.Bg.Raised}"
+                   Text="Ends the session early. Shown once; save it now." />
+        <Border Margin="0,16,0,0" Padding="16" CornerRadius="4"
+                Background="{DynamicResource Blocker.Bg.Base}"
                 BorderBrush="{DynamicResource Blocker.Border.Strong}" BorderThickness="1">
             <TextBox Text="{Binding Code, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
                      FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="20"
@@ -15,7 +15,7 @@
                      AutomationProperties.Name="Break-glass code" />
         </Border>
         <Button Margin="0,16,0,0" HorizontalAlignment="Left"
-                Style="{DynamicResource Blocker.Button.Secondary}"
+                Style="{DynamicResource Blocker.Button.SecondaryPill}"
                 Command="{Binding CopyCommand}">
             <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="Copy24" Margin="0,0,8,0" />

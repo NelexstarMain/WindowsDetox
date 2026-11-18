@@ -4,14 +4,13 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>Blocker.UI.Controls</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Description>Shared WPF controls: industrial dark theme, blueprint grid, SDF metaball surface and the declarative UiNode renderer.</Description>
+    <Description>Shared WPF controls: monochrome dark theme and the declarative UiNode renderer.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Blocker.UI.SDK\Blocker.UI.SDK.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="WPF-UI" />
-    <PackageReference Include="SkiaSharp.Views.WPF" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Blocker.UI.Controls.Tests" />

@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using Blocker.UI.Controls.Metaballs;
 using Blocker.UI.Sdk;
 using NumberBox = Wpf.Ui.Controls.NumberBox;
 using NumberBoxSpinButtonPlacementMode = Wpf.Ui.Controls.NumberBoxSpinButtonPlacementMode;
@@ -179,7 +178,6 @@ internal sealed class UiVisualBuilder
         }
 
         var border = Styled(new Border { Child = stack }, "Blocker.CardBorder");
-        Metaball.SetIsBody(border, true);
         return border;
     }
 
@@ -267,7 +265,6 @@ internal sealed class UiVisualBuilder
         if (!insideCard)
         {
             border.Padding = new Thickness(16);
-            Metaball.SetIsBody(border, true);
         }
 
         AutomationProperties.SetName(border, tile.Label + ": " + tile.Value);
@@ -294,8 +291,8 @@ internal sealed class UiVisualBuilder
             stack.Children.Add(row);
         }
 
-        var bar = new Grid { Height = 6 };
-        var track = new Border { CornerRadius = new CornerRadius(3) };
+        var bar = new Grid { Height = 4 };
+        var track = new Border { CornerRadius = new CornerRadius(2) };
         track.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
         bar.Children.Add(track);
 
@@ -304,7 +301,7 @@ internal sealed class UiVisualBuilder
         fillHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - ratio, GridUnitType.Star) });
         if (ratio > 0)
         {
-            var fill = new Border { CornerRadius = new CornerRadius(3) };
+            var fill = new Border { CornerRadius = new CornerRadius(2) };
             fill.SetResourceReference(Border.BackgroundProperty, ToneMap.FillKey(progress.Tone));
             fillHost.Children.Add(fill);
         }

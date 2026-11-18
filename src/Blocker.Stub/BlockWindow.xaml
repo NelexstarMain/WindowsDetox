@@ -2,18 +2,20 @@
         x:ClassModifier="internal"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
         xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
         xmlns:local="clr-namespace:Blocker.Stub"
         Title="Blocked by WindowsDetox" Width="560" Height="420"
+        Icon="pack://application:,,,/Assets/app.ico"
         WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize"
         ShowInTaskbar="False" Topmost="True"
-        Background="{DynamicResource Blocker.Bg.Base}"
+        Background="{DynamicResource Blocker.Bg.Canvas}"
         Foreground="{DynamicResource Blocker.Text.Primary}"
-        BorderBrush="{DynamicResource Blocker.Border.Strong}" BorderThickness="1">
-    <!-- Metaball host owns the blueprint grid and field as its bottom layer; the card and content sit above it. -->
-    <mb:MetaballHost>
-        <Border Margin="16" Style="{DynamicResource Blocker.CardBorder}" mb:Metaball.IsBody="True">
+        BorderBrush="#323746" BorderThickness="1">
+    <Grid>
+        <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}" Opacity="0.025"
+              Width="360" Height="360" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+              Margin="0,0,-60,-60" IsHitTestVisible="False" />
+        <Border Margin="24" ClipToBounds="False">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -82,11 +84,11 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0" HorizontalAlignment="Left" Style="{DynamicResource Blocker.Button.Warning}"
                                 Command="{Binding UseEmergencyExitCommand}" Content="{Binding EmergencyLabel}" />
-                        <Button Grid.Column="1" Style="{DynamicResource Blocker.Button.Secondary}"
+                        <Button Grid.Column="1" Style="{DynamicResource Blocker.Button.SecondaryPill}"
                                 Command="{Binding CloseCommand}" Content="Close" IsDefault="True" />
                     </Grid>
                 </StackPanel>
             </Grid>
         </Border>
-    </mb:MetaballHost>
+    </Grid>
 </Window>

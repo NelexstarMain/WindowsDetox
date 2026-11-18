@@ -174,17 +174,19 @@ internal sealed partial class TrayService : IHostedService, IDisposable
         }
     }
 
-    // A ring in the accent colour, drawn once at startup; the pixels are premultiplied BGRA as the icon API expects.
+    // The four-wedge logo in sage, drawn once at startup; the pixels are premultiplied BGRA as the icon API expects.
     private static byte[] RenderIcon()
     {
-        Color accent = Application.Current.TryFindResource("Blocker.Accent.Color") is Color found ? found : Color.FromRgb(0x3D, 0xD9, 0xC1);
-        SolidColorBrush brush = new(accent);
+        Geometry logo = Application.Current.TryFindResource("Blocker.Logo.Geometry") as Geometry ?? new RectangleGeometry(new Rect(60, 60, 880, 880));
+        SolidColorBrush brush = new(Color.FromRgb(0xBF, 0xD0, 0xB4));
+        Rect bounds = logo.Bounds;
+        double scale = (IconSize - 2d) / Math.Max(bounds.Width, bounds.Height);
         DrawingVisual visual = new();
         using (DrawingContext context = visual.RenderOpen())
         {
-            Point center = new(IconSize / 2d, IconSize / 2d);
-            context.DrawEllipse(null, new Pen(brush, 4), center, 11, 11);
-            context.DrawEllipse(brush, null, center, 4, 4);
+            context.PushTransform(new TranslateTransform(1 - (bounds.X * scale), 1 - (bounds.Y * scale)));
+            context.PushTransform(new ScaleTransform(scale, scale));
+            context.DrawGeometry(brush, null, logo);
         }
 
         RenderTargetBitmap bitmap = new(IconSize, IconSize, 96, 96, PixelFormats.Pbgra32);
