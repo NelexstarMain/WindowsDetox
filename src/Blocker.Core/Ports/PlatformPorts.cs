@@ -81,6 +81,9 @@ public interface IRestrictedProcess : IDisposable
 
     /// <summary>Kills the process tree.</summary>
     void Kill();
+
+    /// <summary>Gets the exit code once the process has exited; <see langword="null"/> while it runs or when unknown.</summary>
+    int? ExitCode => null;
 }
 
 /// <summary>Authenticode verification.</summary>

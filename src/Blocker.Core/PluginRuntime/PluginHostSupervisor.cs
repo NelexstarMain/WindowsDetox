@@ -522,7 +522,7 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
             Task exited = process.WaitForExitAsync(cancellationToken);
             if (await Task.WhenAny(peerTask, exited).ConfigureAwait(false) == exited && !peerTask.IsCompleted)
             {
-                throw new IOException("The plugin host exited before it registered.");
+                throw new IOException($"The plugin host exited before it registered (exit code {process.ExitCode?.ToString("X8", System.Globalization.CultureInfo.InvariantCulture) ?? "unknown"}).");
             }
 
             return new RunningHost(process, await peerTask.ConfigureAwait(false));

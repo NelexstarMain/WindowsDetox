@@ -30,9 +30,31 @@ builder.Services.AddSingleton(sp => new PluginHostEndpoint(
     sp.GetRequiredService<IpcClient>(), sp.GetRequiredService<PluginHostRuntime>(), sp.GetRequiredService<ILogger<PluginHostEndpoint>>(), options.Token));
 builder.Services.AddHostedService<PluginHostWorker>();
 
-using IHost host = builder.Build();
-await host.RunAsync().ConfigureAwait(false);
-return Environment.ExitCode;
+try
+{
+    using IHost host = builder.Build();
+    await host.RunAsync().ConfigureAwait(false);
+    return Environment.ExitCode;
+}
+catch (Exception ex)
+{
+    // The host runs at low integrity and has no console: leave the reason where the service (and a person) can read it.
+    TryWriteCrashLog(options.DataDirectory, ex);
+    return ExitCodes.Crashed;
+}
+
+static void TryWriteCrashLog(string directory, Exception exception)
+{
+    try
+    {
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "plugin-host-crash.log"), $"{DateTimeOffset.UtcNow:O}{Environment.NewLine}{exception}");
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"Blocker.PluginHost: could not write the crash log: {ex.Message}");
+    }
+}
 
 namespace Blocker.PluginHost
 {
@@ -42,5 +64,6 @@ namespace Blocker.PluginHost
         public const int BadArguments = 2;
         public const int Refused = 3;
         public const int ConnectionFailed = 4;
+        public const int Crashed = 5;
     }
 }

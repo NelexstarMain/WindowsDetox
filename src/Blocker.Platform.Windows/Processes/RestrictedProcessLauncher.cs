@@ -190,8 +190,12 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
     private sealed class RestrictedProcess(SafeFileHandle job, SafeFileHandle process, int processId) : IRestrictedProcess
     {
         private const uint KilledExitCode = 1;
+        private const uint StillActive = 259;
 
         public int ProcessId { get; } = processId;
+
+        public int? ExitCode =>
+            !process.IsClosed && PInvoke.GetExitCodeProcess(process, out var code) && code != StillActive ? unchecked((int)code) : null;
 
         public async Task WaitForExitAsync(CancellationToken cancellationToken) =>
             await HandleWaiter.WaitAsync(process, Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);

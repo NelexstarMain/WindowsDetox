@@ -71,6 +71,10 @@ $marker = Join-Path $env:ProgramData 'WindowsDetox\bundled-plugins.txt'
 for ($i = 0; $i -lt 120 -and -not (Test-Path $marker); $i++) { Start-Sleep -Seconds 1 }
 "bundled plugins processed: $(Test-Path $marker)"
 Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin|\[Error\]|\[Critical\]|failed at step' -ErrorAction SilentlyContinue | Select-Object -Last 25 | ForEach-Object { $_.Line }
+$crash = Join-Path $env:ProgramData 'WindowsDetox.PluginData\plugin-host-crash.log'
+if (Test-Path $crash) { "--- plugin host crash log"; Get-Content $crash | Select-Object -First 30 }
+Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-15) } -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -like '*PluginHost*' } | Select-Object -First 3 | ForEach-Object { "--- event $($_.Id) $($_.ProviderName)"; $_.Message.Substring(0, [Math]::Min(700, $_.Message.Length)) }
 Start-Sleep -Seconds 3
 $ui = Start-Process (Join-Path $InstallDir 'Blocker.UI.exe') -PassThru
 Start-Sleep -Seconds 6

@@ -180,6 +180,19 @@ public sealed partial class BlockerServiceApp
                 {
                     InstallPluginResponse result = await _handlers.InstallBundledAsync(package, cancellationToken).ConfigureAwait(false);
                     LogBundledPlugin(_logger, name, result.Success, string.Join(" | ", result.Errors));
+                    if (!result.Success && attempt < BundledAttempts)
+                    {
+                        // Most often the plugin host is not ready yet: wait and try again.
+                        await Task.Delay(BundledRetryDelay, _ports.Time, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (result.Success)
+                    {
+                        offered.Add(name);
+                        await fs.File.AppendAllLinesAsync(_paths.BundledPluginsMarkerPath, [name], cancellationToken).ConfigureAwait(false);
+                    }
+
                     break;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException && attempt < BundledAttempts)
@@ -190,8 +203,6 @@ public sealed partial class BlockerServiceApp
                 }
             }
 
-            offered.Add(name);
-            await fs.File.AppendAllLinesAsync(_paths.BundledPluginsMarkerPath, [name], cancellationToken).ConfigureAwait(false);
         }
     }
 
