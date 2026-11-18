@@ -1,0 +1,78 @@
+<ui:FluentWindow x:Class="Blocker.UI.Views.MainWindow"
+             x:ClassModifier="internal"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:mb="clr-namespace:Blocker.UI.Controls.Metaballs;assembly=Blocker.UI.Controls"
+                 xmlns:views="clr-namespace:Blocker.UI.Views"
+                 Title="WindowsDetox" Width="1200" Height="780" MinWidth="960" MinHeight="640"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="None"
+                 WindowCornerPreference="Round"
+                 Background="{DynamicResource Blocker.Bg.Base}"
+                 Foreground="{DynamicResource Blocker.Text.Primary}">
+    <!-- Every window: the metaball host owns the blueprint grid and metaball surface as its bottom layer; content sits above it. -->
+    <Grid>
+      <mb:MetaballHost mb:Metaball.Quality="{Binding Effects}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <ui:TitleBar Grid.Row="0" Title="WindowsDetox" />
+
+            <Border Grid.Row="1" Padding="20,10" Background="{DynamicResource Blocker.Warning.Soft}"
+                    BorderBrush="{DynamicResource Blocker.Warning}" BorderThickness="0,0,0,1"
+                    Visibility="{Binding IsDisconnected, Converter={StaticResource BoolToVisible}}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="PlugConnected24" Foreground="{DynamicResource Blocker.Warning}" Margin="0,0,10,0" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Foreground="{DynamicResource Blocker.Text.Primary}"
+                               Text="{Binding DisconnectedMessage}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <ui:NavigationView x:Name="RootNavigation" Grid.Row="2"
+                               PaneDisplayMode="Left" OpenPaneLength="232"
+                               IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False"
+                               Background="Transparent">
+                <ui:NavigationView.MenuItems>
+                    <ui:NavigationViewItem Content="Session" TargetPageType="{x:Type views:DashboardPage}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="Timer24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="Allowlist" TargetPageType="{x:Type views:AllowlistPage}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="Apps24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="Session setup" TargetPageType="{x:Type views:SetupPage}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="ShieldLock24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="Plugins" TargetPageType="{x:Type views:PluginsPage}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="PuzzlePiece24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                </ui:NavigationView.MenuItems>
+                <ui:NavigationView.FooterMenuItems>
+                    <ui:NavigationViewItem Content="Settings" TargetPageType="{x:Type views:SettingsPage}">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:SymbolIcon Symbol="Settings24" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                </ui:NavigationView.FooterMenuItems>
+            </ui:NavigationView>
+        </Grid>
+      </mb:MetaballHost>
+
+        <!-- Hosts for dialogs and snackbars; wired to their services by the window. -->
+        <ui:ContentDialogHost x:Name="RootContentDialog" />
+        <ui:SnackbarPresenter x:Name="RootSnackbar" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16" />
+    </Grid>
+</ui:FluentWindow>

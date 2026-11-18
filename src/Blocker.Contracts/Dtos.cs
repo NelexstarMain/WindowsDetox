@@ -175,7 +175,8 @@ public sealed record SettingsDto(IReadOnlyDictionary<string, string> Values);
 /// <param name="Author">Author.</param>
 /// <param name="Enabled">Whether the plugin is enabled.</param>
 /// <param name="Capabilities">Granted capability names.</param>
-public sealed record PluginInfoDto(string Id, string Name, string Version, string Author, bool Enabled, IReadOnlyList<string> Capabilities);
+/// <param name="Faulted">Whether the plugin was stopped by the circuit breaker after repeated failures.</param>
+public sealed record PluginInfoDto(string Id, string Name, string Version, string Author, bool Enabled, IReadOnlyList<string> Capabilities, bool Faulted = false);
 
 /// <summary>Result of <see cref="IpcMethods.PluginsList"/>.</summary>
 /// <param name="Plugins">Installed plugins.</param>

@@ -1,0 +1,12 @@
+<UserControl x:Class="Blocker.UI.Views.Dialogs.BreakGlassPromptContent"
+             x:ClassModifier="internal"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel MinWidth="380">
+        <TextBlock Style="{DynamicResource Blocker.Text.Body}"
+                   Text="Enter the recovery code you saved when the session started. A correct code ends the session and unlocks everything." />
+        <TextBox Margin="0,16,0,0" Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}"
+                 FontFamily="{DynamicResource Blocker.Font.Mono}" FontSize="18"
+                 AutomationProperties.Name="Break-glass code" />
+    </StackPanel>
+</UserControl>
