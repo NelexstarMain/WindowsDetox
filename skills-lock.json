@@ -8,6 +8,13 @@
       "skillPath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance/SKILL.md",
       "computedHash": "54439c853c77eb28c3ed44c12e2405d53409d37496b55b17fe386f0adc2ab85d"
     },
+    "anti-ui-slop": {
+      "source": "github/awesome-copilot",
+      "commit": "a255a193d1318e5a9ca3e9e575897f9a7845c099",
+      "sourceType": "github",
+      "skillPath": "skills/anti-ui-slop/SKILL.md",
+      "computedHash": "f73b0ed4a73238a0490ed147503ac259ec37675029517a5ecc4b38b5465a19b2"
+    },
     "assertion-quality": {
       "source": "dotnet/skills",
       "commit": "2877c712edc20643b72f64e2983b168e6661d607",
@@ -148,6 +155,13 @@
       "skillPath": "plugins/dotnet-test/skills/filter-syntax/SKILL.md",
       "computedHash": "8b91ef0e8a6598023c35f2b2aed41263c11128483f97c64b0ae48489120afb02"
     },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c"
+    },
     "generate-testability-wrappers": {
       "source": "dotnet/skills",
       "commit": "2877c712edc20643b72f64e2983b168e6661d607",
@@ -252,6 +266,13 @@
       "sourceType": "github",
       "skillPath": "plugins/dotnet-test/skills/testability-obstacle/SKILL.md",
       "computedHash": "6b22c5e396d03bb227b89d54cff25ea5642a127527362666f589b5b3a8a3dbdd"
+    },
+    "ui-screenshots": {
+      "source": "github/awesome-copilot",
+      "commit": "a255a193d1318e5a9ca3e9e575897f9a7845c099",
+      "sourceType": "github",
+      "skillPath": "skills/ui-screenshots/SKILL.md",
+      "computedHash": "304f2712fc35eff6acf50d51d9a21ab56ecc4a0bbe3547a73f0baf10fb6e198a"
     }
   }
 }
