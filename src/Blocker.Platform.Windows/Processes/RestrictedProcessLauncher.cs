@@ -80,6 +80,9 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
                 throw new Win32Exception(error);
             }
 
+            stage("apply the UI restrictions");
+            _ = TryApplyUiRestrictions(job);
+
             stage("resume the process");
             started.Resume();
             started.Thread.Dispose();
@@ -146,15 +149,6 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
                 JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT.JOB_OBJECT_LIMIT_PROCESS_MEMORY;
             limits.BasicLimitInformation.ActiveProcessLimit = 1;
             SetInformation(job, JOBOBJECTINFOCLASS.JobObjectExtendedLimitInformation, new ReadOnlySpan<byte>(&limits, sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION)));
-
-            var ui = new JOBOBJECT_BASIC_UI_RESTRICTIONS
-            {
-                UIRestrictionsClass = JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DESKTOP | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DISPLAYSETTINGS
-                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_GLOBALATOMS
-                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_HANDLES | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_READCLIPBOARD
-                    | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_WRITECLIPBOARD,
-            };
-            SetInformation(job, JOBOBJECTINFOCLASS.JobObjectBasicUIRestrictions, new ReadOnlySpan<byte>(&ui, sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS)));
             return job;
         }
         catch
@@ -162,6 +156,26 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
             job.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// Adds the UI restrictions (no clipboard, desktop switching, foreign USER handles, system parameters, exit-windows) to a job that
+    /// already holds the process. They are applied <em>after</em> the assignment because the service runs in session 0 while the host runs
+    /// in the user's session: a job that carries UI limits from the start refuses a process from another session with ACCESS_DENIED
+    /// (seen on Windows CI). The limits that matter most (one process, 512 MB, kill-on-close) are in place before the process runs.
+    /// </summary>
+    /// <returns><see langword="true"/> when Windows accepted the restrictions; <see langword="false"/> when it refused them (the host still
+    /// runs confined by the low-integrity token and the other job limits).</returns>
+    private static unsafe bool TryApplyUiRestrictions(SafeHandle job)
+    {
+        var ui = new JOBOBJECT_BASIC_UI_RESTRICTIONS
+        {
+            UIRestrictionsClass = JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DESKTOP | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_DISPLAYSETTINGS
+                | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_GLOBALATOMS
+                | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_HANDLES | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_READCLIPBOARD
+                | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT.JOB_OBJECT_UILIMIT_WRITECLIPBOARD,
+        };
+        return PInvoke.SetInformationJobObject(job, JOBOBJECTINFOCLASS.JobObjectBasicUIRestrictions, new ReadOnlySpan<byte>(&ui, sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS)));
     }
 
     private static void SetInformation(SafeHandle job, JOBOBJECTINFOCLASS information, ReadOnlySpan<byte> data)

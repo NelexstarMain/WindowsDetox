@@ -70,7 +70,7 @@ if ($Phase -eq 'installer') {
 $marker = Join-Path $env:ProgramData 'WindowsDetox\bundled-plugins.txt'
 for ($i = 0; $i -lt 120 -and -not (Test-Path $marker); $i++) { Start-Sleep -Seconds 1 }
 "bundled plugins processed: $(Test-Path $marker)"
-Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin' -ErrorAction SilentlyContinue | ForEach-Object { $_.Line }
+Select-String -Path (Join-Path $env:ProgramData 'WindowsDetox\logs\*') -Pattern 'Bundled plugin|\[Error\]|\[Critical\]|failed at step' -ErrorAction SilentlyContinue | Select-Object -Last 25 | ForEach-Object { $_.Line }
 Start-Sleep -Seconds 3
 $ui = Start-Process (Join-Path $InstallDir 'Blocker.UI.exe') -PassThru
 Start-Sleep -Seconds 6
