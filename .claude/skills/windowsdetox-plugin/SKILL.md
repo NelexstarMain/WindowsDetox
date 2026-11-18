@@ -76,7 +76,7 @@ Warnings are errors. Slopwatch flags skipped tests, empty `catch`, suppressions;
 ## 8. Verify on Windows CI (UI is WPF, cannot run on Linux)
 
 `eng/screenshots.ps1 -Phase app` (CI job `installer`) waits for the bundled-plugin marker count to equal the shipped zips, starts `Blocker.UI.exe` and clicks sidebar items by UIAutomation name via `Click-Named`. Add a shot for the new page next to `if (Click-Named $main 'Goals') { ... '16-goals' }`, before `Stop-Process $ui`:
-`if (Click-Named $main '<Navigation title>') { Start-Sleep -Seconds 3; Shot $main '17-<slug>' }` (next free number; the name must equal `Navigation.Title` exactly and be unique in the left 300 px). Widgets appear in `13-session-with-widget`, `14-widget-picker`, `15-widgets-edit`. CI commits `shots/*.png` into `docs/screenshots` on push; review them and fix clipping, icon legibility and empty states.
+`if (Click-Named $main '<Navigation title>') { Start-Sleep -Seconds 3; Shot $main '18-<slug>' }` (next free number; the name must equal `Navigation.Title` exactly and be unique in the left 300 px). Widgets appear in `13-session-with-widget`, `14-widget-picker`, `15-widgets-edit`, `17-widget-opens-plugin`. CI commits `shots/*.png` into `docs/screenshots` on push; review them and fix clipping, icon legibility and empty states.
 
 ## Checklist
 

@@ -20,16 +20,20 @@ internal static class WidgetSpans
     private const double ChromeHeight = 52;
     private const double FlatGap = 10;
 
+    // Content may overrun a row by this much before another row is added: the cell clips and fades its bottom edge, and the estimate
+    // errs on the tall side, so a widget that nearly fits should start one row high instead of leaving a large empty area.
+    private const double Slack = 40;
+
     /// <summary>Gets the placement a widget starts with: one column, as many rows as its content needs.</summary>
     /// <param name="contribution">The widget.</param>
     /// <returns>The placement.</returns>
     public static WidgetPlacement DefaultPlacement(ContributionViewModel contribution) => new(contribution.Key, 1, DefaultRows(contribution.Node));
 
-    /// <summary>Estimates how many rows a rendered widget tree needs, from 1 to <see cref="WidgetPlacement.MaxRows"/>.</summary>
+    /// <summary>Estimates how many rows a rendered widget tree needs (one unless it clearly needs more), from 1 to <see cref="WidgetPlacement.MaxRows"/>.</summary>
     /// <param name="node">The widget tree.</param>
     /// <returns>The row span.</returns>
     public static int DefaultRows(UiNode node) =>
-        WidgetPlacement.ClampRows((int)Math.Ceiling((ChromeHeight + Height(node) + Gap) / (CellHeight + Gap)));
+        WidgetPlacement.ClampRows((int)Math.Ceiling((ChromeHeight + Height(node) - Slack + Gap) / (CellHeight + Gap)));
 
     /// <summary>Formats a span for people, for example <c>2 × 1</c> (columns by rows).</summary>
     /// <param name="cols">Columns.</param>

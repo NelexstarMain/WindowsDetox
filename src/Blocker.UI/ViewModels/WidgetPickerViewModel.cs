@@ -5,8 +5,8 @@ using CommunityToolkit.Mvvm.Input;
 namespace Blocker.UI.ViewModels;
 
 /// <summary>
-/// The "add widgets" bottom sheet: plugins as rows (one open at a time) that expand to a strip of live widget previews, and a search
-/// box that filters by plugin or widget name.
+/// The "add widgets" side rail: a slim column with one item per plugin. Pointing at an item (or focusing it, or clicking it to pin it)
+/// opens a flyout beside the rail that lists that plugin's widgets as live previews to add.
 /// </summary>
 internal sealed partial class WidgetPickerViewModel : ObservableObject
 {
@@ -18,19 +18,25 @@ internal sealed partial class WidgetPickerViewModel : ObservableObject
     private bool _isOpen;
 
     [ObservableProperty]
-    private string _searchText = string.Empty;
+    private WidgetPickerGroup? _hoveredGroup;
+
+    [ObservableProperty]
+    private WidgetPickerGroup? _selectedGroup;
 
     /// <summary>Creates the picker.</summary>
     /// <param name="board">The board widgets are added to.</param>
     public WidgetPickerViewModel(WidgetBoardViewModel board) => _board = board;
 
-    /// <summary>Gets the plugins that match the search, with their widgets.</summary>
+    /// <summary>Gets the plugins that offer widgets, one rail item each.</summary>
     public ObservableCollection<WidgetPickerGroup> Groups { get; } = [];
 
-    /// <summary>Gets whether a search matches no plugin or widget.</summary>
-    public bool HasNoResults => Groups.Count == 0 && _all.Count > 0;
+    /// <summary>Gets the plugin whose widgets the flyout lists; it keeps the last one while the flyout fades out.</summary>
+    public WidgetPickerGroup? FlyoutGroup { get; private set; }
 
-    /// <summary>Rebuilds the groups when the offered widgets changed and refreshes which ones are already added.</summary>
+    /// <summary>Gets whether the flyout is showing: the rail is open and a plugin is hovered, focused or pinned.</summary>
+    public bool HasFlyout { get; private set; }
+
+    /// <summary>Rebuilds the rail items when the offered widgets changed and refreshes which widgets are already added.</summary>
     public void Refresh()
     {
         string signature = string.Join('\n', _board.Available.Select(c => c.Key));
@@ -38,23 +44,29 @@ internal sealed partial class WidgetPickerViewModel : ObservableObject
         {
             _signature = signature;
             Dictionary<ContributionViewModel, WidgetPickerEntry> known = _all.SelectMany(g => g.Entries).ToDictionary(e => e.Contribution);
-            Dictionary<string, WidgetPickerGroup> groups = _all.ToDictionary(g => g.PluginId, StringComparer.Ordinal);
             List<WidgetPickerGroup> next = [];
             foreach (IGrouping<string, ContributionViewModel> plugin in _board.Available.GroupBy(c => c.PluginId, StringComparer.Ordinal))
             {
                 string? icon = plugin.Select(c => c.Icon).FirstOrDefault(i => !string.IsNullOrEmpty(i));
                 List<WidgetPickerEntry> entries = [.. plugin.Select(c => known.GetValueOrDefault(c) ?? new WidgetPickerEntry(c))];
-                next.Add(new WidgetPickerGroup(plugin.Key, plugin.First().Title, icon, entries) { IsExpanded = groups.TryGetValue(plugin.Key, out WidgetPickerGroup? old) && old.IsExpanded });
+                next.Add(new WidgetPickerGroup(plugin.Key, plugin.First().Title, icon, entries));
             }
 
+            WidgetPickerGroup? hovered = next.FirstOrDefault(g => g.PluginId == HoveredGroup?.PluginId);
+            WidgetPickerGroup? selected = next.FirstOrDefault(g => g.PluginId == SelectedGroup?.PluginId);
             _all.Clear();
             _all.AddRange(next);
-            if (_all.Count > 0 && !_all.Any(g => g.IsExpanded))
+            if (!Groups.SequenceEqual(next))
             {
-                _all[0].IsExpanded = true;
+                Groups.Clear();
+                foreach (WidgetPickerGroup group in next)
+                {
+                    Groups.Add(group);
+                }
             }
 
-            ApplyFilter();
+            (HoveredGroup, SelectedGroup) = (hovered, selected);
+            UpdateFlyout();
         }
 
         foreach (WidgetPickerEntry entry in _all.SelectMany(g => g.Entries))
@@ -63,65 +75,57 @@ internal sealed partial class WidgetPickerViewModel : ObservableObject
         }
     }
 
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
-
-    private void ApplyFilter()
+    partial void OnIsOpenChanged(bool value)
     {
-        string term = SearchText.Trim();
-        List<WidgetPickerGroup> shown = [];
+        if (!value)
+        {
+            (HoveredGroup, SelectedGroup) = (null, null);
+        }
+
+        UpdateFlyout();
+    }
+
+    partial void OnHoveredGroupChanged(WidgetPickerGroup? value) => UpdateFlyout();
+
+    partial void OnSelectedGroupChanged(WidgetPickerGroup? value) => UpdateFlyout();
+
+    private void UpdateFlyout()
+    {
+        WidgetPickerGroup? active = IsOpen ? HoveredGroup ?? SelectedGroup : null;
+        if (active is not null && !ReferenceEquals(FlyoutGroup, active))
+        {
+            FlyoutGroup = active;
+            OnPropertyChanged(nameof(FlyoutGroup));
+        }
+
         foreach (WidgetPickerGroup group in _all)
         {
-            bool pluginMatches = term.Length == 0 || group.Title.Contains(term, StringComparison.OrdinalIgnoreCase);
-            group.Visible = [.. group.Entries.Where(e => pluginMatches || e.Title.Contains(term, StringComparison.OrdinalIgnoreCase))];
-            if (group.Visible.Count > 0)
-            {
-                shown.Add(group);
-                if (term.Length > 0)
-                {
-                    group.IsExpanded = true;
-                }
-            }
+            group.IsActive = ReferenceEquals(group, active);
         }
 
-        if (!Groups.SequenceEqual(shown))
+        bool has = active is not null;
+        if (has != HasFlyout)
         {
-            Groups.Clear();
-            foreach (WidgetPickerGroup group in shown)
-            {
-                Groups.Add(group);
-            }
+            HasFlyout = has;
+            OnPropertyChanged(nameof(HasFlyout));
         }
-
-        OnPropertyChanged(nameof(HasNoResults));
     }
 
     [RelayCommand]
     private void Open()
     {
-        SearchText = string.Empty;
         Refresh();
+        (HoveredGroup, SelectedGroup) = (null, null);
         IsOpen = true;
     }
 
     [RelayCommand]
     private void Close() => IsOpen = false;
 
+    /// <summary>Pins a plugin's flyout open (for touch and keyboard); selecting the pinned plugin again unpins it.</summary>
+    /// <param name="group">The plugin.</param>
     [RelayCommand]
-    private void ToggleGroup(WidgetPickerGroup? group)
-    {
-        if (group is null)
-        {
-            return;
-        }
-
-        bool expand = !group.IsExpanded;
-        foreach (WidgetPickerGroup other in _all)
-        {
-            other.IsExpanded = false;
-        }
-
-        group.IsExpanded = expand;
-    }
+    private void SelectGroup(WidgetPickerGroup? group) => SelectedGroup = ReferenceEquals(SelectedGroup, group) ? null : group;
 
     [RelayCommand]
     private void Add(WidgetPickerEntry? entry)
@@ -133,14 +137,11 @@ internal sealed partial class WidgetPickerViewModel : ObservableObject
     }
 }
 
-/// <summary>The widgets of one plugin: a row in the picker that expands to its previews.</summary>
+/// <summary>The widgets of one plugin: an item in the picker rail whose flyout lists them.</summary>
 internal sealed partial class WidgetPickerGroup : ObservableObject
 {
     [ObservableProperty]
-    private bool _isExpanded;
-
-    [ObservableProperty]
-    private IReadOnlyList<WidgetPickerEntry> _visible;
+    private bool _isActive;
 
     /// <summary>Creates the group.</summary>
     /// <param name="pluginId">Plugin id.</param>
@@ -153,7 +154,6 @@ internal sealed partial class WidgetPickerGroup : ObservableObject
         Title = title;
         Icon = icon;
         Entries = entries;
-        _visible = entries;
     }
 
     /// <summary>Gets the plugin id.</summary>
@@ -170,16 +170,13 @@ internal sealed partial class WidgetPickerGroup : ObservableObject
 
     /// <summary>Gets whether the plugin has an icon.</summary>
     public bool HasIcon => !string.IsNullOrEmpty(Icon);
-
-    /// <summary>Gets "1 widget" or "N widgets".</summary>
-    public string CountText => Entries.Count == 1 ? "1 widget" : $"{Entries.Count} widgets";
 }
 
 /// <summary>One widget in the picker, previewed at the span it is added with.</summary>
 internal sealed partial class WidgetPickerEntry : ObservableObject
 {
     /// <summary>Widest a preview is drawn; wider widgets are scaled down to it.</summary>
-    public const double MaxPreviewWidth = 220;
+    public const double MaxPreviewWidth = 240;
 
     [ObservableProperty]
     private bool _isAdded;

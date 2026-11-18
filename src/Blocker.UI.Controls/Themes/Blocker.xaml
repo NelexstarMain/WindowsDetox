@@ -89,6 +89,18 @@
     <CornerRadius x:Key="Blocker.Radius.Control">4</CornerRadius>
     <CornerRadius x:Key="Blocker.Radius.Pill">20</CornerRadius>
 
+    <!-- ============================== Motion ============================== -->
+    <!-- The values mirror the Motion class, which rewrites them at startup (zero when Windows has animations off). Enter and
+         move: ease-out; leave: ease-in; no overshoot anywhere. -->
+    <Duration x:Key="Blocker.Motion.Fast">0:0:0.12</Duration>
+    <Duration x:Key="Blocker.Motion.Normal">0:0:0.18</Duration>
+    <Duration x:Key="Blocker.Motion.Emphasis">0:0:0.24</Duration>
+    <Duration x:Key="Blocker.Motion.Exit">0:0:0.16</Duration>
+    <sys:Double x:Key="Blocker.Motion.PanelOffset">20</sys:Double>
+    <sys:Double x:Key="Blocker.Motion.FlyoutOffset">8</sys:Double>
+    <CubicEase x:Key="Blocker.Motion.EaseOut" EasingMode="EaseOut" />
+    <CubicEase x:Key="Blocker.Motion.EaseIn" EasingMode="EaseIn" />
+
     <!-- ============================== WPF-UI palette overrides ============================== -->
     <Color x:Key="ApplicationBackgroundColor">#0B0C0F</Color>
     <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="{StaticResource ApplicationBackgroundColor}" />

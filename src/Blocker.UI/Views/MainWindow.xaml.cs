@@ -26,6 +26,11 @@ internal sealed partial class MainWindow : FluentWindow
     {
         DataContext = viewModel;
         InitializeComponent();
+        if (!Blocker.UI.Controls.Motion.Enabled)
+        {
+            RootNavigation.Transition = Wpf.Ui.Animations.Transition.None;
+        }
+
         dialogs.SetHost(RootContentDialog);
         snackbars.SetPresenter(RootSnackbar);
         _binder = new NavigationBinder(RootNavigation, viewModel, navigator, pageProvider);

@@ -82,6 +82,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p docs/screenshots && cp shots/*.png docs/screenshots/
+          # Animation frame sequences: replace the folder so frames of an older, longer recording do not linger.
+          if [ -d shots/anim ]; then
+            rm -rf docs/screenshots/anim
+            cp -r shots/anim docs/screenshots/anim
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/screenshots

@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Blocker.UI.Controls;
 using Blocker.UI.Views;
 
 namespace Blocker.UI;
@@ -18,6 +19,7 @@ internal sealed partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Motion.Apply(Resources);
         StartupOptions options = StartupOptions.Parse(e.Args);
 
         if (options.IsAgent)

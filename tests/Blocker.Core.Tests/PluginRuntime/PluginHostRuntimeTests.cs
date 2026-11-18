@@ -43,7 +43,7 @@ public sealed class PluginHostRuntimeTests
         UiNode tree = UiJson.Deserialize(widget.Json);
         Assert.True(UiTreeValidator.Validate(tree).IsValid);
         UiCard card = Assert.IsType<UiCard>(tree);
-        Assert.Equal("Focus Counter", card.Title);
+        Assert.Null(card.Title);   // the host draws the plugin icon and name
         Assert.Contains(card.Children, c => c is UiStatTile { Label: "Distractions resisted" });
         Assert.Contains(card.Children, c => c is UiProgress);
 

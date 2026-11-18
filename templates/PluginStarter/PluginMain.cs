@@ -5,7 +5,7 @@
 //   * capabilities   every API used here has a matching entry in plugin.json "capabilities"
 //   * events         SessionStarted (events.session) and ProcessBlocked (events.process)
 //   * storage        private key/value storage that survives restarts
-//   * UI             dashboard widget, settings section and block-screen panel, all declarative
+//   * UI             dashboard widget (title-less card, one primary value), settings section and block-screen panel, all declarative
 //   * 50 ms rule     RenderAsync never does I/O: it renders from state cached in memory
 //   * RequestRender  ask the host to render again after the state changed
 //
@@ -166,7 +166,11 @@ public abstract class FocusContribution : IUiContribution
     protected void Remember(UiRenderContext context) => Volatile.Write(ref _surface, context.Surface);
 }
 
-/// <summary>Dashboard card: counter, remaining session time and a reset button. Requires "ui.dashboard".</summary>
+/// <summary>
+/// Dashboard widget: counter, remaining session time and a reset button. Requires "ui.dashboard". The host draws the surface, the plugin
+/// icon and name and opens the plugin on tap, so the tree is a card without title or logo: one primary value (the stat), at most one
+/// progress bar, and one quiet action. See .claude/skills/windowsdetox-widget/SKILL.md.
+/// </summary>
 public sealed class FocusWidget(FocusCounterState state) : FocusContribution(state), IDashboardWidgetPlugin
 {
     /// <summary>Id of the reset button.</summary>
@@ -187,8 +191,7 @@ public sealed class FocusWidget(FocusCounterState state) : FocusContribution(sta
                 "Distractions resisted",
                 State.Count.ToString(CultureInfo.InvariantCulture),
                 running ? "Since the session started" : "In the last session",
-                UiTone.Success,
-                UiIcon.Shield),
+                UiTone.Success),
         ];
 
         if (running && context.Session.Remaining is { } remaining)
@@ -198,8 +201,8 @@ public sealed class FocusWidget(FocusCounterState state) : FocusContribution(sta
             body.Add(Ui.Progress(left, total, $"Session time left: {FormatDuration(remaining)}"));
         }
 
-        body.Add(Ui.Button(ResetButtonId, "Reset counter", UiButtonVariant.Subtle, UiIcon.Dismiss));
-        return ValueTask.FromResult(Ui.Card("Focus Counter", [.. body]));
+        body.Add(Ui.Button(ResetButtonId, "Reset counter", UiButtonVariant.Subtle));
+        return ValueTask.FromResult(Ui.Card([.. body]));   // no title, no logo: the host draws the header
     }
 
     /// <inheritdoc/>

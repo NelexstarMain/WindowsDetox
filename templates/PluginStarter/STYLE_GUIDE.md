@@ -10,7 +10,7 @@ block and the right words.
 | Block (factory) | Use it for | Notes |
 |---|---|---|
 | `UiPage` (`Ui.Page(title, subtitle?, ...)`) | Root of a full page (`ui.page`). | Only as root. Children are stacked vertically. |
-| `UiCard` (`Ui.Card(title, ...)`) | Grouping; the mandatory root of a dashboard widget. | Optional `Subtitle` and `Icon` via the record constructor. Do not nest cards in cards. |
+| `UiCard` (`Ui.Card(title, ...)`, `Ui.Card(...)`) | Grouping on pages; the mandatory root of a dashboard widget. | Optional `Subtitle` and `Icon` via the record constructor. Do not nest cards in cards. A widget's card has no title (`Ui.Card(children)`): the host draws the plugin icon and name. |
 | `UiStack` (`Ui.Column`, `Ui.Row`) | Vertical or horizontal grouping. | `Gap`: Small, Medium (default), Large. An empty stack renders nothing (use it to hide a contribution). |
 | `UiGrid` (`Ui.Grid(columns, ...)`) | Equal-width tiles, 1 to 6 columns. | Use 2 or 3 columns for stat tiles. |
 | `UiText` (`Ui.Text(text, style, tone)`) | Explanations, labels, status lines. | Styles: Body, Caption (secondary), Subtitle, Title, Mono (numbers, codes). Plain text only. |
@@ -39,8 +39,10 @@ Use an icon to support a label, not to replace it. Unlisted glyphs and emoji are
 
 ## Layout guidance
 
-* Dashboard widget: always one `UiCard`. `Small` = one stat; `Medium` = stat plus progress or one button row;
-  `Wide` = chart, table or several tiles in a `Grid`.
+* Dashboard widget: always one title-less `UiCard` (`Ui.Card(children)`); the host draws the surface, the plugin icon and name, and
+  opens the plugin page on tap. One primary `UiStatTile`, at most one `UiProgress`, at most three rows, a one-line empty state, no
+  `UiGlyph` and no nested cards; it must read at one cell (about 260 x 140 px). `Small` = one stat; `Medium` = stat plus progress or
+  one quiet button; `Wide` = room for rows, never new meaning. Full rules: `.claude/skills/windowsdetox-widget/SKILL.md`.
 * Order inside a card: headline stat, supporting visual (progress/chart), actions last.
 * Gaps: keep the default `Medium`; use `Small` for tightly related items (label + value), `Large` between unrelated groups.
 * Settings section: a column of toggles and forms, each with a short description. Keep it to what the user must decide.

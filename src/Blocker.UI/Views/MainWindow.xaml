@@ -54,6 +54,7 @@
         <ui:NavigationView x:Name="RootNavigation" Grid.Row="2" Grid.ColumnSpan="2"
                            PaneDisplayMode="Left" OpenPaneLength="214"
                            IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False"
+                           Transition="FadeIn" TransitionDuration="180"
                            Background="Transparent">
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem Style="{StaticResource Blocker.NavItem}" Content="Session" TargetPageType="{x:Type views:DashboardPage}">

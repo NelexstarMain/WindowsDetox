@@ -1,4 +1,5 @@
-# CI only: captures the installer, every main-window page and the block screen into ./shots (Windows PowerShell 5.1).
+# CI only: captures the installer, every main-window page and the block screen into ./shots, plus short frame sequences of the
+# main window's animations (picker, drag, resize, page navigation) into ./shots/anim/<name>/NN.png (Windows PowerShell 5.1).
 # Usage: powershell -File eng/screenshots.ps1 -Setup out\WindowsDetox-Setup.exe -InstallDir "C:\Program Files\WindowsDetox" -Phase installer|app
 param([string]$Setup, [string]$InstallDir, [string]$Phase)
 $ErrorActionPreference = 'Stop'
@@ -15,6 +16,9 @@ public static class Native {
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT r, int size);
   public static RECT Frame(IntPtr h) { RECT r; DwmGetWindowAttribute(h, 9, out r, 16); return r; }
   public static void Click(int x, int y) { SetCursorPos(x, y); mouse_event(2, 0, 0, 0, IntPtr.Zero); mouse_event(4, 0, 0, 0, IntPtr.Zero); }
+  public static void Move(int x, int y) { SetCursorPos(x, y); mouse_event(1, 0, 0, 0, IntPtr.Zero); }
+  public static void Down() { mouse_event(2, 0, 0, 0, IntPtr.Zero); }
+  public static void Up() { mouse_event(4, 0, 0, 0, IntPtr.Zero); }
   public static void Wheel(int x, int y, int notches) { SetCursorPos(x, y); mouse_event(0x0800, 0, 0, -120 * notches, IntPtr.Zero); }
 }
 "@
@@ -32,17 +36,87 @@ function Wait-Window([int]$processId, [int]$seconds = 30) {
   throw "no window for process $processId"
 }
 
-function Shot($window, [string]$name) {
-  [Native]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle) | Out-Null
-  Start-Sleep -Milliseconds 1200
-  # DWM extended frame bounds: the visible window without its invisible resize border and shadow.
+# DWM extended frame bounds: the visible window without its invisible resize border and shadow.
+function Capture-Window($window) {
   $f = [Native]::Frame([IntPtr]$window.Current.NativeWindowHandle)
   $bmp = New-Object System.Drawing.Bitmap ($f.Right - $f.Left), ($f.Bottom - $f.Top)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen($f.Left, $f.Top, 0, 0, $bmp.Size)
+  $g.Dispose()
+  return $bmp
+}
+
+function Shot($window, [string]$name) {
+  [Native]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle) | Out-Null
+  Start-Sleep -Milliseconds 1200
+  $bmp = Capture-Window $window
+  $size = "$($bmp.Width)x$($bmp.Height)"
   $bmp.Save((Join-Path (Resolve-Path shots) "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-  $g.Dispose(); $bmp.Dispose()
-  "saved $name.png ($($bmp.Width)x$($bmp.Height))"
+  $bmp.Dispose()
+  "saved $name.png ($size)"
+}
+
+# Records a short frame sequence of the window into shots\anim\<name>\NN.png. $steps drives the UI (real mouse input) and calls
+# Snap wherever a frame is wanted; frames are paced at about 12 per second, halved in size, and at most 24 per sequence.
+function Record($window, [string]$name, [scriptblock]$steps) {
+  $dir = Join-Path (Join-Path (Resolve-Path shots) 'anim') $name
+  if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+  New-Item -ItemType Directory -Force $dir | Out-Null
+  [Native]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle) | Out-Null
+  Start-Sleep -Milliseconds 300
+  $script:rec = @{ Window = $window; Dir = $dir; Frames = 0; Clock = [System.Diagnostics.Stopwatch]::StartNew(); Next = 0 }
+  try { & $steps | Out-Null } finally { "recorded $($script:rec.Frames) frames of $name"; $script:rec = $null }
+}
+
+function Snap([int]$count = 1) {
+  for ($i = 0; $i -lt $count -and $script:rec.Frames -lt 24; $i++) {
+    $wait = $script:rec.Next - $script:rec.Clock.ElapsedMilliseconds
+    if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
+    $script:rec.Next = $script:rec.Clock.ElapsedMilliseconds + 83
+    $full = Capture-Window $script:rec.Window
+    $small = New-Object System.Drawing.Bitmap ([int]($full.Width / 2)), ([int]($full.Height / 2))
+    $g = [System.Drawing.Graphics]::FromImage($small)
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.DrawImage($full, 0, 0, $small.Width, $small.Height)
+    $g.Dispose(); $full.Dispose()
+    $script:rec.Frames++
+    $small.Save((Join-Path $script:rec.Dir ('{0:D2}.png' -f $script:rec.Frames)), [System.Drawing.Imaging.ImageFormat]::Png)
+    $small.Dispose()
+  }
+}
+
+# The first visible element with this name, or $null.
+function Find-Named($window, [string]$text) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $text)
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    if ($e.Current.BoundingRectangle.Width -gt 0) { return $e }
+  }
+  return $null
+}
+
+# Moves the mouse onto the first plugin item of the widget picker rail ("Widgets from <plugin>"); $false when there is none.
+function Move-ToRailItem($window) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    $r = $e.Current.BoundingRectangle
+    if ($e.Current.Name -like 'Widgets from *' -and $r.Width -gt 0) {
+      [Native]::Move([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2))
+      return $true
+    }
+  }
+  Write-Host 'could not find a picker rail item'
+  return $false
+}
+
+# Screen rectangles of the widget headers ("Open <name>"), in board order.
+function Get-Widgets($window) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
+  $found = @()
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    $r = $e.Current.BoundingRectangle
+    if ($e.Current.Name -like 'Open *' -and $r.Width -gt 0) { $found += [pscustomobject]@{ Name = $e.Current.Name; X = $r.X; Y = $r.Y; W = $r.Width; H = $r.Height } }
+  }
+  return $found
 }
 
 function Click-Named($window, [string]$text, [switch]$Anywhere) {
@@ -108,7 +182,14 @@ if (Click-Named $main 'Insights') {
 }
 if (Click-Named $main 'Session') {
   Start-Sleep -Seconds 3; Shot $main '13-session-with-widget'
-  if (Click-Named $main 'Add widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '14-widget-picker'; [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1 }
+  if (Click-Named $main 'Add widgets' -Anywhere) {
+    # The picker is a side rail of plugins; resting the pointer on the first one opens its flyout of widgets.
+    Start-Sleep -Seconds 1
+    Move-ToRailItem $main | Out-Null
+    Start-Sleep -Milliseconds 600
+    Shot $main '14-widget-picker'
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1
+  }
   if (Click-Named $main 'Edit widgets' -Anywhere) {
     Start-Sleep -Seconds 2; Shot $main '15-widgets-edit'
     # Leave edit mode, then tap the Goals widget's header: the widget opens its plugin page.
@@ -117,6 +198,85 @@ if (Click-Named $main 'Session') {
   }
 }
 if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
+
+# --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input.
+# Page navigation: Goals -> Insights -> Session.
+Record $main 'nav' {
+  Snap 1
+  Click-Named $main 'Insights'
+  Snap 8
+  Start-Sleep -Milliseconds 600
+  Click-Named $main 'Session'
+  Snap 8
+}
+Start-Sleep -Seconds 2
+
+# Widget picker: the rail slides in, the pointer rests on the first plugin (its flyout fades in), Esc closes everything.
+Record $main 'picker' {
+  Snap 1
+  Click-Named $main 'Add widgets' -Anywhere
+  Snap 6
+  Move-ToRailItem $main
+  Snap 6
+  Start-Sleep -Milliseconds 400
+  Snap 1
+  [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+  Snap 6
+}
+Start-Sleep -Milliseconds 500
+if (Find-Named $main 'Close widget picker') { Click-Named $main 'Close widget picker' -Anywhere | Out-Null; Start-Sleep -Seconds 1 }
+
+# Drag: long-press the first widget, carry it over the second one (the others reflow), drop it.
+$f = [Native]::Frame([IntPtr]$main.Current.NativeWindowHandle)
+[Native]::Wheel([int](($f.Left + $f.Right) / 2 + 100), [int](($f.Top + $f.Bottom) / 2), 10)
+Start-Sleep -Seconds 1
+$cards = @(Get-Widgets $main)
+if ($cards.Count -ge 2) {
+  $sx = [int]($cards[0].X + $cards[0].W / 2); $sy = [int]($cards[0].Y + $cards[0].H / 2)
+  $tx = [int]($cards[1].X + $cards[1].W / 2); $ty = [int]($cards[1].Y + $cards[1].H / 2 + 50)
+  Record $main 'drag' {
+    [Native]::Move($sx, $sy)
+    Start-Sleep -Milliseconds 150
+    Snap 1
+    [Native]::Down()
+    Start-Sleep -Milliseconds 440
+    Snap 3
+    for ($i = 1; $i -le 15; $i++) {
+      [Native]::Move([int]($sx + ($tx - $sx) * $i / 15), [int]($sy + ($ty - $sy) * $i / 15))
+      Snap 1
+    }
+    [Native]::Up()
+    Snap 5
+  }
+} else { Write-Host 'drag: fewer than two widgets found' }
+
+# Resize: enter edit mode (the outlines fade in), pull the first widget's corner one column wider and a little taller, release.
+if (Find-Named $main 'Resize widget') { Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Milliseconds 800 }
+$cards = @(Get-Widgets $main)
+$colStep = 372
+if ($cards.Count -ge 2) { $colStep = [int]($cards[1].X - $cards[0].X) }
+Record $main 'resize' {
+  Snap 1
+  Click-Named $main 'Edit widgets' -Anywhere
+  Snap 4
+  $handle = Find-Named $main 'Resize widget'
+  if ($handle) {
+    $r = $handle.Current.BoundingRectangle
+    $hx = [int]($r.X + $r.Width / 2); $hy = [int]($r.Y + $r.Height / 2)
+    [Native]::Move($hx, $hy)
+    Start-Sleep -Milliseconds 150
+    [Native]::Down()
+    Snap 1
+    for ($i = 1; $i -le 10; $i++) {
+      [Native]::Move([int]($hx + $colStep * $i / 10), [int]($hy + 110 * $i / 10))
+      Snap 1
+    }
+    [Native]::Up()
+    Snap 6
+  } else { Write-Host 'resize: no resize handle found' }
+}
+if (Find-Named $main 'Resize widget') { Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Seconds 1 }
+
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 

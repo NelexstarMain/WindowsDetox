@@ -22,7 +22,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Grid Width="14" Height="14" Margin="0,0,7,0" VerticalAlignment="Center">
-                        <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}"
+                        <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}" Opacity="0.85"
                               Visibility="{Binding Icon, Converter={StaticResource HasTextToVisible}}" />
                         <ui:SymbolIcon Symbol="PuzzlePiece24" FontSize="14" Foreground="{DynamicResource Blocker.Text.Secondary}"
                                        Visibility="{Binding Icon, Converter={StaticResource HasTextToCollapsed}}" />
@@ -64,13 +64,6 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-        </Style>
-
-        <!-- A row of the widget picker: plugin icon, name and widget count. -->
-        <Style x:Key="App.PickerRow" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Subtle}">
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="12,0" />
-            <Setter Property="MinHeight" Value="52" />
         </Style>
     </Page.Resources>
     <Grid>
@@ -266,17 +259,35 @@
                                     </Style>
                                 </Grid.Style>
 
-                                <Border CornerRadius="12" BorderThickness="1" Background="{DynamicResource Blocker.Bg.Raised}">
+                                <Border CornerRadius="12" Background="{DynamicResource Blocker.Bg.Raised}" />
+
+                                <!-- Hover outline: fades in and out instead of switching. -->
+                                <Border CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Blocker.Border.Strong}"
+                                        IsHitTestVisible="False" Opacity="0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="BorderBrush" Value="Transparent" />
                                             <Style.Triggers>
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsMouseOver, ElementName=Cell}" Value="True" />
                                                         <Condition Binding="{Binding IsEditing}" Value="False" />
                                                     </MultiDataTrigger.Conditions>
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
+                                                    <MultiDataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                                                 EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </MultiDataTrigger.EnterActions>
+                                                    <MultiDataTrigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                                                 EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </MultiDataTrigger.ExitActions>
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -308,20 +319,63 @@
                                     </Border.OpacityMask>
                                 </Border>
 
-                                <!-- Edit mode: dashed outline, remove button and resize handle. -->
-                                <Grid Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisible}}">
+                                <!-- Edit mode: dashed outline, remove button and resize handle fade in; they leave through a shorter fade and cannot be
+                                     clicked while they do. -->
+                                <Grid>
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Setter Property="IsHitTestVisible" Value="False" />
+                                            <Setter Property="Opacity" Value="0" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <Setter Property="IsHitTestVisible" Value="True" />
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="{StaticResource Blocker.Motion.Normal}"
+                                                                                 EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                    <DataTrigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                                                 EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
+                                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                                                               FillBehavior="Stop">
+                                                                    <DiscreteObjectKeyFrame KeyTime="0%" Value="{x:Static Visibility.Visible}" />
+                                                                    <DiscreteObjectKeyFrame KeyTime="100%" Value="{x:Static Visibility.Collapsed}" />
+                                                                </ObjectAnimationUsingKeyFrames>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.ExitActions>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
                                     <Rectangle Stroke="{DynamicResource Blocker.Accent.Bar}" StrokeThickness="1" StrokeDashArray="4 3"
                                                RadiusX="12" RadiusY="12" Margin="0.5" IsHitTestVisible="False" />
                                     <Button Style="{StaticResource App.WidgetRemoveButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"
                                             Command="{Binding DataContext.Board.RemoveCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                             CommandParameter="{Binding}" ToolTip="Remove widget" AutomationProperties.Name="Remove widget" />
-                                    <Border bh:WidgetBoardInteraction.IsResizeHandle="True" Width="30" Height="30" Background="Transparent"
+                                    <!-- A button only so that it is exposed to UI Automation under its name; the board's pointer handling takes the press. -->
+                                    <Button bh:WidgetBoardInteraction.IsResizeHandle="True" Width="30" Height="30" Padding="0" Focusable="False"
                                             HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
                                             ToolTip="Drag to resize" AutomationProperties.Name="Resize widget">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="Transparent">
+                                                    <ContentPresenter />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
                                         <Path Data="M 0,10 L 10,0 M 4,10 L 10,4 M 8,10 L 10,8" Stroke="{DynamicResource Blocker.Accent.Bar}" StrokeThickness="1.5"
                                               StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="10" Height="10"
                                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8" IsHitTestVisible="False" />
-                                    </Border>
+                                    </Button>
                                 </Grid>
                             </Grid>
                         </DataTemplate>
@@ -330,21 +384,25 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Widget picker: bottom sheet over a dimmed page. Plugins are rows; the open row shows its widgets as live previews. -->
+        <!-- Widget picker: a slim rail on the right edge lists the plugins; pointing at one opens a flyout beside it with its widgets. The board
+             stays visible under a light scrim so what gets added can be seen. -->
         <Grid x:Name="PickerOverlay" DataContext="{Binding Board.Picker}" KeyboardNavigation.TabNavigation="Cycle">
             <Grid.Style>
                 <Style TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
+                    <Setter Property="IsHitTestVisible" Value="False" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsOpen}" Value="True">
                             <Setter Property="Visibility" Value="Visible" />
+                            <Setter Property="IsHitTestVisible" Value="True" />
                             <DataTrigger.ExitActions>
                                 <BeginStoryboard>
                                     <Storyboard>
-                                        <!-- Stays visible while the sheet slides out, then falls back to the collapsed style value. -->
-                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility" FillBehavior="Stop">
-                                            <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Visible}" />
-                                            <DiscreteObjectKeyFrame KeyTime="0:0:0.16" Value="{x:Static Visibility.Collapsed}" />
+                                        <!-- Stays visible (but no longer clickable) while the rail leaves, then falls back to Collapsed. -->
+                                        <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                                       FillBehavior="Stop">
+                                            <DiscreteObjectKeyFrame KeyTime="0%" Value="{x:Static Visibility.Visible}" />
+                                            <DiscreteObjectKeyFrame KeyTime="100%" Value="{x:Static Visibility.Collapsed}" />
                                         </ObjectAnimationUsingKeyFrames>
                                     </Storyboard>
                                 </BeginStoryboard>
@@ -357,7 +415,8 @@
                 <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
             </Grid.InputBindings>
 
-            <Border Background="#B3000000" Cursor="Arrow">
+            <!-- Scrim: black fading between 0 and 0.2 (Motion.ScrimOpacity); a click anywhere on the page closes the rail. -->
+            <Border Background="Black" Opacity="0" Cursor="Arrow">
                 <Border.InputBindings>
                     <MouseBinding MouseAction="LeftClick" Command="{Binding CloseCommand}" />
                 </Border.InputBindings>
@@ -368,14 +427,16 @@
                                 <DataTrigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.18" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="0.2" Duration="{StaticResource Blocker.Motion.Normal}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.EnterActions>
                                 <DataTrigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.16" FillBehavior="Stop" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.ExitActions>
@@ -385,10 +446,9 @@
                 </Border.Style>
             </Border>
 
-            <Border x:Name="PickerSheet" MaxWidth="760" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Padding="24,12,24,0"
-                    Background="{DynamicResource Blocker.Bg.Card}" BorderBrush="{DynamicResource Blocker.Border.Strong}"
-                    BorderThickness="1,1,1,0" CornerRadius="16,16,0,0" SnapsToDevicePixels="True"
-                    AutomationProperties.Name="Add widgets">
+            <!-- The rail: close button on top, then one item per plugin (icon above its name). In: a short slide from the edge while fading in. -->
+            <Border x:Name="PickerRail" Width="84" HorizontalAlignment="Right" Opacity="0" SnapsToDevicePixels="True"
+                    Background="{DynamicResource Blocker.Bg.Base}" BorderBrush="{DynamicResource Blocker.Border.Subtle}" BorderThickness="1,0,0,0">
                 <Border.RenderTransform>
                     <TranslateTransform />
                 </Border.RenderTransform>
@@ -399,26 +459,22 @@
                                 <DataTrigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                                             From="64" To="0" Duration="0:0:0.24">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut" />
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.18" />
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                             From="{StaticResource Blocker.Motion.PanelOffset}" To="0" Duration="{StaticResource Blocker.Motion.Normal}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="{StaticResource Blocker.Motion.Normal}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.EnterActions>
                                 <DataTrigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                                             From="0" To="64" Duration="0:0:0.16" FillBehavior="Stop">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseIn" />
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.16" FillBehavior="Stop" />
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                             To="{StaticResource Blocker.Motion.PanelOffset}" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Blocker.Motion.Exit}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </DataTrigger.ExitActions>
@@ -427,135 +483,140 @@
                     </Style>
                 </Border.Style>
                 <DockPanel LastChildFill="True">
-                    <!-- Grab handle, as on an Android bottom sheet. -->
-                    <Border DockPanel.Dock="Top" Width="40" Height="4" CornerRadius="2" HorizontalAlignment="Center" Margin="0,0,0,12"
-                            Background="{DynamicResource Blocker.Border.Strong}" />
+                    <Button x:Name="PickerClose" DockPanel.Dock="Top" Style="{DynamicResource Blocker.Button.Subtle}" Width="32" Height="32" MinHeight="0" Padding="0"
+                            HorizontalAlignment="Center" Margin="0,12,0,8" Command="{Binding CloseCommand}" ToolTip="Close (Esc)"
+                            AutomationProperties.Name="Close widget picker">
+                        <ui:SymbolIcon Symbol="Dismiss24" FontSize="16" />
+                    </Button>
 
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="Add widgets" />
-                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Pick a widget to show on your Session page." />
-                        </StackPanel>
-                        <Button x:Name="PickerClose" Grid.Column="1" Style="{DynamicResource Blocker.Button.Subtle}" Padding="10,0" MinWidth="40"
-                                Command="{Binding CloseCommand}" ToolTip="Close (Esc)" AutomationProperties.Name="Close widget picker">
-                            <ui:SymbolIcon Symbol="Dismiss24" />
-                        </Button>
-                    </Grid>
-
-                    <ui:TextBox x:Name="PickerSearch" DockPanel.Dock="Top" Margin="0,0,0,12" PlaceholderText="Search widgets"
-                                Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search widgets">
-                        <ui:TextBox.Icon>
-                            <ui:SymbolIcon Symbol="Search24" />
-                        </ui:TextBox.Icon>
-                    </ui:TextBox>
-
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="0,0,0,24">
-                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,8,0,0" Text="No widgets match your search."
-                                       Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisible}}" />
-                            <ItemsControl ItemsSource="{Binding Groups}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="0,0,0,4">
-                                            <Button Style="{StaticResource App.PickerRow}" AutomationProperties.Name="{Binding Title}"
-                                                    Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                    CommandParameter="{Binding}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid Width="24" Height="24" Margin="0,0,14,0" VerticalAlignment="Center">
-                                                        <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}"
-                                                              Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisible}}" />
-                                                        <ui:SymbolIcon Symbol="PuzzlePiece24" FontSize="24" Foreground="{DynamicResource Blocker.Text.Secondary}"
-                                                                       Visibility="{Binding HasIcon, Converter={StaticResource BoolToCollapsed}}" />
-                                                    </Grid>
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="NoWrap" />
-                                                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding CountText}" />
-                                                    </StackPanel>
-                                                    <ui:SymbolIcon Grid.Column="2" Symbol="ChevronDown24" FontSize="16" VerticalAlignment="Center"
-                                                                   RenderTransformOrigin="0.5,0.5">
-                                                        <ui:SymbolIcon.Style>
-                                                            <Style TargetType="ui:SymbolIcon">
-                                                                <Setter Property="RenderTransform">
-                                                                    <Setter.Value>
-                                                                        <RotateTransform Angle="0" />
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsExpanded}" Value="True">
-                                                                        <Setter Property="RenderTransform">
-                                                                            <Setter.Value>
-                                                                                <RotateTransform Angle="180" />
-                                                                            </Setter.Value>
-                                                                        </Setter>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </ui:SymbolIcon.Style>
-                                                    </ui:SymbolIcon>
-                                                </Grid>
-                                            </Button>
-
-                                            <!-- The plugin's widgets, previewed at the size they are added with. Tap one to add it. -->
-                                            <ItemsControl ItemsSource="{Binding Visible}" Margin="12,8,0,4"
-                                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Button Margin="0,0,12,12" Padding="8" MinHeight="0" VerticalAlignment="Top"
-                                                                Style="{DynamicResource Blocker.Button.Subtle}"
-                                                                HorizontalContentAlignment="Left" VerticalContentAlignment="Top"
-                                                                Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
-                                                                CommandParameter="{Binding}"
-                                                                AutomationProperties.Name="{Binding Title, StringFormat='Add {0}'}">
-                                                            <StackPanel Width="{Binding PreviewWidth}">
-                                                                <Border Width="{Binding PreviewWidth}" Height="{Binding PreviewHeight}" CornerRadius="8" BorderThickness="1"
-                                                                        Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
-                                                                        ClipToBounds="True">
-                                                                    <Viewbox Stretch="Uniform">
-                                                                        <Grid Width="{Binding SlotWidth}" Height="{Binding SlotHeight}" IsHitTestVisible="False">
-                                                                            <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
-                                                                                            Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}" />
-                                                                        </Grid>
-                                                                    </Viewbox>
-                                                                </Border>
-                                                                <Grid Margin="2,8,2,0">
-                                                                    <Grid.ColumnDefinitions>
-                                                                        <ColumnDefinition Width="*" />
-                                                                        <ColumnDefinition Width="Auto" />
-                                                                    </Grid.ColumnDefinitions>
-                                                                    <StackPanel VerticalAlignment="Center">
-                                                                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" FontWeight="SemiBold" Text="{Binding Title}"
-                                                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                                                                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding SpanLabel}" />
-                                                                    </StackPanel>
-                                                                    <Border Grid.Column="1" Style="{StaticResource App.Chip}" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                                            Visibility="{Binding IsAdded, Converter={StaticResource BoolToVisible}}">
-                                                                        <TextBlock Style="{StaticResource App.ChipText}" Text="Added" />
-                                                                    </Border>
-                                                                </Grid>
-                                                            </StackPanel>
-                                                        </Button>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Margin="6,0,6,4" Padding="2,8" MinHeight="0" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top"
+                                            Command="{Binding DataContext.SelectGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Title, StringFormat='Widgets from {0}'}"
+                                            MouseEnter="OnRailItemEnter" MouseLeave="OnRailItemLeave" GotKeyboardFocus="OnRailItemFocus">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource Blocker.Button.Subtle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel>
+                                            <Grid Width="24" Height="24" HorizontalAlignment="Center">
+                                                <Path Stretch="Uniform" Fill="{DynamicResource Blocker.Text.Secondary}" Data="{Binding Icon}" Opacity="0.85"
+                                                      Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisible}}" />
+                                                <ui:SymbolIcon Symbol="PuzzlePiece24" FontSize="22" Foreground="{DynamicResource Blocker.Text.Secondary}"
+                                                               Visibility="{Binding HasIcon, Converter={StaticResource BoolToCollapsed}}" />
+                                            </Grid>
+                                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" FontSize="11" Margin="0,6,0,0" MaxHeight="30"
+                                                       TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" Text="{Binding Title}" />
                                         </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Flyout left of the rail, level with the item it belongs to: the plugin's widgets as live previews. Fades in with a short slide. -->
+            <Border x:Name="PickerFlyout" Width="288" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,92,0" Padding="16,14,16,4"
+                    CornerRadius="12" BorderThickness="1" Opacity="0" SnapsToDevicePixels="True"
+                    Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
+                    MouseEnter="OnFlyoutEnter" MouseLeave="OnFlyoutLeave" SizeChanged="OnFlyoutSizeChanged">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.4" Color="Black" />
+                </Border.Effect>
+                <Border.RenderTransform>
+                    <TranslateTransform />
+                </Border.RenderTransform>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="IsHitTestVisible" Value="False" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasFlyout}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Setter Property="IsHitTestVisible" Value="True" />
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                             From="{StaticResource Blocker.Motion.FlyoutOffset}" To="0" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseOut}" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                             To="{StaticResource Blocker.Motion.FlyoutOffset}" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                             EasingFunction="{StaticResource Blocker.Motion.EaseIn}" />
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="Visibility" Duration="{StaticResource Blocker.Motion.Fast}"
+                                                                           FillBehavior="Stop">
+                                                <DiscreteObjectKeyFrame KeyTime="0%" Value="{x:Static Visibility.Visible}" />
+                                                <DiscreteObjectKeyFrame KeyTime="100%" Value="{x:Static Visibility.Collapsed}" />
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel DataContext="{Binding FlyoutGroup}" LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Top" Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,0,0,12" Text="{Binding Title}"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding Entries}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- A banner: the widget as it will look on the board, its name and span. Click to add it; the rail stays open. -->
+                                    <Button Margin="0,0,0,12" Padding="8" MinHeight="0" HorizontalContentAlignment="Left" VerticalContentAlignment="Top"
+                                            Style="{DynamicResource Blocker.Button.Subtle}"
+                                            Command="{Binding DataContext.AddCommand, ElementName=PickerOverlay}" CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Title, StringFormat='Add {0}'}">
+                                        <StackPanel Width="{Binding PreviewWidth}">
+                                            <Border Width="{Binding PreviewWidth}" Height="{Binding PreviewHeight}" CornerRadius="8" BorderThickness="1"
+                                                    Background="{DynamicResource Blocker.Bg.Base}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
+                                                    ClipToBounds="True">
+                                                <Viewbox Stretch="Uniform">
+                                                    <Grid Width="{Binding SlotWidth}" Height="{Binding SlotHeight}" IsHitTestVisible="False">
+                                                        <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
+                                                                        Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}" />
+                                                    </Grid>
+                                                </Viewbox>
+                                            </Border>
+                                            <Grid Margin="2,8,2,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" FontWeight="SemiBold" Text="{Binding Title}"
+                                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="{Binding SpanLabel}" />
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Style="{StaticResource App.Chip}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        Visibility="{Binding IsAdded, Converter={StaticResource BoolToVisible}}">
+                                                    <TextBlock Style="{StaticResource App.ChipText}" Text="Added" />
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </ScrollViewer>
                 </DockPanel>
             </Border>

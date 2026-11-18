@@ -83,7 +83,6 @@ internal static class WidgetBoardInteraction
     {
         private const double ScrollEdge = 40;
         private const double ScrollStep = 14;
-        private const double SwapDistance = 24;
         private static readonly TimeSpan LongPress = TimeSpan.FromMilliseconds(450);
 
         private readonly ItemsControl _items;
@@ -96,10 +95,7 @@ internal static class WidgetBoardInteraction
         private Window? _window;
         private ScrollViewer? _scroll;
 
-        // Reorder: pointer must come back into the dragged widget's own slot (or travel far enough) before it swaps again, so widgets
-        // of different sizes cannot flip back and forth under a still pointer.
-        private bool _armed;
-        private Point _swapPoint;
+        private readonly DragReorder _reorder = new();
 
         // Resize: spans are measured from where the widget started, so a widget that moves while it grows cannot oscillate.
         private Point _origin;
@@ -117,6 +113,7 @@ internal static class WidgetBoardInteraction
             items.PreviewMouseMove += OnMove;
             items.PreviewMouseLeftButtonUp += OnUp;
             items.LostMouseCapture += OnLostCapture;
+            items.Unloaded += (_, _) => Cancel();
         }
 
         private enum Mode
@@ -171,6 +168,12 @@ internal static class WidgetBoardInteraction
                 }
             }
 
+            if (_mode == Mode.Idle)
+            {
+                return;
+            }
+
+            ListenToWindow();
             _items.CaptureMouse();
             e.Handled = true;
         }
@@ -189,6 +192,13 @@ internal static class WidgetBoardInteraction
         {
             if (_mode == Mode.Idle || _panel is null)
             {
+                return;
+            }
+
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                // The release happened where this control could not see it (another window, a dialog): treat it as a cancel.
+                Cancel();
                 return;
             }
 
@@ -247,7 +257,8 @@ internal static class WidgetBoardInteraction
 
         private void OnLostCapture(object sender, MouseEventArgs e)
         {
-            if (_mode != Mode.Idle)
+            // Lost-capture bubbles up from descendants; only losing the capture this control took ends the gesture.
+            if (_mode != Mode.Idle && ReferenceEquals(e.OriginalSource, _items))
             {
                 Cancel();
             }
@@ -255,7 +266,7 @@ internal static class WidgetBoardInteraction
 
         private void OnKey(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Escape && _mode is Mode.Dragging or Mode.Resizing)
+            if (e.Key == Key.Escape && _mode != Mode.Idle)
             {
                 Cancel();
                 e.Handled = true;
@@ -272,9 +283,7 @@ internal static class WidgetBoardInteraction
             }
 
             _mode = Mode.Dragging;
-            _armed = true;
-            _swapPoint = pointer;
-            ListenForEscape();
+            _reorder.Begin(pointer.X, pointer.Y);
         }
 
         private void Drag(Point pointer)
@@ -286,18 +295,10 @@ internal static class WidgetBoardInteraction
 
             panel.MoveDrag(pointer);
             UIElement? target = panel.ChildAt(pointer);
-            if (target is null)
+            int to = _reorder.TargetIndex(panel.DragIndex, target is null ? -1 : panel.IndexOfChild(target), pointer.X, pointer.Y);
+            if (to >= 0 && panel.MoveDragTo(to))
             {
-                return;
-            }
-
-            if (target == panel.DraggedChild)
-            {
-                _armed = true;
-            }
-            else if ((_armed || (pointer - _swapPoint).Length > SwapDistance) && panel.MoveDragTo(panel.IndexOfChild(target)))
-            {
-                (_armed, _swapPoint) = (false, pointer);
+                _reorder.Swapped(pointer.X, pointer.Y);
             }
         }
 
@@ -313,7 +314,6 @@ internal static class WidgetBoardInteraction
             _origin = slot.TopLeft;
             _handleOffset = new Vector(slot.Right - _start.X, slot.Bottom - _start.Y);
             (_startCols, _startRows, _resized) = (_item.Cols, _item.Rows, false);
-            ListenForEscape();
         }
 
         private void Resize(Point pointer)
@@ -364,18 +364,27 @@ internal static class WidgetBoardInteraction
             return null;
         }
 
-        private void ListenForEscape()
+        // Esc and losing the foreground (Alt+Tab, a dialog) abandon any gesture, including a long press that has not fired yet.
+        private void ListenToWindow()
         {
             _window = Window.GetWindow(_items);
             if (_window is not null)
             {
                 _window.PreviewKeyDown += OnKey;
+                _window.Deactivated += OnDeactivated;
             }
         }
+
+        private void OnDeactivated(object? sender, EventArgs e) => Cancel();
 
         /// <summary>Abandons the gesture: a drag goes back to where it started, a resize to its original span.</summary>
         private void Cancel()
         {
+            if (_mode == Mode.Idle)
+            {
+                return;
+            }
+
             (Mode mode, WidgetItemViewModel? item, WidgetGridPanel? panel) = (_mode, _item, _panel);
             Finish();
             if (mode == Mode.Dragging)
@@ -394,6 +403,7 @@ internal static class WidgetBoardInteraction
             if (_window is not null)
             {
                 _window.PreviewKeyDown -= OnKey;
+                _window.Deactivated -= OnDeactivated;
                 _window = null;
             }
 

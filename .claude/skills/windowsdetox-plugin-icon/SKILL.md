@@ -1,6 +1,6 @@
 ---
 name: windowsdetox-plugin-icon
-description: Design and validate the `icon` path data in a WindowsDetox plugin.json (sidebar, widget header and widget-picker icon). Use when asked to draw, change or review a plugin "icon", "ikona", "ikonka", "logo wtyczki", SVG path, "glyph", "UiGlyph", or when an icon looks blurry, thin, off-center or too similar to another plugin. Includes preview_icon.py to rasterize and validate locally.
+description: Design and validate the `icon` path data in a WindowsDetox plugin.json (sidebar, widget header and widget-picker rail icon). Use when asked to draw, change or review a plugin "icon", "ikona", "ikonka", "logo wtyczki", SVG path, "glyph", "UiGlyph", or when an icon looks blurry, thin, off-center or too similar to another plugin. Includes preview_icon.py to rasterize and validate locally.
 ---
 
 # Plugin icon (`plugin.json` -> `"icon"`)
@@ -15,7 +15,7 @@ The manifest `icon` is one string of SVG path data. The host draws it as a fille
 
 ## How it is drawn (read before designing)
 
-- `src/Blocker.UI/Views/PluginPathIcon.cs`: `Geometry.Parse(pathData)`, `Stretch.Uniform` into an 18 x 18 px square, `Fill` = the item's foreground brush (follows selected/hover/disabled states and theme). The widget header uses 14 px, the widget picker 24 px (same data, same fill).
+- `src/Blocker.UI/Views/PluginPathIcon.cs`: `Geometry.Parse(pathData)`, `Stretch.Uniform` into a 16 x 16 px square at 0.85 opacity in the navigation rail, `Fill` = the item's foreground brush (follows selected/hover/disabled states and theme). The widget header uses 14 px and the widget picker rail 24 px, also at 0.85 opacity (same data, same fill); the lighter rendering keeps a filled shape from outweighing the thin built-in line icons.
 - Consequences:
   1. Fill only. Strokes do not exist; a "line" must be a closed outline polygon (a ring is two arcs, a bar is `H`/`V` rectangle).
   2. Default fill rule is even-odd (`Geometry.Parse` without `F1`). Overlapping subpaths punch holes; a subpath inside another is a hole. Never overlap shapes you want solid: keep them disjoint, or draw holes deliberately.

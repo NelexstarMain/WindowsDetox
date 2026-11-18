@@ -73,6 +73,17 @@ public sealed class WidgetBoardViewModelTests
     }
 
     [Fact]
+    public void Content_that_nearly_fits_one_row_starts_one_row_high()
+    {
+        // A stat, a progress bar and a caption (the Goals widget with no tasks) fit a row once the faded bottom edge is allowed for.
+        ContributionViewModel goals = Widget("a", "1", tree: Ui.Card(Ui.Stat("Today", "0 / 3 tasks", "3 to go"), Ui.Progress(0, 3), Ui.Text("Add tasks on the Goals page", UiTextStyle.Caption)));
+
+        WidgetBoardViewModel board = Create(goals);
+
+        Assert.Equal((1, 1), (board.Items[0].Cols, board.Items[0].Rows));
+    }
+
+    [Fact]
     public void Saved_layout_decides_which_widgets_show_and_in_which_order_and_span()
     {
         _store.Saved = [new("b/2", 2, 3), new("a/1", 1, 1)];
@@ -420,7 +431,7 @@ public sealed class WidgetPickerViewModelTests
     private static string[] Titles(WidgetPickerViewModel picker) => [.. picker.Groups.Select(g => g.Title)];
 
     [Fact]
-    public void Picker_groups_widgets_by_plugin_and_marks_added_ones()
+    public void Picker_lists_one_rail_item_per_plugin_and_marks_added_widgets()
     {
         ContributionViewModel a1 = Widget("a", "1", "Alpha", "M0 0L1 1");
         ContributionViewModel b2 = Widget("b", "2", "Beta");
@@ -436,25 +447,9 @@ public sealed class WidgetPickerViewModelTests
         Assert.True(groupA.HasIcon);
         Assert.False(board.Picker.Groups[1].HasIcon);
         Assert.Equal(["a/1", "a/3"], groupA.Entries.Select(e => e.Contribution.Key));
-        Assert.Equal(["2 widgets", "1 widget"], board.Picker.Groups.Select(g => g.CountText));
         Assert.True(groupA.Entries[0].IsAdded);
         Assert.False(groupA.Entries[1].IsAdded);
-    }
-
-    [Fact]
-    public void The_first_plugin_starts_expanded_and_one_row_is_open_at_a_time()
-    {
-        WidgetBoardViewModel board = Create(Widget("a", "1", "Alpha"), Widget("b", "2", "Beta"));
-        board.Picker.OpenCommand.Execute(null);
-        WidgetPickerGroup alpha = board.Picker.Groups[0];
-        WidgetPickerGroup beta = board.Picker.Groups[1];
-        Assert.Equal([true, false], [alpha.IsExpanded, beta.IsExpanded]);
-
-        board.Picker.ToggleGroupCommand.Execute(beta);
-        Assert.Equal([false, true], [alpha.IsExpanded, beta.IsExpanded]);
-
-        board.Picker.ToggleGroupCommand.Execute(beta);
-        Assert.Equal([false, false], [alpha.IsExpanded, beta.IsExpanded]);
+        Assert.False(board.Picker.HasFlyout);
     }
 
     [Fact]
@@ -480,46 +475,73 @@ public sealed class WidgetPickerViewModelTests
     }
 
     [Fact]
-    public void Search_filters_by_plugin_or_widget_name_and_expands_the_matches()
+    public void Hovering_a_plugin_shows_its_flyout_and_leaving_hides_it_but_keeps_what_it_showed()
     {
-        WidgetBoardViewModel board = Create(
-            Widget("goals", "w", "Goals & Tasks"),
-            Widget("insights", "w1", "Focus Insights"),
-            Widget("insights", "w2", "Weekly Chart"));
-        board.Picker.OpenCommand.Execute(null);
+        WidgetBoardViewModel board = Create(Widget("a", "1", "Alpha"), Widget("b", "2", "Beta"));
+        WidgetPickerViewModel picker = board.Picker;
+        picker.OpenCommand.Execute(null);
+        WidgetPickerGroup alpha = picker.Groups[0];
+        WidgetPickerGroup beta = picker.Groups[1];
 
-        board.Picker.SearchText = "chart";
-        Assert.Equal(["Focus Insights"], Titles(board.Picker));
-        Assert.Equal(["Weekly Chart"], board.Picker.Groups[0].Visible.Select(e => e.Title));
-        Assert.True(board.Picker.Groups[0].IsExpanded);
+        picker.HoveredGroup = alpha;
+        Assert.True(picker.HasFlyout);
+        Assert.Same(alpha, picker.FlyoutGroup);
+        Assert.Equal([true, false], [alpha.IsActive, beta.IsActive]);
 
-        board.Picker.SearchText = "GOALS";
-        Assert.Equal(["Goals & Tasks"], Titles(board.Picker));
+        picker.HoveredGroup = beta;
+        Assert.Same(beta, picker.FlyoutGroup);
+        Assert.Equal([false, true], [alpha.IsActive, beta.IsActive]);
 
-        board.Picker.SearchText = "focus";
-        Assert.Equal(["Focus Insights", "Weekly Chart"], board.Picker.Groups[0].Visible.Select(e => e.Title));
-
-        board.Picker.SearchText = "nothing like this";
-        Assert.Empty(board.Picker.Groups);
-        Assert.True(board.Picker.HasNoResults);
-
-        board.Picker.SearchText = string.Empty;
-        Assert.Equal(["Goals & Tasks", "Focus Insights"], Titles(board.Picker));
-        Assert.False(board.Picker.HasNoResults);
+        picker.HoveredGroup = null;
+        Assert.False(picker.HasFlyout);
+        Assert.Same(beta, picker.FlyoutGroup);
+        Assert.Equal([false, false], [alpha.IsActive, beta.IsActive]);
     }
 
     [Fact]
-    public void Opening_the_picker_clears_the_search()
+    public void A_pinned_plugin_keeps_the_flyout_open_and_hovering_another_one_takes_over_until_it_is_left()
+    {
+        WidgetBoardViewModel board = Create(Widget("a", "1", "Alpha"), Widget("b", "2", "Beta"));
+        WidgetPickerViewModel picker = board.Picker;
+        picker.OpenCommand.Execute(null);
+        WidgetPickerGroup alpha = picker.Groups[0];
+        WidgetPickerGroup beta = picker.Groups[1];
+
+        picker.SelectGroupCommand.Execute(alpha);
+        Assert.Same(alpha, picker.SelectedGroup);
+        Assert.True(picker.HasFlyout);
+
+        picker.HoveredGroup = beta;
+        Assert.Same(beta, picker.FlyoutGroup);
+
+        picker.HoveredGroup = null;
+        Assert.True(picker.HasFlyout);
+        Assert.Same(alpha, picker.FlyoutGroup);
+
+        picker.SelectGroupCommand.Execute(alpha);
+        Assert.Null(picker.SelectedGroup);
+        Assert.False(picker.HasFlyout);
+    }
+
+    [Fact]
+    public void Closing_the_rail_clears_hover_and_pin_and_opening_starts_clean()
     {
         WidgetBoardViewModel board = Create(Widget("a", "1", "Alpha"));
-        board.Picker.OpenCommand.Execute(null);
-        board.Picker.SearchText = "zzz";
-        board.Picker.CloseCommand.Execute(null);
+        WidgetPickerViewModel picker = board.Picker;
+        picker.OpenCommand.Execute(null);
+        picker.HoveredGroup = picker.Groups[0];
+        picker.SelectGroupCommand.Execute(picker.Groups[0]);
 
-        board.Picker.OpenCommand.Execute(null);
+        picker.CloseCommand.Execute(null);
 
-        Assert.Equal(string.Empty, board.Picker.SearchText);
-        Assert.Single(board.Picker.Groups);
+        Assert.False(picker.IsOpen);
+        Assert.Null(picker.HoveredGroup);
+        Assert.Null(picker.SelectedGroup);
+        Assert.False(picker.HasFlyout);
+        Assert.False(picker.Groups[0].IsActive);
+
+        picker.OpenCommand.Execute(null);
+        Assert.False(picker.HasFlyout);
     }
 
     [Fact]
@@ -543,13 +565,13 @@ public sealed class WidgetPickerViewModelTests
     }
 
     [Fact]
-    public void Picker_keeps_entries_and_expansion_across_refreshes_and_follows_removals()
+    public void Picker_keeps_entries_and_the_hovered_plugin_across_refreshes_and_follows_removals()
     {
         ContributionViewModel a1 = Widget("a", "1", "Alpha");
         ContributionViewModel b2 = Widget("b", "2", "Beta");
         WidgetBoardViewModel board = Create(a1, b2);
         board.Picker.OpenCommand.Execute(null);
-        board.Picker.ToggleGroupCommand.Execute(board.Picker.Groups[1]);
+        board.Picker.HoveredGroup = board.Picker.Groups[1];
         WidgetPickerEntry entry = board.Picker.Groups[0].Entries[0];
         Assert.True(entry.IsAdded);
 
@@ -557,7 +579,12 @@ public sealed class WidgetPickerViewModelTests
 
         Assert.Same(entry, board.Picker.Groups[0].Entries[0]);
         Assert.Equal(["Alpha", "Beta", "Gamma"], Titles(board.Picker));
-        Assert.True(board.Picker.Groups[1].IsExpanded);
+        Assert.Equal("Beta", board.Picker.HoveredGroup?.Title);
+        Assert.True(board.Picker.HasFlyout);
+
+        board.Update([a1, Widget("c", "3", "Gamma")]);
+        Assert.Null(board.Picker.HoveredGroup);
+        Assert.False(board.Picker.HasFlyout);
 
         board.RemoveCommand.Execute(board.Items[0]);
         Assert.False(entry.IsAdded);

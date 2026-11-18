@@ -186,4 +186,20 @@ public sealed class FocusCounterTests
         Assert.Equal(1800, progress.Maximum);
         Assert.Equal("Session time left: 30 min", progress.Label);
     }
+
+    [Fact]
+    public async Task Dashboard_widget_follows_the_widget_conventions()
+    {
+        FakePluginContext ctx = await StartAsync(arrange: StartSession);
+
+        UiCard card = Assert.IsType<UiCard>(await ctx.RenderAsync(ctx.GetExtension<IDashboardWidgetPlugin>(), CancellationToken.None));
+
+        // The host draws the title, icon and name; the widget has one primary value and no nested cards or logo.
+        Assert.Null(card.Title);
+        Assert.Null(card.Subtitle);
+        Assert.Null(card.Icon);
+        Assert.Single(card.Children.OfType<UiStatTile>());
+        Assert.Empty(card.Children.OfType<UiCard>());
+        Assert.Empty(card.Children.OfType<UiGlyph>());
+    }
 }

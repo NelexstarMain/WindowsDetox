@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using Blocker.UI.Controls;
 using Blocker.UI.ViewModels;
 
 namespace Blocker.UI.Views;
@@ -10,8 +12,10 @@ namespace Blocker.UI.Views;
 /// <summary>
 /// Lays children out on a grid like an Android home screen: the column count follows the width, rows have a fixed height, each child
 /// spans <see cref="ColumnSpanProperty"/> by <see cref="RowSpanProperty"/> cells and is placed at the first free spot (dense, in order).
-/// Children slide to their new place (about 180 ms, ease-out) whenever the layout changes, and one child can be lifted and dragged
-/// around while the rest reflow around its virtual position; the owner commits the order on drop.
+/// Children slide (and grow or shrink) to their new place with <see cref="Motion.Normal"/> ease-out whenever the order or a span changes,
+/// continuing from where they are drawn if the target changes mid-flight; the first layout and a changing window width never animate.
+/// One child can be lifted and dragged around while the rest reflow around its virtual position and settles into its slot on drop;
+/// the owner commits the order on drop.
 /// </summary>
 internal sealed class WidgetGridPanel : Panel
 {
@@ -23,11 +27,13 @@ internal sealed class WidgetGridPanel : Panel
     public static readonly DependencyProperty RowSpanProperty = DependencyProperty.RegisterAttached(
         "RowSpan", typeof(int), typeof(WidgetGridPanel), new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsParentMeasure));
 
-    private const double LiftScale = 1.03;
-    private static readonly TimeSpan SlideTime = TimeSpan.FromMilliseconds(180);
-    private static readonly TimeSpan LiftTime = TimeSpan.FromMilliseconds(120);
+    private const int LiftedZ = 100;
+    private const int SettlingZ = 50;
+    private static readonly Stopwatch Clock = Stopwatch.StartNew();
 
     private readonly Dictionary<UIElement, Rect> _rects = [];
+    private readonly ReflowAnimator<UIElement> _reflow = new(Motion.Normal, Motion.EaseOut);
+    private readonly HashSet<UIElement> _raised = [];
     private List<UIElement> _arranged = [];
     private GridSlot[] _slots = [];
     private List<UIElement>? _order;
@@ -36,6 +42,8 @@ internal sealed class WidgetGridPanel : Panel
     private Point _dragTopLeft;
     private double _width;
     private bool _widthChanged;
+    private bool _hasArranged;
+    private bool _ticking;
 
     /// <summary>Gets the number of columns of the last layout.</summary>
     public int Columns { get; private set; } = 1;
@@ -106,22 +114,22 @@ internal sealed class WidgetGridPanel : Panel
             return false;
         }
 
+        // Grab the child where it is drawn now, which differs from its slot while it is still sliding.
+        Rect shown = ToRect(_reflow.Current(child, Clock.Elapsed));
         _dragged = child;
         _order = [.. _arranged];
-        _grab = pointer - slot.TopLeft;
-        _dragTopLeft = slot.TopLeft;
+        _grab = pointer - shown.TopLeft;
+        _dragTopLeft = shown.TopLeft;
+        ApplyDragOffset(TranslateOf(child), slot);
 
-        TranslateTransform translate = TranslateOf(child);
-        (double x, double y) = (translate.X, translate.Y);
-        translate.BeginAnimation(TranslateTransform.XProperty, null);
-        translate.BeginAnimation(TranslateTransform.YProperty, null);
-        (translate.X, translate.Y) = (x, y);
-
-        SetZIndex(child, 100);
-        child.Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 6, Direction = 270, Opacity = 0.45, Color = Colors.Black };
+        _raised.Remove(child);
+        SetZIndex(child, LiftedZ);
+        DropShadowEffect shadow = new() { BlurRadius = 24, ShadowDepth = 6, Direction = 270, Opacity = 0.45, Color = Colors.Black };
+        child.Effect = shadow;
+        shadow.BeginAnimation(DropShadowEffect.OpacityProperty, Motion.Animate(0, shadow.Opacity, Motion.Fast));
         ScaleTransform scale = ScaleOf(child);
-        Tween(scale, ScaleTransform.ScaleXProperty, scale.ScaleX, LiftScale, LiftTime, hold: true);
-        Tween(scale, ScaleTransform.ScaleYProperty, scale.ScaleY, LiftScale, LiftTime, hold: true);
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, Motion.Animate(scale.ScaleX, Motion.LiftScale, Motion.Fast, hold: true));
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, Motion.Animate(scale.ScaleY, Motion.LiftScale, Motion.Fast, hold: true));
         return true;
     }
 
@@ -180,7 +188,7 @@ internal sealed class WidgetGridPanel : Panel
     protected override Size MeasureOverride(Size availableSize)
     {
         double width = double.IsInfinity(availableSize.Width) ? WidgetSpans.SlotWidth(2) : availableSize.Width;
-        _widthChanged = Math.Abs(width - _width) > 0.5;
+        _widthChanged |= Math.Abs(width - _width) > 0.5;
         _width = width;
         Columns = WidgetGridLayout.ColumnCount(width);
         CellWidth = WidgetGridLayout.CellWidth(width, Columns);
@@ -203,7 +211,10 @@ internal sealed class WidgetGridPanel : Panel
         foreach (UIElement gone in _rects.Keys.Where(k => !natural.Contains(k)).ToList())
         {
             _rects.Remove(gone);
+            _raised.Remove(gone);
         }
+
+        _reflow.Prune(natural);
 
         return new Size(width, WidgetGridLayout.Height(WidgetGridLayout.RowCount(_slots)));
     }
@@ -211,16 +222,50 @@ internal sealed class WidgetGridPanel : Panel
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
+        TimeSpan now = Clock.Elapsed;
+        bool animate = Motion.Enabled && !_widthChanged;
         for (int i = 0; i < _arranged.Count; i++)
         {
+            UIElement child = _arranged[i];
             Rect slot = SlotRect(_slots[i]);
-            _arranged[i].Arrange(slot);
-            SlideTo(_arranged[i], slot);
+            bool isNew = !_reflow.Contains(child);
+            if (child == _dragged)
+            {
+                // The pointer decides where it is drawn; it stays in its slot for layout and is offset by a transform.
+                _reflow.Hold(child, new Box(_dragTopLeft.X, _dragTopLeft.Y, slot.Width, slot.Height), now);
+                child.Arrange(slot);
+                ApplyDragOffset(TranslateOf(child), slot);
+            }
+            else
+            {
+                child.Arrange(ToRect(_reflow.Retarget(child, ToBox(slot), now, animate)));
+            }
+
+            _rects[child] = slot;
+            if (isNew && _hasArranged && animate)
+            {
+                child.BeginAnimation(OpacityProperty, Motion.Animate(0, 1, Motion.Normal));
+            }
         }
 
+        _hasArranged |= _arranged.Count > 0;
         _widthChanged = false;
+        if (!_reflow.IsAnimating(now))
+        {
+            LowerSettled();
+        }
+        else if (!_ticking)
+        {
+            _ticking = true;
+            CompositionTarget.Rendering += OnRendering;
+        }
+
         return finalSize;
     }
+
+    private static Box ToBox(Rect rect) => new(rect.X, rect.Y, rect.Width, rect.Height);
+
+    private static Rect ToRect(Box box) => new(box.X, box.Y, box.Width, box.Height);
 
     private static TransformGroup GroupOf(UIElement child)
     {
@@ -239,16 +284,6 @@ internal sealed class WidgetGridPanel : Panel
 
     private static TranslateTransform TranslateOf(UIElement child) => (TranslateTransform)GroupOf(child).Children[1];
 
-    private static void Tween(Animatable target, DependencyProperty property, double from, double to, TimeSpan duration, bool hold)
-    {
-        DoubleAnimation animation = new(from, to, duration)
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            FillBehavior = hold ? FillBehavior.HoldEnd : FillBehavior.Stop,
-        };
-        target.BeginAnimation(property, animation);
-    }
-
     private Rect SlotRect(GridSlot slot) => new(
         slot.Column * (CellWidth + WidgetSpans.Gap),
         slot.Row * (WidgetSpans.CellHeight + WidgetSpans.Gap),
@@ -261,35 +296,27 @@ internal sealed class WidgetGridPanel : Panel
         translate.Y = _dragTopLeft.Y - slot.Y;
     }
 
-    /// <summary>Records where a child was arranged and, when that moved it, slides it there from where it was.</summary>
-    private void SlideTo(UIElement child, Rect slot)
+    /// <summary>Re-arranges every frame while something slides; when it has settled, draws the exact end state once more and lowers the dropped child.</summary>
+    private void OnRendering(object? sender, EventArgs e)
     {
-        TranslateTransform translate = TranslateOf(child);
-        if (child == _dragged)
+        if (!_reflow.IsAnimating(Clock.Elapsed))
         {
-            ApplyDragOffset(translate, slot);
-        }
-        else if (_widthChanged)
-        {
-            // The window is being resized: follow it directly instead of chasing the moving slots.
-            translate.BeginAnimation(TranslateTransform.XProperty, null);
-            translate.BeginAnimation(TranslateTransform.YProperty, null);
-            (translate.X, translate.Y) = (0, 0);
-        }
-        else if (_rects.TryGetValue(child, out Rect before))
-        {
-            // The child is drawn at slot + offset; start from where it appears now so a slide in progress is continued, not restarted.
-            double dx = before.X - slot.X + translate.X;
-            double dy = before.Y - slot.Y + translate.Y;
-            if (Math.Abs(dx) > 0.5 || Math.Abs(dy) > 0.5)
-            {
-                (translate.X, translate.Y) = (0, 0);
-                Tween(translate, TranslateTransform.XProperty, dx, 0, SlideTime, hold: false);
-                Tween(translate, TranslateTransform.YProperty, dy, 0, SlideTime, hold: false);
-            }
+            CompositionTarget.Rendering -= OnRendering;
+            _ticking = false;
+            LowerSettled();
         }
 
-        _rects[child] = slot;
+        InvalidateArrange();
+    }
+
+    private void LowerSettled()
+    {
+        foreach (UIElement child in _raised.Where(c => c != _dragged))
+        {
+            SetZIndex(child, 0);
+        }
+
+        _raised.RemoveWhere(c => c != _dragged);
     }
 
     private void ReleaseDrag()
@@ -301,13 +328,32 @@ internal sealed class WidgetGridPanel : Panel
 
         _dragged = null;
         _order = null;
-        SetZIndex(child, 0);
-        child.Effect = null;
+
+        // Stay above the others until the child has settled into its slot (the next arrange slides it from where the pointer left it).
+        _raised.Add(child);
+        SetZIndex(child, SettlingZ);
+        TranslateTransform translate = TranslateOf(child);
+        (translate.X, translate.Y) = (0, 0);
+
         ScaleTransform scale = ScaleOf(child);
         (double x, double y) = (scale.ScaleX, scale.ScaleY);
         (scale.ScaleX, scale.ScaleY) = (1, 1);
-        Tween(scale, ScaleTransform.ScaleXProperty, x, 1, LiftTime, hold: false);
-        Tween(scale, ScaleTransform.ScaleYProperty, y, 1, LiftTime, hold: false);
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, Motion.Animate(x, 1, Motion.Fast));
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, Motion.Animate(y, 1, Motion.Fast));
+
+        if (child.Effect is DropShadowEffect shadow)
+        {
+            DoubleAnimation fade = Motion.Animate(shadow.Opacity, 0, Motion.Fast, leaving: true, hold: true);
+            fade.Completed += (_, _) =>
+            {
+                if (child.Effect == shadow && _dragged != child)
+                {
+                    child.Effect = null;
+                }
+            };
+            shadow.BeginAnimation(DropShadowEffect.OpacityProperty, fade);
+        }
+
         InvalidateMeasure();
     }
 }
