@@ -93,6 +93,18 @@ Blocker.UI.Sdk.UiDataPoint.Label.init -> void
 Blocker.UI.Sdk.UiDataPoint.UiDataPoint(string! Label, double Value) -> void
 Blocker.UI.Sdk.UiDataPoint.Value.get -> double
 Blocker.UI.Sdk.UiDataPoint.Value.init -> void
+Blocker.UI.Sdk.UiDonutChart
+Blocker.UI.Sdk.UiDonutChart.CenterLabel.get -> string?
+Blocker.UI.Sdk.UiDonutChart.CenterLabel.init -> void
+Blocker.UI.Sdk.UiDonutChart.CenterValue.get -> string?
+Blocker.UI.Sdk.UiDonutChart.CenterValue.init -> void
+Blocker.UI.Sdk.UiDonutChart.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Slices, out string? Title, out string? CenterValue, out string? CenterLabel) -> void
+Blocker.UI.Sdk.UiDonutChart.Equals(Blocker.UI.Sdk.UiDonutChart? other) -> bool
+Blocker.UI.Sdk.UiDonutChart.Slices.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>!
+Blocker.UI.Sdk.UiDonutChart.Slices.init -> void
+Blocker.UI.Sdk.UiDonutChart.Title.get -> string?
+Blocker.UI.Sdk.UiDonutChart.Title.init -> void
+Blocker.UI.Sdk.UiDonutChart.UiDonutChart(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Slices, string? Title = null, string? CenterValue = null, string? CenterLabel = null) -> void
 Blocker.UI.Sdk.UiForm
 Blocker.UI.Sdk.UiForm.Deconstruct(out string! Id, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>! Fields, out string! SubmitLabel) -> void
 Blocker.UI.Sdk.UiForm.Equals(Blocker.UI.Sdk.UiForm? other) -> bool
@@ -115,6 +127,16 @@ Blocker.UI.Sdk.UiGap
 Blocker.UI.Sdk.UiGap.Large = 2 -> Blocker.UI.Sdk.UiGap
 Blocker.UI.Sdk.UiGap.Medium = 1 -> Blocker.UI.Sdk.UiGap
 Blocker.UI.Sdk.UiGap.Small = 0 -> Blocker.UI.Sdk.UiGap
+Blocker.UI.Sdk.UiGlyph
+Blocker.UI.Sdk.UiGlyph.Deconstruct(out string! PathData, out double Size, out Blocker.UI.Sdk.UiTone Tone) -> void
+Blocker.UI.Sdk.UiGlyph.Equals(Blocker.UI.Sdk.UiGlyph? other) -> bool
+Blocker.UI.Sdk.UiGlyph.PathData.get -> string!
+Blocker.UI.Sdk.UiGlyph.PathData.init -> void
+Blocker.UI.Sdk.UiGlyph.Size.get -> double
+Blocker.UI.Sdk.UiGlyph.Size.init -> void
+Blocker.UI.Sdk.UiGlyph.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiGlyph.Tone.init -> void
+Blocker.UI.Sdk.UiGlyph.UiGlyph(string! PathData, double Size = 32, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent) -> void
 Blocker.UI.Sdk.UiGrid
 Blocker.UI.Sdk.UiGrid.Children.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>!
 Blocker.UI.Sdk.UiGrid.Children.init -> void
@@ -123,6 +145,20 @@ Blocker.UI.Sdk.UiGrid.Columns.init -> void
 Blocker.UI.Sdk.UiGrid.Deconstruct(out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, out int Columns) -> void
 Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiGrid? other) -> bool
 Blocker.UI.Sdk.UiGrid.UiGrid(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiNode!>! Children, int Columns) -> void
+Blocker.UI.Sdk.UiHeatmap
+Blocker.UI.Sdk.UiHeatmap.ColumnLabels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.UI.Sdk.UiHeatmap.ColumnLabels.init -> void
+Blocker.UI.Sdk.UiHeatmap.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! RowLabels, out System.Collections.Generic.IReadOnlyList<string!>! ColumnLabels, out System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyList<double>!>! Values, out string? Title, out string? ValueSuffix) -> void
+Blocker.UI.Sdk.UiHeatmap.Equals(Blocker.UI.Sdk.UiHeatmap? other) -> bool
+Blocker.UI.Sdk.UiHeatmap.RowLabels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.UI.Sdk.UiHeatmap.RowLabels.init -> void
+Blocker.UI.Sdk.UiHeatmap.Title.get -> string?
+Blocker.UI.Sdk.UiHeatmap.Title.init -> void
+Blocker.UI.Sdk.UiHeatmap.UiHeatmap(System.Collections.Generic.IReadOnlyList<string!>! RowLabels, System.Collections.Generic.IReadOnlyList<string!>! ColumnLabels, System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyList<double>!>! Values, string? Title = null, string? ValueSuffix = null) -> void
+Blocker.UI.Sdk.UiHeatmap.ValueSuffix.get -> string?
+Blocker.UI.Sdk.UiHeatmap.ValueSuffix.init -> void
+Blocker.UI.Sdk.UiHeatmap.Values.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyList<double>!>!
+Blocker.UI.Sdk.UiHeatmap.Values.init -> void
 Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Apps = 15 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Book = 23 -> Blocker.UI.Sdk.UiIcon
@@ -396,6 +432,10 @@ override Blocker.UI.Sdk.UiCheckboxField.ToString() -> string!
 override Blocker.UI.Sdk.UiDataPoint.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiDataPoint.GetHashCode() -> int
 override Blocker.UI.Sdk.UiDataPoint.ToString() -> string!
+override Blocker.UI.Sdk.UiDonutChart.<Clone>$() -> Blocker.UI.Sdk.UiDonutChart!
+override Blocker.UI.Sdk.UiDonutChart.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiDonutChart.GetHashCode() -> int
+override Blocker.UI.Sdk.UiDonutChart.ToString() -> string!
 override Blocker.UI.Sdk.UiForm.<Clone>$() -> Blocker.UI.Sdk.UiForm!
 override Blocker.UI.Sdk.UiForm.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiForm.GetHashCode() -> int
@@ -403,10 +443,18 @@ override Blocker.UI.Sdk.UiForm.ToString() -> string!
 override Blocker.UI.Sdk.UiFormField.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiFormField.GetHashCode() -> int
 override Blocker.UI.Sdk.UiFormField.ToString() -> string!
+override Blocker.UI.Sdk.UiGlyph.<Clone>$() -> Blocker.UI.Sdk.UiGlyph!
+override Blocker.UI.Sdk.UiGlyph.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiGlyph.GetHashCode() -> int
+override Blocker.UI.Sdk.UiGlyph.ToString() -> string!
 override Blocker.UI.Sdk.UiGrid.<Clone>$() -> Blocker.UI.Sdk.UiGrid!
 override Blocker.UI.Sdk.UiGrid.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiGrid.GetHashCode() -> int
 override Blocker.UI.Sdk.UiGrid.ToString() -> string!
+override Blocker.UI.Sdk.UiHeatmap.<Clone>$() -> Blocker.UI.Sdk.UiHeatmap!
+override Blocker.UI.Sdk.UiHeatmap.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiHeatmap.GetHashCode() -> int
+override Blocker.UI.Sdk.UiHeatmap.ToString() -> string!
 override Blocker.UI.Sdk.UiLimits.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiLimits.GetHashCode() -> int
 override Blocker.UI.Sdk.UiLimits.ToString() -> string!
@@ -482,8 +530,11 @@ override sealed Blocker.UI.Sdk.UiBarChart.Equals(Blocker.UI.Sdk.UiNode? other) -
 override sealed Blocker.UI.Sdk.UiButton.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiCard.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiCheckboxField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiDonutChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiForm.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiGlyph.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiHeatmap.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiLineChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
@@ -501,7 +552,9 @@ static Blocker.UI.Sdk.Ui.Button(string! id, string! label, Blocker.UI.Sdk.UiButt
 static Blocker.UI.Sdk.Ui.Card(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
 static Blocker.UI.Sdk.Ui.Card(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
 static Blocker.UI.Sdk.Ui.Column(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiStack!
+static Blocker.UI.Sdk.Ui.DonutChart(string! title, params Blocker.UI.Sdk.UiDataPoint![]! slices) -> Blocker.UI.Sdk.UiDonutChart!
 static Blocker.UI.Sdk.Ui.Form(string! id, string! submitLabel, params Blocker.UI.Sdk.UiFormField![]! fields) -> Blocker.UI.Sdk.UiForm!
+static Blocker.UI.Sdk.Ui.Glyph(string! pathData, double size = 32) -> Blocker.UI.Sdk.UiGlyph!
 static Blocker.UI.Sdk.Ui.Grid(int columns, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiGrid!
 static Blocker.UI.Sdk.Ui.Page(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
 static Blocker.UI.Sdk.Ui.Page(string! title, string! subtitle, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
@@ -526,12 +579,18 @@ static Blocker.UI.Sdk.UiCheckboxField.operator !=(Blocker.UI.Sdk.UiCheckboxField
 static Blocker.UI.Sdk.UiCheckboxField.operator ==(Blocker.UI.Sdk.UiCheckboxField? left, Blocker.UI.Sdk.UiCheckboxField? right) -> bool
 static Blocker.UI.Sdk.UiDataPoint.operator !=(Blocker.UI.Sdk.UiDataPoint? left, Blocker.UI.Sdk.UiDataPoint? right) -> bool
 static Blocker.UI.Sdk.UiDataPoint.operator ==(Blocker.UI.Sdk.UiDataPoint? left, Blocker.UI.Sdk.UiDataPoint? right) -> bool
+static Blocker.UI.Sdk.UiDonutChart.operator !=(Blocker.UI.Sdk.UiDonutChart? left, Blocker.UI.Sdk.UiDonutChart? right) -> bool
+static Blocker.UI.Sdk.UiDonutChart.operator ==(Blocker.UI.Sdk.UiDonutChart? left, Blocker.UI.Sdk.UiDonutChart? right) -> bool
 static Blocker.UI.Sdk.UiForm.operator !=(Blocker.UI.Sdk.UiForm? left, Blocker.UI.Sdk.UiForm? right) -> bool
 static Blocker.UI.Sdk.UiForm.operator ==(Blocker.UI.Sdk.UiForm? left, Blocker.UI.Sdk.UiForm? right) -> bool
 static Blocker.UI.Sdk.UiFormField.operator !=(Blocker.UI.Sdk.UiFormField? left, Blocker.UI.Sdk.UiFormField? right) -> bool
 static Blocker.UI.Sdk.UiFormField.operator ==(Blocker.UI.Sdk.UiFormField? left, Blocker.UI.Sdk.UiFormField? right) -> bool
+static Blocker.UI.Sdk.UiGlyph.operator !=(Blocker.UI.Sdk.UiGlyph? left, Blocker.UI.Sdk.UiGlyph? right) -> bool
+static Blocker.UI.Sdk.UiGlyph.operator ==(Blocker.UI.Sdk.UiGlyph? left, Blocker.UI.Sdk.UiGlyph? right) -> bool
 static Blocker.UI.Sdk.UiGrid.operator !=(Blocker.UI.Sdk.UiGrid? left, Blocker.UI.Sdk.UiGrid? right) -> bool
 static Blocker.UI.Sdk.UiGrid.operator ==(Blocker.UI.Sdk.UiGrid? left, Blocker.UI.Sdk.UiGrid? right) -> bool
+static Blocker.UI.Sdk.UiHeatmap.operator !=(Blocker.UI.Sdk.UiHeatmap? left, Blocker.UI.Sdk.UiHeatmap? right) -> bool
+static Blocker.UI.Sdk.UiHeatmap.operator ==(Blocker.UI.Sdk.UiHeatmap? left, Blocker.UI.Sdk.UiHeatmap? right) -> bool
 static Blocker.UI.Sdk.UiJson.Deserialize(string! json) -> Blocker.UI.Sdk.UiNode!
 static Blocker.UI.Sdk.UiJson.Serialize(Blocker.UI.Sdk.UiNode! node) -> string!
 static Blocker.UI.Sdk.UiLimits.Default.get -> Blocker.UI.Sdk.UiLimits!

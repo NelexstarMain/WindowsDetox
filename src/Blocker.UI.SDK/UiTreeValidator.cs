@@ -28,6 +28,9 @@ public sealed record UiValidationResult(IReadOnlyList<string> Errors)
 public static partial class UiTreeValidator
 {
     private const int MaxSeries = 6;
+    private const int MaxHeatmapRows = 12;
+    private const int MaxHeatmapColumns = 24;
+    private const int MaxGlyphPathLength = 4096;
     private const int MaxColumns = 12;
     private const int MaxGridColumns = 6;
     private const int MaxNavigationTitle = 32;
@@ -198,6 +201,38 @@ public static partial class UiTreeValidator
                     }
 
                     break;
+                case UiDonutChart donut:
+                    OptionalText(donut.Title, "UiDonutChart.Title");
+                    OptionalText(donut.CenterValue, "UiDonutChart.CenterValue");
+                    OptionalText(donut.CenterLabel, "UiDonutChart.CenterLabel");
+                    Points(donut.Slices, "UiDonutChart.Slices");
+                    if (donut.Slices is { Count: > MaxSeries })
+                    {
+                        Errors.Add($"UiDonutChart.Slices must contain at most {MaxSeries} slices.");
+                    }
+                    else if (donut.Slices is not null && donut.Slices.Any(p => p is not null && p.Value < 0))
+                    {
+                        Errors.Add("UiDonutChart.Slices values must be non-negative.");
+                    }
+
+                    break;
+                case UiHeatmap heatmap:
+                    Heatmap(heatmap);
+                    break;
+                case UiGlyph glyph:
+                    if (string.IsNullOrWhiteSpace(glyph.PathData) || glyph.PathData.Length > MaxGlyphPathLength
+                        || !glyph.PathData.All(IsGlyphPathChar))
+                    {
+                        Errors.Add($"UiGlyph.PathData must be 1-{MaxGlyphPathLength} characters of path commands (MLHVCSQTAZ), numbers, spaces and commas.");
+                    }
+
+                    if (!double.IsFinite(glyph.Size) || glyph.Size is < 12 or > 96)
+                    {
+                        Errors.Add("UiGlyph.Size must be between 12 and 96.");
+                    }
+
+                    Defined(glyph.Tone, "UiGlyph.Tone");
+                    break;
                 case UiTable table:
                     Table(table);
                     break;
@@ -248,6 +283,45 @@ public static partial class UiTreeValidator
             foreach (UiNode child in children)
             {
                 Visit(child, depth + 1, isRoot: false);
+            }
+        }
+
+        private static bool IsGlyphPathChar(char c) =>
+            char.IsAsciiDigit(c) || c is ' ' or ',' or '.' or '-' or '+' or 'e' or 'E'
+            || "MmLlHhVvCcSsQqTtAaZz".Contains(c, StringComparison.Ordinal);
+
+        private void Heatmap(UiHeatmap heatmap)
+        {
+            OptionalText(heatmap.Title, "UiHeatmap.Title");
+            OptionalText(heatmap.ValueSuffix, "UiHeatmap.ValueSuffix");
+            if (heatmap.RowLabels is null || heatmap.RowLabels.Count is 0 or > MaxHeatmapRows
+                || heatmap.ColumnLabels is null || heatmap.ColumnLabels.Count is 0 or > MaxHeatmapColumns)
+            {
+                Errors.Add($"UiHeatmap needs 1-{MaxHeatmapRows} row labels and 1-{MaxHeatmapColumns} column labels.");
+                return;
+            }
+
+            foreach (string label in heatmap.RowLabels.Concat(heatmap.ColumnLabels))
+            {
+                if (label is null)
+                {
+                    Errors.Add("UiHeatmap labels must not be null.");
+                    return;
+                }
+
+                OptionalText(label, "UiHeatmap label");
+            }
+
+            if (heatmap.Values is null || heatmap.Values.Count != heatmap.RowLabels.Count
+                || heatmap.Values.Any(row => row is null || row.Count != heatmap.ColumnLabels.Count))
+            {
+                Errors.Add("UiHeatmap.Values must have one row per row label and one value per column label.");
+                return;
+            }
+
+            if (heatmap.Values.Any(row => row.Any(v => !double.IsFinite(v) || v < 0)))
+            {
+                Errors.Add("UiHeatmap.Values must be finite and non-negative.");
             }
         }
 

@@ -78,6 +78,18 @@ public static class Ui
     /// <returns>The chart.</returns>
     public static UiBarChart BarChart(string title, params UiDataPoint[] points) => new(points, title);
 
+    /// <summary>Creates a donut chart.</summary>
+    /// <param name="title">Chart title.</param>
+    /// <param name="slices">Slices (at most 6).</param>
+    /// <returns>The chart.</returns>
+    public static UiDonutChart DonutChart(string title, params UiDataPoint[] slices) => new(slices, title);
+
+    /// <summary>Creates a vector logo.</summary>
+    /// <param name="pathData">Path geometry (SVG/WPF path syntax).</param>
+    /// <param name="size">Edge length (12-96).</param>
+    /// <returns>The glyph.</returns>
+    public static UiGlyph Glyph(string pathData, double size = 32) => new(pathData, size);
+
     /// <summary>Creates a data point.</summary>
     /// <param name="label">Label.</param>
     /// <param name="value">Value.</param>

@@ -4,7 +4,7 @@ namespace Blocker.UI.Sdk;
 
 /// <summary>
 /// Base of the declarative UI tree. A tree is plain, serializable data: plugins describe <em>what</em> to show
-/// and the host renders it with its own controls, palette, blueprint grid and metaball layer. Plugins cannot
+/// and the host renders it with its own controls, palette and typography. Plugins cannot
 /// supply XAML, colours, fonts or sizes. Build trees with the <see cref="Ui"/> factory.
 /// </summary>
 /// <remarks>Inheritance is used here only because polymorphic JSON serialization requires a common base.</remarks>
@@ -18,6 +18,9 @@ namespace Blocker.UI.Sdk;
 [JsonDerivedType(typeof(UiProgress), "progress")]
 [JsonDerivedType(typeof(UiBarChart), "barChart")]
 [JsonDerivedType(typeof(UiLineChart), "lineChart")]
+[JsonDerivedType(typeof(UiDonutChart), "donutChart")]
+[JsonDerivedType(typeof(UiHeatmap), "heatmap")]
+[JsonDerivedType(typeof(UiGlyph), "glyph")]
 [JsonDerivedType(typeof(UiTable), "table")]
 [JsonDerivedType(typeof(UiButton), "button")]
 [JsonDerivedType(typeof(UiToggle), "toggle")]
@@ -90,6 +93,39 @@ public sealed record UiBarChart(IReadOnlyList<UiDataPoint> Points, string? Title
 /// <param name="Title">Optional title.</param>
 /// <param name="ValueSuffix">Optional unit appended to values.</param>
 public sealed record UiLineChart(IReadOnlyList<UiSeries> Series, string? Title = null, string? ValueSuffix = null) : UiNode;
+
+/// <summary>A donut chart: parts of a whole (at most 6 slices, values must be non-negative).</summary>
+/// <param name="Slices">Slices in display order; each label is shown in the legend.</param>
+/// <param name="Title">Optional title.</param>
+/// <param name="CenterValue">Optional large text in the middle, for example a total.</param>
+/// <param name="CenterLabel">Optional caption under <paramref name="CenterValue"/>.</param>
+public sealed record UiDonutChart(IReadOnlyList<UiDataPoint> Slices, string? Title = null, string? CenterValue = null, string? CenterLabel = null) : UiNode;
+
+/// <summary>
+/// A heatmap grid: cell intensity is proportional to its value (for example activity by weekday and hour).
+/// At most 12 rows and 24 columns; <paramref name="Values"/> has one row per row label and one value per column label.
+/// </summary>
+/// <param name="RowLabels">Row labels, top to bottom.</param>
+/// <param name="ColumnLabels">Column labels, left to right (labels may be empty to keep the axis quiet).</param>
+/// <param name="Values">Cell values (non-negative, finite), indexed [row][column].</param>
+/// <param name="Title">Optional title.</param>
+/// <param name="ValueSuffix">Optional unit shown in cell tooltips.</param>
+public sealed record UiHeatmap(
+    IReadOnlyList<string> RowLabels,
+    IReadOnlyList<string> ColumnLabels,
+    IReadOnlyList<IReadOnlyList<double>> Values,
+    string? Title = null,
+    string? ValueSuffix = null) : UiNode;
+
+/// <summary>
+/// A plugin's own vector logo, drawn in a host colour. <paramref name="PathData"/> uses SVG/WPF path syntax limited to
+/// the commands M L H V C S Q T A Z (upper or lower case), numbers, spaces and commas, at most 4096 characters.
+/// The path is scaled uniformly to <paramref name="Size"/>.
+/// </summary>
+/// <param name="PathData">Path geometry.</param>
+/// <param name="Size">Edge length in device-independent pixels (12-96).</param>
+/// <param name="Tone">Host colour role.</param>
+public sealed record UiGlyph(string PathData, double Size = 32, UiTone Tone = UiTone.Accent) : UiNode;
 
 /// <summary>A table column definition.</summary>
 /// <param name="Header">Column header.</param>
