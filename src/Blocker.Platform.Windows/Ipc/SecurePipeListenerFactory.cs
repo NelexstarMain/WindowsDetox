@@ -67,6 +67,10 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
             options |= PipeOptions.FirstPipeInstance;
         }
 
+        // All instances of a named pipe share one security descriptor, so the Low label set on the first instance covers the later ones.
+        // Only the first instance asks for WRITE_OWNER (needed to set the label); asking for it on later instances was refused on Windows
+        // and stopped the listener. Later instances still try to set the label, but a refusal there is harmless.
+        bool labelRequired = profile == SecurePipeProfile.PluginHost && isFirstInstance;
         NamedPipeServerStream pipe = NamedPipeServerStreamAcl.Create(
             pipeName,
             PipeDirection.InOut,
@@ -77,14 +81,16 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
             outBufferSize: 0,
             BuildSecurity(profile),
             HandleInheritability.None,
-            // Changing the label needs WRITE_OWNER on our handle. Only the first instance of a pipe gets it implicitly as the creator;
-            // later instances are refused (ACCESS_DENIED) unless it is requested here.
-            profile == SecurePipeProfile.PluginHost ? PipeAccessRights.TakeOwnership : 0);
+            labelRequired ? PipeAccessRights.TakeOwnership : 0);
         if (profile == SecurePipeProfile.PluginHost)
         {
             try
             {
-                ApplyLowLabel(pipe);
+                WIN32_ERROR error = ApplyLowLabel(pipe);
+                if (error != WIN32_ERROR.ERROR_SUCCESS && labelRequired)
+                {
+                    throw new System.ComponentModel.Win32Exception((int)error, "Setting the low-integrity label on the plugin-host pipe failed.");
+                }
             }
             catch
             {
@@ -97,11 +103,11 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
     }
 
     /// <summary>
-    /// Sets the Low mandatory label with <c>LABEL_SECURITY_INFORMATION</c>, which only needs WRITE_OWNER (the creator has it).
+    /// Sets the Low mandatory label with <c>LABEL_SECURITY_INFORMATION</c>, which only needs WRITE_OWNER (the creator has it). Returns the Win32 result.
     /// Passing the label inside the creation descriptor makes .NET write a SACL, which needs SeSecurityPrivilege that a
     /// service does not have enabled (ERROR_PRIVILEGE_NOT_HELD).
     /// </summary>
-    private static unsafe void ApplyLowLabel(NamedPipeServerStream pipe)
+    private static unsafe WIN32_ERROR ApplyLowLabel(NamedPipeServerStream pipe)
     {
         if (!PInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(LowLabelSddl, PInvoke.SDDL_REVISION_1, out PSECURITY_DESCRIPTOR descriptor, out _))
         {
@@ -139,10 +145,7 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
                 }
             }
 
-            if (error != WIN32_ERROR.ERROR_SUCCESS)
-            {
-                throw new System.ComponentModel.Win32Exception((int)error, "SetSecurityInfo(label) failed");
-            }
+            return error;
         }
         finally
         {
