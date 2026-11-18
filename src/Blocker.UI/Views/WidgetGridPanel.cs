@@ -245,6 +245,10 @@ internal sealed class WidgetGridPanel : Panel
             if (isNew && _hasArranged && animate)
             {
                 child.BeginAnimation(OpacityProperty, Motion.Animate(0, 1, Motion.Normal));
+                if (child is FrameworkElement added)
+                {
+                    _ = Dispatcher.BeginInvoke(() => added.BringIntoView(new Rect(added.RenderSize)), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
             }
         }
 
