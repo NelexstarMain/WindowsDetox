@@ -74,6 +74,7 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
     /// <param name="navigator">Page navigation.</param>
     /// <param name="ticker">Countdown tick.</param>
     /// <param name="time">Time source.</param>
+    /// <param name="board">The user's widget layout.</param>
     public DashboardViewModel(
         IServiceConnection connection,
         IDialogService dialogs,
@@ -81,13 +82,15 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
         ISnackbarService snackbar,
         INavigator navigator,
         IUiTicker ticker,
-        TimeProvider time)
+        TimeProvider time,
+        WidgetBoardViewModel board)
         : base(connection, snackbar)
     {
         _dialogs = dialogs;
         _appDialogs = appDialogs;
         _navigator = navigator;
         _time = time;
+        Board = board;
         _timeline = new SessionTimeline(time);
         _widgetsRefreshedAt = time.GetTimestamp();
 
@@ -102,17 +105,17 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
         }
     }
 
-    /// <summary>Gets the plugin dashboard widgets.</summary>
+    /// <summary>Gets every dashboard widget the plugins offer.</summary>
     public ObservableCollection<ContributionViewModel> Widgets { get; } = [];
+
+    /// <summary>Gets the widgets the user put on the dashboard.</summary>
+    public WidgetBoardViewModel Board { get; }
 
     /// <summary>Gets whether no session is running.</summary>
     public bool IsIdle => !IsSessionRunning;
 
     /// <summary>Gets whether the service is unreachable.</summary>
     public bool IsDisconnected => !Connection.IsConnected;
-
-    /// <summary>Gets whether any plugin widget is shown.</summary>
-    public bool HasWidgets => Widgets.Count > 0;
 
     /// <summary>Recomputes every displayed value from the timeline. Called by pushes and by the ticker.</summary>
     public void Refresh()
@@ -159,8 +162,8 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
         {
             GetContributionsResponse response = await Connection.GetContributionsAsync(UiSlot.DashboardWidget, cancellationToken);
             ContributionViewModel.Synchronize(Widgets, response.Items);
+            Board.Update(Widgets);
             WidgetsError = null;
-            OnPropertyChanged(nameof(HasWidgets));
         }
         catch (Exception ex) when (ServiceFault.IsExpected(ex))
         {

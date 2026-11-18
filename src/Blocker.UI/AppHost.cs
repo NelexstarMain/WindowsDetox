@@ -69,6 +69,8 @@ internal static class AppHost
 
         services.AddSingleton<AllowlistViewModel>();
         services.AddSingleton<IAllowlistSelection>(sp => sp.GetRequiredService<AllowlistViewModel>());
+        services.AddSingleton<IWidgetLayoutStore>(_ => new WidgetLayoutStore(WidgetLayoutStore.DefaultPath));
+        services.AddSingleton<WidgetBoardViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<SetupViewModel>();
         services.AddSingleton<PluginsViewModel>();

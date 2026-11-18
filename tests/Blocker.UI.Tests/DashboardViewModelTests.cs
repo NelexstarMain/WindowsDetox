@@ -17,7 +17,7 @@ public sealed class DashboardViewModelTests
     private readonly FakeTimeProvider _time = new();
     private readonly Navigator _navigator = new();
 
-    private DashboardViewModel Create() => new(_connection, _dialogs, _appDialogs, _snackbar, _navigator, _ticker, _time);
+    private DashboardViewModel Create() => new(_connection, _dialogs, _appDialogs, _snackbar, _navigator, _ticker, _time, new WidgetBoardViewModel(new InMemoryWidgetLayoutStore()));
 
     [Fact]
     public void Idle_shows_idle_chip_no_clock_and_disabled_emergency_exit()

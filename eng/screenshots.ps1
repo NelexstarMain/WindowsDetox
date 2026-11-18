@@ -104,7 +104,11 @@ if (Click-Named $main 'Insights') {
     }
   }
 }
-if (Click-Named $main 'Session') { Start-Sleep -Seconds 3; Shot $main '13-session-with-widget' }
+if (Click-Named $main 'Session') {
+  Start-Sleep -Seconds 3; Shot $main '13-session-with-widget'
+  if (Click-Named $main 'Add widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '14-widget-picker'; [System.Windows.Forms.SendKeys]::SendWait('{ESC}'); Start-Sleep -Seconds 1 }
+  if (Click-Named $main 'Edit widgets' -Anywhere) { Start-Sleep -Seconds 2; Shot $main '15-widgets-edit' }
+}
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 

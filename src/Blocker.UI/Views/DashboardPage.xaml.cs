@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Blocker.UI.ViewModels;
 
 namespace Blocker.UI.Views;
@@ -12,5 +13,14 @@ internal sealed partial class DashboardPage : Page
     {
         DataContext = viewModel;
         InitializeComponent();
+
+        // Move keyboard focus into the widget picker when it opens, so Esc and Tab act on the sheet.
+        PickerOverlay.IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true)
+            {
+                _ = Dispatcher.InvokeAsync(() => PickerClose.Focus(), DispatcherPriority.Input);
+            }
+        };
     }
 }

@@ -476,7 +476,7 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
 
                 return Serialize(pluginId, contributionId, navigation.Title, slot, await page.RenderAsync(context, token).ConfigureAwait(false), plugin.Icon);
             case UiSlot.DashboardWidget when extension is IDashboardWidgetPlugin widget:
-                return Serialize(pluginId, contributionId, null, slot, await widget.RenderAsync(context, token).ConfigureAwait(false));
+                return Serialize(pluginId, contributionId, plugin.Info.Name, slot, await widget.RenderAsync(context, token).ConfigureAwait(false), plugin.Icon);
             case UiSlot.SettingsSection when extension is ISettingsSectionPlugin section:
                 string title = section.Title;
                 RequireValidTitle(title);
