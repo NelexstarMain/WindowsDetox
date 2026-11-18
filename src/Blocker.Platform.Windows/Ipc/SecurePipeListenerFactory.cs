@@ -74,7 +74,11 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
             options,
             inBufferSize: 0,
             outBufferSize: 0,
-            BuildSecurity(profile));
+            BuildSecurity(profile),
+            HandleInheritability.None,
+            // Changing the label needs WRITE_OWNER on our handle. Only the first instance of a pipe gets it implicitly as the creator;
+            // later instances are refused (ACCESS_DENIED) unless it is requested here.
+            profile == SecurePipeProfile.PluginHost ? PipeAccessRights.TakeOwnership : 0);
         if (profile == SecurePipeProfile.PluginHost)
         {
             try
