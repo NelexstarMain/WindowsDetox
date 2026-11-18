@@ -1,5 +1,7 @@
 using System.IO.Abstractions;
 using System.Security.Principal;
+using Blocker.Contracts;
+using Blocker.Core.Ipc;
 using Blocker.Core.Journal;
 using Blocker.Core.Security;
 using Blocker.Core.ServiceHost;
@@ -20,7 +22,7 @@ internal static class ExitCodes
     public const int NotAdministrator = 5;
 }
 
-/// <summary>The one-shot commands <c>--install</c>, <c>--uninstall</c> and <c>--recover</c>. All of them need an elevated administrator.</summary>
+/// <summary>The one-shot commands <c>--install</c>, <c>--uninstall</c>, <c>--recover</c> and <c>--dev-abort</c>. All of them need an elevated administrator.</summary>
 internal static class ServiceCommands
 {
     /// <summary>Runs a one-shot command.</summary>
@@ -29,7 +31,8 @@ internal static class ServiceCommands
     /// <param name="loggers">Logger factory (console and file).</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>The process exit code.</returns>
-    public static async Task<int> RunAsync(ServiceCommandKind command, BlockerPaths paths, ILoggerFactory loggers, CancellationToken cancellationToken)
+    /// <param name="devMode">Whether <c>--dev-mode</c> was given; <c>--install</c> then registers the service with it.</param>
+    public static async Task<int> RunAsync(ServiceCommandKind command, BlockerPaths paths, bool devMode, ILoggerFactory loggers, CancellationToken cancellationToken)
     {
         if (!IsElevatedAdministrator())
         {
@@ -41,7 +44,8 @@ internal static class ServiceCommands
         {
             return command switch
             {
-                ServiceCommandKind.Install => Install(paths),
+                ServiceCommandKind.Install => Install(paths, devMode),
+                ServiceCommandKind.DevAbort => await DevAbortAsync(loggers, cancellationToken).ConfigureAwait(false),
                 ServiceCommandKind.Uninstall => await UninstallAsync(paths, loggers, cancellationToken).ConfigureAwait(false),
                 ServiceCommandKind.Recover => await RecoverAsync(paths, loggers, cancellationToken).ConfigureAwait(false),
                 _ => ExitCodes.BadArguments,
@@ -54,10 +58,23 @@ internal static class ServiceCommands
         }
     }
 
-    private static int Install(BlockerPaths paths)
+    private static async Task<int> DevAbortAsync(ILoggerFactory loggers, CancellationToken cancellationToken)
+    {
+        await using var client = new IpcClient(IpcPipeNames.Service, loggers.CreateLogger<IpcClient>());
+        await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        DevAbortResponse response = await client.InvokeAsync<DevAbortResponse>(IpcMethods.SessionDevAbort, cancellationToken).ConfigureAwait(false);
+        Console.WriteLine(response.Aborted
+            ? "The session was ended and every change was rolled back."
+            : "Nothing was aborted: no session is running, or the service is not in developer mode.");
+        return response.Aborted ? ExitCodes.Success : ExitCodes.Failed;
+    }
+
+    private static int Install(BlockerPaths paths, bool devMode)
     {
         var installer = new ScmServiceInstaller();
-        installer.InstallOrUpdate(BlockerServiceNames.Service, "WindowsDetox Blocker", paths.ServiceExecutablePath, string.Empty);
+
+        // Developer mode is still honoured only by DEVMODE builds with the dev key file present (see DevModeGate).
+        installer.InstallOrUpdate(BlockerServiceNames.Service, "WindowsDetox Blocker", paths.ServiceExecutablePath, devMode ? "--dev-mode" : string.Empty);
         installer.InstallOrUpdate(
             BlockerServiceNames.Watchdog,
             "WindowsDetox Blocker Watchdog",

@@ -20,9 +20,12 @@ public enum ServiceCommandKind
 
     /// <summary>Roll everything back offline; the break-glass alternative for damaged installations.</summary>
     Recover,
+
+    /// <summary>Ask the running service to end the session at once (works only when the service runs in developer mode).</summary>
+    DevAbort,
 }
 
-/// <summary>Command line of <c>Blocker.Service.exe</c>: <c>[--console] [--dev-mode] | --install | --uninstall | --recover</c>.</summary>
+/// <summary>Command line of <c>Blocker.Service.exe</c>: <c>[--console] [--dev-mode] | --install [--dev-mode] | --uninstall | --recover | --dev-abort</c>.</summary>
 /// <param name="Command">The command.</param>
 /// <param name="Console">Run interactively with console logging instead of through the service control manager.</param>
 /// <param name="DevMode">Enable developer abort (honoured only by DEVMODE builds with the dev key file present).</param>
@@ -47,13 +50,14 @@ public sealed record ServiceArguments(ServiceCommandKind Command, bool Console, 
                 "--install" => ServiceCommandKind.Install,
                 "--uninstall" => ServiceCommandKind.Uninstall,
                 "--recover" => ServiceCommandKind.Recover,
+                "--dev-abort" => ServiceCommandKind.DevAbort,
                 _ => null,
             };
             if (requested is { } value)
             {
                 if (commandGiven)
                 {
-                    (arguments, error) = (null, "Only one of --install, --uninstall and --recover may be given.");
+                    (arguments, error) = (null, "Only one of --install, --uninstall, --recover and --dev-abort may be given.");
                     return false;
                 }
 

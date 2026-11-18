@@ -39,6 +39,7 @@ if (arguments.Command != ServiceCommandKind.Run)
     return await ServiceCommands.RunAsync(
         arguments.Command,
         paths,
+        arguments.DevMode,
         commandHost.Services.GetRequiredService<ILoggerFactory>(),
         CancellationToken.None).ConfigureAwait(false);
 }

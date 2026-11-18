@@ -94,6 +94,8 @@ public sealed class ServiceMaintenanceTests
     [InlineData(new[] { "--install" }, ServiceCommandKind.Install, false, false)]
     [InlineData(new[] { "--uninstall" }, ServiceCommandKind.Uninstall, false, false)]
     [InlineData(new[] { "--recover" }, ServiceCommandKind.Recover, false, false)]
+    [InlineData(new[] { "--dev-abort" }, ServiceCommandKind.DevAbort, false, false)]
+    [InlineData(new[] { "--install", "--dev-mode" }, ServiceCommandKind.Install, false, true)]
     public void The_command_line_selects_the_command_and_flags(string[] args, ServiceCommandKind command, bool console, bool devMode)
     {
         Assert.True(ServiceArguments.TryParse(args, out ServiceArguments? parsed, out string? error), error);
@@ -104,6 +106,7 @@ public sealed class ServiceMaintenanceTests
     [Theory]
     [InlineData("--install", "--uninstall")]
     [InlineData("--recover", "--install")]
+    [InlineData("--dev-abort", "--recover")]
     [InlineData("--bogus", "--console")]
     public void Conflicting_or_unknown_arguments_are_refused(string first, string second)
     {

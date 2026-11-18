@@ -179,18 +179,18 @@ internal sealed class ProxyClient : IDisposable
 internal sealed class ProxyHarness : IAsyncDisposable
 {
     private readonly CancellationTokenSource _timeout;
+    private readonly List<string> _blocked = [];
 
     private ProxyHarness(WebFilterProxy proxy, LoopbackServer? upstream, CancellationTokenSource timeout)
     {
         Proxy = proxy;
         Upstream = upstream;
         _timeout = timeout;
-        Blocked = [];
         proxy.RequestBlocked += (_, e) =>
         {
-            lock (Blocked)
+            lock (_blocked)
             {
-                Blocked.Add(e.Host);
+                _blocked.Add(e.Host);
             }
         };
         Port = proxy.Start();
@@ -202,7 +202,17 @@ internal sealed class ProxyHarness : IAsyncDisposable
 
     public int Port { get; }
 
-    public List<string> Blocked { get; }
+    /// <summary>Snapshot of blocked hosts, taken under the same lock the proxy's event handler writes with.</summary>
+    public IReadOnlyList<string> Blocked
+    {
+        get
+        {
+            lock (_blocked)
+            {
+                return [.. _blocked];
+            }
+        }
+    }
 
     public CancellationToken Token => _timeout.Token;
 

@@ -91,7 +91,8 @@ public sealed class PluginHostSupervisorTests
     public async Task A_host_that_keeps_crashing_is_relaunched_five_times_then_plugins_become_unavailable()
     {
         var time = new FakeTimeProvider();
-        await using var h = new SupervisorHarness(HostBodies.Scripted(), time);
+        // The spin advances the clock on every iteration, so a slow machine could push early crashes out of the default window.
+        await using var h = new SupervisorHarness(HostBodies.Scripted(), time, o => o with { RestartWindow = TimeSpan.FromDays(365) });
 
         h.Supervisor.Start();
         await Spin.AdvanceUntilAsync(time, h.Supervisor.WaitForStateAsync(PluginHostState.Unavailable, Ct), TimeSpan.FromSeconds(1));
