@@ -40,6 +40,57 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
 
     public static bool IsInstalled => File.Exists(ServiceExe);
 
+    /// <summary>
+    /// When the uninstaller runs from the install directory, copies that directory to %TEMP%, starts the copy with the same
+    /// arguments and returns <see langword="true"/>: the caller exits so none of the install directory stays in use.
+    /// </summary>
+    public static bool TryRelocateUninstaller(IReadOnlyList<string> args)
+    {
+        string? self = Environment.ProcessPath;
+        if (self is null || args.Contains(RelocatedFlag, StringComparer.OrdinalIgnoreCase)
+            || !self.StartsWith(InstallDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string temp = Path.Combine(Path.GetTempPath(), "WindowsDetox-Uninstall-" + Guid.NewGuid().ToString("N"));
+        foreach (string file in Directory.EnumerateFiles(InstallDirectory, "*", SearchOption.AllDirectories))
+        {
+            string target = Path.Combine(temp, Path.GetRelativePath(InstallDirectory, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+
+        var info = new ProcessStartInfo(Path.Combine(temp, Path.GetFileName(self))) { UseShellExecute = false, WorkingDirectory = temp };
+        foreach (string arg in args.Append(RelocatedFlag))
+        {
+            info.ArgumentList.Add(arg);
+        }
+
+        using Process? _ = Process.Start(info);
+        return true;
+    }
+
+    /// <summary>Schedules the relocated uninstaller copy for deletion at the next restart (it is running, so it cannot delete itself now).</summary>
+    public static void ScheduleOwnCopyForDeletion()
+    {
+        string? dir = Path.GetDirectoryName(Environment.ProcessPath);
+        if (dir is null || !Path.GetFileName(dir).StartsWith("WindowsDetox-Uninstall-", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // Never delete now: the runtime loads some of these files lazily, even during shutdown.
+        foreach (string path in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+            .Append(dir))
+        {
+            _ = MoveFileEx(path, null, MoveFileDelayUntilReboot);
+        }
+    }
+
+    private const string RelocatedFlag = "--relocated";
+
     public async Task InstallAsync(CancellationToken ct)
     {
         if (IsInstalled)
@@ -109,6 +160,7 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
 
         progress.Report("Removing files...");
         bool pending = await Task.Run(() => DeleteTree(InstallDirectory) | DeleteTree(DataDirectory), ct).ConfigureAwait(false);
+        ScheduleOwnCopyForDeletion();
         progress.Report("Done.");
         return pending;
     }

@@ -13,6 +13,12 @@ internal sealed partial class App : Application
     {
         base.OnStartup(e);
         bool uninstall = !SetupEngine.HasPayload || e.Args.Any(a => string.Equals(a, "--uninstall", StringComparison.OrdinalIgnoreCase));
+        if (uninstall && SetupEngine.TryRelocateUninstaller(e.Args))
+        {
+            Shutdown(0); // the copy in %TEMP% continues, so every file in the install directory can be deleted
+            return;
+        }
+
         if (!e.Args.Any(a => string.Equals(a, "--quiet", StringComparison.OrdinalIgnoreCase)))
         {
             MainWindow = new MainWindow(uninstall);

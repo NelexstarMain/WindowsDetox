@@ -1,4 +1,9 @@
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Security;
+using Windows.Win32.Security.Authorization;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Blocker.Core.Ipc;
@@ -48,7 +53,9 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
     // SY: SYSTEM (GA = all). BA/AU/RC/AC: 0x12008b = READ_CONTROL | SYNCHRONIZE | FILE_READ_ATTRIBUTES | FILE_READ_EA | FILE_WRITE_DATA | FILE_READ_DATA.
     // The label S:(ML;;NW;;;LW) makes the pipe writable from Low integrity.
     private const string PluginHostSddl =
-        "D:P(A;;GA;;;SY)(A;;0x12008b;;;BA)(A;;0x12008b;;;AU)(A;;0x12008b;;;RC)(A;;0x12008b;;;AC)S:(ML;;NW;;;LW)";
+        "D:P(A;;GA;;;SY)(A;;0x12008b;;;BA)(A;;0x12008b;;;AU)(A;;0x12008b;;;RC)(A;;0x12008b;;;AC)";
+
+    private const string LowLabelSddl = "S:(ML;;NW;;;LW)";
 
     /// <inheritdoc/>
     public NamedPipeServerStream Create(string pipeName, bool isFirstInstance)
@@ -59,7 +66,7 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
             options |= PipeOptions.FirstPipeInstance;
         }
 
-        return NamedPipeServerStreamAcl.Create(
+        NamedPipeServerStream pipe = NamedPipeServerStreamAcl.Create(
             pipeName,
             PipeDirection.InOut,
             NamedPipeServerStream.MaxAllowedServerInstances,
@@ -68,6 +75,74 @@ public sealed class SecurePipeListenerFactory(SecurePipeProfile profile = Secure
             inBufferSize: 0,
             outBufferSize: 0,
             BuildSecurity(profile));
+        if (profile == SecurePipeProfile.PluginHost)
+        {
+            try
+            {
+                ApplyLowLabel(pipe);
+            }
+            catch
+            {
+                pipe.Dispose();
+                throw;
+            }
+        }
+
+        return pipe;
+    }
+
+    /// <summary>
+    /// Sets the Low mandatory label with <c>LABEL_SECURITY_INFORMATION</c>, which only needs WRITE_OWNER (the creator has it).
+    /// Passing the label inside the creation descriptor makes .NET write a SACL, which needs SeSecurityPrivilege that a
+    /// service does not have enabled (ERROR_PRIVILEGE_NOT_HELD).
+    /// </summary>
+    private static unsafe void ApplyLowLabel(NamedPipeServerStream pipe)
+    {
+        if (!PInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(LowLabelSddl, PInvoke.SDDL_REVISION_1, out PSECURITY_DESCRIPTOR descriptor, out _))
+        {
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "ConvertStringSecurityDescriptorToSecurityDescriptor failed");
+        }
+
+        try
+        {
+            ACL* sacl = null;
+            BOOL present, defaulted;
+            if (!PInvoke.GetSecurityDescriptorSacl(descriptor, &present, &sacl, &defaulted))
+            {
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "GetSecurityDescriptorSacl failed");
+            }
+
+            bool added = false;
+            WIN32_ERROR error;
+            try
+            {
+                pipe.SafePipeHandle.DangerousAddRef(ref added);
+                error = PInvoke.SetSecurityInfo(
+                    new HANDLE(pipe.SafePipeHandle.DangerousGetHandle()),
+                    SE_OBJECT_TYPE.SE_KERNEL_OBJECT,
+                    OBJECT_SECURITY_INFORMATION.LABEL_SECURITY_INFORMATION,
+                    default,
+                    default,
+                    null,
+                    sacl);
+            }
+            finally
+            {
+                if (added)
+                {
+                    pipe.SafePipeHandle.DangerousRelease();
+                }
+            }
+
+            if (error != WIN32_ERROR.ERROR_SUCCESS)
+            {
+                throw new System.ComponentModel.Win32Exception((int)error, "SetSecurityInfo(label) failed");
+            }
+        }
+        finally
+        {
+            _ = PInvoke.LocalFree(new HLOCAL(descriptor.Value));
+        }
     }
 
     internal static PipeSecurity BuildSecurity(SecurePipeProfile profile)

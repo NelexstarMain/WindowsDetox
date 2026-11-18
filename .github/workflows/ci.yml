@@ -63,6 +63,10 @@ jobs:
             if ($svc.Status -ne 'Running') { throw "$name is not running" }
           }
           if (-not (Test-Path "$env:ProgramFiles\WindowsDetox\Blocker.UI.exe")) { throw 'application files missing' }
+          $pipes = [System.IO.Directory]::GetFiles('\\.\pipe\') | Where-Object { $_ -like '*WindowsDetox*' }
+          $pipes
+          if (-not ($pipes -like '*WindowsDetox.Service')) { throw 'service pipe is not listening (see the service log above)' }
+          if (Select-String -Path "$env:ProgramData\WindowsDetox\logs\*" -Pattern '\[Critical\]' -Quiet) { throw 'the service logged a critical error' }
       - name: Screenshot app
         if: always()
         continue-on-error: true
@@ -79,7 +83,11 @@ jobs:
         run: |
           Get-Process Blocker.UI, Blocker.Stub -ErrorAction SilentlyContinue | Stop-Process -Force
           $u = Start-Process "$env:ProgramFiles\WindowsDetox\Blocker.Setup.exe" -ArgumentList '--uninstall', '--quiet' -Wait -PassThru -RedirectStandardOutput uninstall.log -RedirectStandardError uninstall.err
+          if ($u.ExitCode -ne 0) { throw "uninstaller launcher exit code $($u.ExitCode)" }
+          # The launcher hands over to a copy in %TEMP% so the install directory can be deleted; wait for that copy.
+          for ($i = 0; $i -lt 120 -and (Get-Process Blocker.Setup -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
           Get-Content uninstall.log, uninstall.err
-          if ($u.ExitCode -notin 0, 3) { throw "uninstall exit code $($u.ExitCode)" }
+          if (Get-Process Blocker.Setup -ErrorAction SilentlyContinue) { throw 'uninstaller still running' }
+          if (Test-Path "$env:ProgramFiles\WindowsDetox") { Get-ChildItem -Recurse "$env:ProgramFiles\WindowsDetox" | Select-Object -First 20 FullName; throw 'install directory left behind' }
           if (Get-Service WindowsDetoxService -ErrorAction SilentlyContinue) { throw 'service still registered' }
           if (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name WindowsDetoxAgent -ErrorAction SilentlyContinue) { throw 'agent autorun left behind' }
