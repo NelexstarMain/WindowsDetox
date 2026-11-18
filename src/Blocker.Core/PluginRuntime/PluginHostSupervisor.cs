@@ -275,7 +275,7 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
                 IpcMethods.HostInvokePluginMethod, new InvokePluginMethodRequest(pluginId, method, payloadJson), _options.InvokeTimeout, cancellationToken).ConfigureAwait(false);
             return response.PayloadJson;
         }
-        catch (Exception ex) when (ex is TimeoutException or IOException or PluginHostUnavailableException)
+        catch (Exception ex) when (ex is TimeoutException or IOException or ObjectDisposedException or PluginHostUnavailableException)
         {
             throw new IpcException(IpcErrorCode.Internal, "The plugin host is not available.");
         }
@@ -331,7 +331,7 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
                     IpcMethods.HostEvaluatePackage, IpcJson.ToElement(new EvaluatePackageRequest(base64)), _options.EvaluateTimeout, cancellationToken).ConfigureAwait(false);
                 return IpcJson.FromElement<PluginInstallReportDto>(result);
             }
-            catch (Exception ex) when (ex is TimeoutException or IOException or IpcException or JsonException)
+            catch (Exception ex) when (ex is TimeoutException or IOException or ObjectDisposedException or IpcException or JsonException)
             {
                 LogEvaluationFailed(_logger, ex.GetType().Name);
                 return HostFailure("The plugin check did not complete. Try again.");
@@ -590,7 +590,7 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
             _ = await host.Peer.InvokeAsync(IpcMethods.HostShutdown, IpcJson.ToElement(new EmptyDto()), _options.ShutdownTimeout, CancellationToken.None).ConfigureAwait(false);
             await host.Process.WaitForExitAsync(CancellationToken.None).WaitAsync(_options.ShutdownTimeout, _time).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is TimeoutException or IOException or IpcException)
+        catch (Exception ex) when (ex is TimeoutException or IOException or ObjectDisposedException or IpcException)
         {
             LogShutdownForced(_logger, ex.GetType().Name);
         }
@@ -602,7 +602,7 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
         {
             return await CallAsync<TRequest, TResponse>(method, request, timeout, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is TimeoutException or IOException or IpcException or PluginHostUnavailableException)
+        catch (Exception ex) when (ex is TimeoutException or IOException or ObjectDisposedException or IpcException or PluginHostUnavailableException)
         {
             LogCallFailed(_logger, method, ex.GetType().Name);
             return fallback;

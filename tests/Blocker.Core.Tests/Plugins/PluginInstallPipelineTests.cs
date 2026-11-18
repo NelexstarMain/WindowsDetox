@@ -241,7 +241,13 @@ public sealed class PluginInstallPipelineTests
     [Fact]
     public async Task The_plugin_context_is_unloaded_after_evaluation()
     {
-        PluginInstallReport report = await EvaluateStarterAsync();
+        // A unique id: other test classes load the starter template in parallel, and their contexts must not count here.
+        const string UniqueId = "com.example.unload-check";
+        PluginInstallReport report = await EvaluateStarterAsync(files =>
+        {
+            files["plugin.json"] = files["plugin.json"].Replace("com.example.focus-counter", UniqueId, StringComparison.Ordinal);
+            files["PluginTests.cs"] = files["PluginTests.cs"].Replace("com.example.focus-counter", UniqueId, StringComparison.Ordinal);
+        });
 
         Assert.True(report.Succeeded);
         bool unloaded = false;
@@ -249,7 +255,7 @@ public sealed class PluginInstallPipelineTests
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            unloaded = !System.Runtime.Loader.AssemblyLoadContext.All.Any(c => c.Name == "plugin:com.example.focus-counter");
+            unloaded = !System.Runtime.Loader.AssemblyLoadContext.All.Any(c => c.Name == "plugin:" + UniqueId);
         }
 
         Assert.True(unloaded);

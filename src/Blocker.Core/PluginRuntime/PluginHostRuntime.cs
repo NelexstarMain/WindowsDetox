@@ -592,9 +592,35 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
             return (null, Failure(id, info, error));
         }
 
+        await WarmUpAsync(plugin, cancellationToken).ConfigureAwait(false);
         plugin.Activate();
         LogLoaded(_logger, id.Value);
         return (plugin, null);
+    }
+
+    /// <summary>
+    /// A plugin is compiled in memory, so its render code is JIT-compiled on first use. That first render easily exceeds the
+    /// callback budget, and a contribution over budget is left out of the slot: the plugin's page would stay missing until the next
+    /// refresh. Render each contribution once here, under the initialization budget, and discard the result. Failures are only logged:
+    /// the real renders still run under the plugin's own circuit breaker.
+    /// </summary>
+    private async Task WarmUpAsync(LoadedPlugin plugin, CancellationToken cancellationToken)
+    {
+        var warmUp = new PluginCircuitBreaker(plugin.Id, _clock, _options.Breaker with { Budget = _options.InitializeBudget });
+        foreach (UiSlot slot in Enum.GetValues<UiSlot>())
+        {
+            foreach (ExtensionEntry entry in plugin.Extensions.Snapshot().Where(e => ContributionIds.Contributes(slot, e.Extension)))
+            {
+                string contributionId = ContributionIds.For(slot, entry.Index);
+                var context = new UiRenderContext(_session.Current, new ContributionSurface(this, plugin.Id, contributionId));
+                BreakerResult<UiContributionDto?> result = await warmUp.ExecuteAsync<UiContributionDto?>(
+                    token => RenderCoreAsync(plugin.Id, entry.Extension, slot, contributionId, context, token), null, cancellationToken).ConfigureAwait(false);
+                if (result.Error is { } error)
+                {
+                    LogRenderFailed(_logger, plugin.Id.Value, contributionId, error.GetType().Name);
+                }
+            }
+        }
     }
 
     private PluginRuntimeStatus Failure(PluginId id, PluginInfo? info, string error)
