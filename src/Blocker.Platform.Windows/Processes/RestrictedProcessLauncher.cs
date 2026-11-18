@@ -80,12 +80,13 @@ public sealed class RestrictedProcessLauncher : IRestrictedProcessLauncher
                 throw new Win32Exception(error);
             }
 
-            stage("apply the UI restrictions");
-            _ = TryApplyUiRestrictions(job);
-
             stage("resume the process");
             started.Resume();
             started.Thread.Dispose();
+
+            // After the first instructions ran: UI limits in place while the process initialises can make its start fail
+            // (STATUS_DLL_INIT_FAILED). They still apply to everything the running host does afterwards.
+            _ = TryApplyUiRestrictions(job);
             return new RestrictedProcess(job, started.Process, started.ProcessId);
         }
         catch
