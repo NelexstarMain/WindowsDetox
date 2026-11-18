@@ -31,7 +31,7 @@ internal sealed record InstallTestResult(string Name, bool Passed, string? Detai
 /// <param name="PluginId">Id of the installed plugin, if any.</param>
 /// <param name="Stages">Pipeline stages in execution order.</param>
 /// <param name="Errors">Errors that are not individual test results.</param>
-/// <param name="Tests">Per-test outcomes parsed from the service's messages (failures only; passing tests are not listed by the service).</param>
+/// <param name="Tests">Per-test outcomes: every test that ran when the service reports them, otherwise the failures parsed from its messages.</param>
 internal sealed record PluginInstallReport(
     bool Succeeded,
     string? PluginId,
@@ -47,8 +47,9 @@ internal sealed record PluginInstallReport(
 }
 
 /// <summary>
-/// Maps <see cref="InstallPluginResponse"/> to a stage-by-stage report. The wire response carries only a flat error list,
-/// so the failing stage is inferred from the message shapes the install pipeline produces.
+/// Maps <see cref="InstallPluginResponse"/> to a stage-by-stage report. Current services name the failing stage and list every test
+/// that ran; for responses of older services without those members the failing stage is inferred from the message shapes the install
+/// pipeline produces and test results are parsed from the error list.
 /// </summary>
 internal static class PluginInstallReportMapper
 {
@@ -61,25 +62,35 @@ internal static class PluginInstallReportMapper
     public static PluginInstallReport Map(InstallPluginResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
+        List<InstallTestResult> reported = [.. response.Tests?.Select(ToResult) ?? []];
         if (response.Success)
         {
-            return new PluginInstallReport(true, response.PluginId, [.. StageNames.Select(n => new InstallStage(n, InstallStageStatus.Passed))], [], []);
+            return new PluginInstallReport(true, response.PluginId, [.. StageNames.Select(n => new InstallStage(n, InstallStageStatus.Passed))], [], reported);
         }
 
-        List<InstallTestResult> tests = [];
+        List<InstallTestResult> tests = reported;
         List<string> errors = [];
         int failedStage = 0;
         foreach (string error in response.Errors)
         {
             if (TryParseTest(error, out InstallTestResult? test))
             {
-                tests.Add(test);
+                if (response.Tests is null)
+                {
+                    tests.Add(test);
+                }
+
                 failedStage = Math.Max(failedStage, 5);
                 continue;
             }
 
             errors.Add(error);
             failedStage = Math.Max(failedStage, ClassifyStage(error));
+        }
+
+        if (StageIndex(response.FailedStage) is { } named)
+        {
+            failedStage = named;
         }
 
         if (response.Errors.Count == 0)
@@ -95,6 +106,23 @@ internal static class PluginInstallReportMapper
         ];
         return new PluginInstallReport(false, response.PluginId, stages, errors, tests);
     }
+
+    /// <summary>Position of a stage named by the service; <c>Host</c> (the check did not complete) is before every stage; unknown names are <see langword="null"/>.</summary>
+    private static int? StageIndex(string? stage) => stage switch
+    {
+        "Package" => 0,
+        "Manifest" => 1,
+        "Policy" => 2,
+        "Compile" => 3,
+        "Load" => 4,
+        "Tests" => 5,
+        "Host" => -1,
+        _ => null,
+    };
+
+    private static InstallTestResult ToResult(PluginTestResultDto test) => test.Outcome == PluginTestOutcomeDto.Passed
+        ? new InstallTestResult(test.Name, true, null)
+        : new InstallTestResult(test.Name, false, string.IsNullOrEmpty(test.Message) ? test.Outcome.ToString() : $"{test.Outcome}: {test.Message}");
 
     private static bool TryParseTest(string error, out InstallTestResult test)
     {

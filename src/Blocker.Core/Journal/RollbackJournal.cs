@@ -119,6 +119,23 @@ public sealed class RollbackJournal(
         }
     }
 
+    /// <summary>
+    /// Removes every artifact that carries this installation's <c>BlockerOwned</c> marker, whatever the journal says (uninstall and offline
+    /// recovery run it after <see cref="RollbackAllAsync"/> as a safety net). The journal file is deleted when every sweep succeeded.
+    /// </summary>
+    public async ValueTask<RollbackReport> SweepAllAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await SweepAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     /// <summary>True when changes are not fully reverted, or the journal is damaged and needs a sweep.</summary>
     public async ValueTask<bool> HasPendingChangesAsync(CancellationToken cancellationToken)
     {

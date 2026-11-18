@@ -34,6 +34,26 @@ public sealed partial class EnforcementCoordinator
         return [root + @"\system32", root + @"\syswow64", root + @"\systemapps"];
     }
 
+    /// <summary>
+    /// Blocks the process behind a foreground window that a plugin's window interceptor vetoed: terminated and replaced by the block screen,
+    /// exactly like a disallowed process. Only while the session is enforced (not during a pass), never for critical or Blocker's own
+    /// processes, and never when the image is unknown (it cannot be proven non-critical).
+    /// </summary>
+    /// <returns><see langword="true"/> when the process was handed to the block pipeline.</returns>
+    public async ValueTask<bool> BlockWindowProcessAsync(int processId, long startTimeTicks, string imagePath, string? reason, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(imagePath);
+        if (_runtime is not { } runtime || session.Snapshot.Phase != SessionPhase.Active || imagePath.Length == 0 || runtime.Critical.IsCritical(imagePath))
+        {
+            return false;
+        }
+
+        var process = new ProcessInfo(processId, 0, 1, imagePath, startTimeTicks);
+        var verdict = new ProcessVerdict(VerdictKind.Block, VerdictReason.PluginInterceptor, reason);
+        await BlockAsync(runtime, new BlockDecision(process, verdict, Describe(process, null, null)), graceful: false, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     private void OnProcessStarted(object? sender, ProcessStartedEventArgs e) => Enqueue(new WorkItem(e.Process, default));
 
     private void OnProcessExited(object? sender, ProcessExitedEventArgs e) =>

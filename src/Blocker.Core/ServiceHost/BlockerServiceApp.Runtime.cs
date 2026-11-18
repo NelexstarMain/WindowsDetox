@@ -1,0 +1,200 @@
+using System.IO.Abstractions;
+using System.Text.Json;
+using Blocker.Contracts;
+using Blocker.Core.Orchestration;
+using Blocker.Core.Ports;
+using Blocker.Core.Security;
+using Blocker.Core.Supervision;
+using Blocker.Sdk.Extensions;
+using Blocker.Sdk.Model;
+using Blocker.Sdk.Session;
+using Microsoft.Extensions.Logging;
+
+namespace Blocker.Core.ServiceHost;
+
+// Recovery, background loops and the status synchronization of the running service.
+public sealed partial class BlockerServiceApp
+{
+    private void OnNotification(object? sender, EnforcementNotification notification) => _notifications.Enqueue(notification);
+
+    private async ValueTask<IReadOnlyList<InterceptDecision>> InterceptProcessAsync(ProcessDescriptor process, CancellationToken cancellationToken)
+    {
+        InterceptResponse response = await _gateway.InterceptProcessAsync(process, cancellationToken).ConfigureAwait(false);
+        return response.Block
+            ? [InterceptDecision.Block(string.IsNullOrWhiteSpace(response.Reason) ? "Blocked by a plugin." : response.Reason)]
+            : [];
+    }
+
+    /// <summary>
+    /// Restores a persisted session. A session file that fails verification cannot be resumed (its break-glass verifier is in it): it is
+    /// removed and the leftovers of the journal are rolled back, so a damaged file never leaves the machine locked with nothing to unlock it.
+    /// </summary>
+    private async Task RecoverAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Coordinator.RecoverOnStartupAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is TamperDetectedException or JsonException)
+        {
+            LogSessionStoreDamaged(_logger, ex);
+            await _sessionStore.ClearAsync(cancellationToken).ConfigureAwait(false);
+            await Coordinator.RecoverOnStartupAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Brings every consumer of the session state up to date: pushes the status to subscribed clients, tells the plugin host, writes the
+    /// supervision file and makes sure the watchdog runs while a session does. Safe to call from anywhere; calls are serialized.
+    /// </summary>
+    internal async ValueTask SyncStatusAsync(CancellationToken cancellationToken)
+    {
+        await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SessionSnapshot snapshot = Coordinator.Snapshot;
+            var status = SessionStatusDto.From(snapshot);
+            if (status != _lastPublished)
+            {
+                _lastPublished = status;
+                await Server.PublishAsync(IpcMethods.EventSessionChanged, status, cancellationToken).ConfigureAwait(false);
+            }
+
+            await SyncSupervisionAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            (SessionPhase, Guid?, int) hostState = (snapshot.Phase, snapshot.SessionId, snapshot.EmergencyPassesLeftToday);
+            if (_lastHostState != hostState)
+            {
+                _lastHostState = hostState;
+                await _gateway.NotifySessionChangedAsync(snapshot, VerifiedOrSystemNow(), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogSyncFailed(_logger, ex);
+        }
+        finally
+        {
+            _ = _syncGate.Release();
+        }
+    }
+
+    private DateTimeOffset VerifiedOrSystemNow() => _verified.TryGetUtcNow(out DateTimeOffset utc) ? utc : _ports.Time.GetUtcNow();
+
+    private async ValueTask SyncSupervisionAsync(SessionSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        bool active = snapshot.IsSessionRunning;
+        if (_lastActive != active || _lastSessionId != snapshot.SessionId)
+        {
+            try
+            {
+                await _supervisionFile.WriteAsync(new SupervisionStatus(active, snapshot.SessionId, _ports.Time.GetUtcNow()), cancellationToken).ConfigureAwait(false);
+                (_lastActive, _lastSessionId, _watchdogEnsured) = (active, snapshot.SessionId, false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                LogSupervisionWriteFailed(_logger, ex); // retried by the next sync: _lastActive was not updated
+            }
+        }
+
+        if (active && !_watchdogEnsured && _ports.ServiceInstaller is { } installer)
+        {
+            try
+            {
+                installer.EnsureStarted(BlockerServiceNames.Watchdog);
+                _watchdogEnsured = true;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _watchdogEnsured = true; // one warning per session, not one per second: the mutual supervisor keeps trying
+                LogWatchdogStartFailed(_logger, ex);
+            }
+        }
+    }
+
+    private async Task RunGuardedAsync(string name, Func<CancellationToken, Task> body)
+    {
+        try
+        {
+            await body(_stop.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested)
+        {
+            LogLoopStopped(_logger, name);
+        }
+        catch (Exception ex)
+        {
+            LogBackgroundFailed(_logger, ex, name);
+        }
+    }
+
+    private async Task RefreshTimeLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(_verified.HasAnchor ? TimeRefreshInterval : TimeRetryInterval, _ports.Time, cancellationToken).ConfigureAwait(false);
+            _ = await _verified.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task StatusLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(StatusInterval, _ports.Time);
+        while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await SyncStatusAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ScanOnceAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<InstalledApp> apps = await _ports.AppScanner.ScanAsync(cancellationToken).ConfigureAwait(false);
+        if (await Coordinator.UpdateScannedAppsAsync(apps, cancellationToken).ConfigureAwait(false))
+        {
+            await _scanCache.SaveAsync(apps, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Blocker service started (session phase {Phase}).")]
+    private static partial void LogStarted(ILogger logger, SessionPhase phase);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Blocker service stopped; an active session stays in force.")]
+    private static partial void LogStopped(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Critical, Message = "The session file failed verification and was discarded; leftover protections are rolled back.")]
+    private static partial void LogSessionStoreDamaged(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Synchronizing the session status failed.")]
+    private static partial void LogSyncFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Writing the supervision status failed; retrying.")]
+    private static partial void LogSupervisionWriteFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Starting the watchdog service failed.")]
+    private static partial void LogWatchdogStartFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Background loop '{Name}' stopped.")]
+    private static partial void LogLoopStopped(ILogger logger, string name);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Background loop '{Name}' failed.")]
+    private static partial void LogBackgroundFailed(ILogger logger, Exception exception, string name);
+}
+
+/// <summary>The ownership marker of this installation (<c>BlockerOwned=&lt;installId&gt;</c>), generated once and kept in a plain file.</summary>
+public static class InstallIdStore
+{
+    /// <summary>Reads the install id, creating it when the file is missing or damaged.</summary>
+    /// <param name="fileSystem">File system.</param>
+    /// <param name="path">File path.</param>
+    /// <returns>A 32-character hex id.</returns>
+    public static string LoadOrCreate(IFileSystem fileSystem, string path)
+    {
+        if (fileSystem.File.Exists(path) && fileSystem.File.ReadAllText(path).Trim() is { Length: 32 } existing && existing.All(char.IsAsciiHexDigit))
+        {
+            return existing;
+        }
+
+        string id = Guid.NewGuid().ToString("N");
+        AtomicFile.Write(fileSystem, path, System.Text.Encoding.ASCII.GetBytes(id));
+        return id;
+    }
+}

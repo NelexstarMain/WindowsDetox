@@ -24,6 +24,9 @@ public sealed class BypassTools
 
     private readonly FrozenSet<string> _hashes;
 
+    /// <summary>Gets the image names (without extension) of the known bypass tools, in ordinal order.</summary>
+    public static IReadOnlyList<string> KnownImageNames { get; } = [.. Names.Order(StringComparer.OrdinalIgnoreCase)];
+
     /// <summary>Creates the matcher with hashes of the real binaries (hex SHA-256, any case).</summary>
     public BypassTools(IEnumerable<string> extraHashes)
     {

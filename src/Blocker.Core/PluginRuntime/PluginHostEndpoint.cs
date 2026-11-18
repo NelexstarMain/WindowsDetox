@@ -18,6 +18,7 @@ public sealed partial class PluginHostEndpoint
 {
     private const int MaxReportedErrors = 50;
     private const int MaxErrorLength = 500;
+    private const int MaxReportedTests = 100;
 
     private readonly IpcClient _client;
     private readonly PluginHostRuntime _runtime;
@@ -116,8 +117,20 @@ public sealed partial class PluginHostEndpoint
             manifest?.Author,
             [.. manifest?.Capabilities.Select(PluginCapabilities.ToManifestName) ?? []],
             tests?.Passed ?? 0,
-            tests?.Results.Count ?? 0);
+            tests?.Results.Count ?? 0,
+            tests is null ? null : [.. tests.Results.Take(MaxReportedTests).Select(ToTestDto)]);
     }
+
+    private static PluginTestResultDto ToTestDto(PluginTestResult result) => new(
+        PluginText.Printable(result.DisplayName, MaxErrorLength),
+        result.Outcome switch
+        {
+            PluginTestOutcome.Passed => PluginTestOutcomeDto.Passed,
+            PluginTestOutcome.TimedOut => PluginTestOutcomeDto.TimedOut,
+            PluginTestOutcome.NotSupported => PluginTestOutcomeDto.NotSupported,
+            _ => PluginTestOutcomeDto.Failed,
+        },
+        result.Message is null ? null : PluginText.Printable(result.Message, MaxErrorLength));
 
     private static OperationResponse ToResponse(UiActionResult result) => result switch
     {

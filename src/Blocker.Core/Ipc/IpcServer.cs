@@ -96,6 +96,7 @@ public sealed partial class IpcServer : IAsyncDisposable
     private readonly TimeProvider _time;
     private readonly ConcurrentDictionary<string, Func<IpcRequestContext, JsonElement, CancellationToken, ValueTask<JsonElement>>> _handlers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Guid, IpcPeer> _peers = new();
+    private volatile Func<IpcRequestContext, JsonElement, CancellationToken, ValueTask<JsonElement>>? _pluginHandler;
     private readonly ConcurrentDictionary<Task, byte> _connectionTasks = new();
     private readonly CancellationTokenSource _stop = new();
     private Task _acceptLoop = Task.CompletedTask;
@@ -159,6 +160,25 @@ public sealed partial class IpcServer : IAsyncDisposable
         }
 
         return new Registration(() => _handlers.TryRemove(new KeyValuePair<string, Func<IpcRequestContext, JsonElement, CancellationToken, ValueTask<JsonElement>>>(method, handler)));
+    }
+
+    /// <summary>
+    /// Registers the single handler that serves every <c>plugin.{pluginId}.{method}</c> request (the methods are only known to the plugins).
+    /// The wire method name is available as <see cref="IpcRequestContext.Method"/>; role, session and size rules of
+    /// <see cref="IpcMethodPolicy.PluginRule"/> still apply.
+    /// </summary>
+    /// <param name="handler">Receives the parameters (an empty object when absent) and returns a JSON object.</param>
+    /// <returns>A registration; dispose to remove the handler.</returns>
+    /// <exception cref="InvalidOperationException">A plugin handler is already registered.</exception>
+    public IDisposable RegisterPluginHandler(Func<IpcRequestContext, JsonElement, CancellationToken, ValueTask<JsonElement>> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        if (Interlocked.CompareExchange(ref _pluginHandler, handler, null) is not null)
+        {
+            throw new InvalidOperationException("A plugin handler is already registered.");
+        }
+
+        return new Registration(() => Interlocked.CompareExchange(ref _pluginHandler, null, handler) == handler);
     }
 
     /// <summary>Registers a typed handler; parameters are parsed strictly and a malformed request becomes <see cref="IpcErrorCode.InvalidRequest"/>.</summary>
@@ -401,6 +421,11 @@ public sealed partial class IpcServer : IAsyncDisposable
             }
 
             _handlers.TryGetValue(method, out var handler);
+            if (handler is null && ReferenceEquals(rule, IpcMethodPolicy.PluginRule))
+            {
+                handler = _pluginHandler;
+            }
+
             if (handler is null && method != IpcMethods.EventsSubscribe)
             {
                 return Fail(IpcErrorCode.NotFound, "Unknown method.");

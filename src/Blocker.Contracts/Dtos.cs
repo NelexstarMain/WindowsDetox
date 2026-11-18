@@ -186,11 +186,40 @@ public sealed record ListPluginsResponse(IReadOnlyList<PluginInfoDto> Plugins);
 /// <param name="PackageBase64">The plugin ZIP, base64 encoded.</param>
 public sealed record InstallPluginRequest(string PackageBase64);
 
+/// <summary>Outcome of one plugin test, as reported by the install pipeline.</summary>
+public enum PluginTestOutcomeDto
+{
+    /// <summary>The test passed.</summary>
+    Passed,
+
+    /// <summary>The test threw or violated a runner rule.</summary>
+    Failed,
+
+    /// <summary>The test exceeded its time budget.</summary>
+    TimedOut,
+
+    /// <summary>The test uses a feature the runner does not implement.</summary>
+    NotSupported,
+}
+
+/// <summary>Result of one plugin test.</summary>
+/// <param name="Name">Test display name.</param>
+/// <param name="Outcome">Outcome.</param>
+/// <param name="Message">Failure message; absent when the test passed.</param>
+public sealed record PluginTestResultDto(string Name, PluginTestOutcomeDto Outcome, string? Message = null);
+
 /// <summary>Result of <see cref="IpcMethods.PluginsInstall"/>.</summary>
 /// <param name="Success">Whether the plugin was installed.</param>
 /// <param name="PluginId">Id of the installed plugin.</param>
 /// <param name="Errors">Validation, compile or test errors.</param>
-public sealed record InstallPluginResponse(bool Success, string? PluginId, IReadOnlyList<string> Errors);
+/// <param name="FailedStage">Name of the pipeline stage that failed (<c>Package</c>, <c>Manifest</c>, <c>Policy</c>, <c>Compile</c>, <c>Load</c>, <c>Tests</c> or <c>Host</c>); absent on success and from older services.</param>
+/// <param name="Tests">Every test that ran, passing ones included; absent when the tests did not run.</param>
+public sealed record InstallPluginResponse(
+    bool Success,
+    string? PluginId,
+    IReadOnlyList<string> Errors,
+    string? FailedStage = null,
+    IReadOnlyList<PluginTestResultDto>? Tests = null);
 
 /// <summary>Parameters of <see cref="IpcMethods.PluginsRemove"/>.</summary>
 /// <param name="PluginId">Plugin to remove.</param>

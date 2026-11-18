@@ -66,4 +66,75 @@ public sealed class PluginInstallReportMapperTests
 
         Assert.Equal(["The plugin was not installed."], report.Errors);
     }
+
+    [Theory]
+    [InlineData("Package", "Package")]
+    [InlineData("Manifest", "Manifest")]
+    [InlineData("Policy", "API policy")]
+    [InlineData("Compile", "Compile")]
+    [InlineData("Load", "Load")]
+    [InlineData("Tests", "Tests")]
+    public void The_stage_named_by_the_service_wins_over_the_shape_of_the_messages(string stage, string expected)
+    {
+        PluginInstallReport report = PluginInstallReportMapper.Map(new InstallPluginResponse(false, null, ["Something the heuristic cannot place."], stage));
+
+        int failedIndex = report.Stages.ToList().FindIndex(s => s.Status == InstallStageStatus.Failed);
+        Assert.Equal(expected, report.Stages[failedIndex].Name);
+        Assert.All(report.Stages.Take(failedIndex), s => Assert.Equal(InstallStageStatus.Passed, s.Status));
+        Assert.All(report.Stages.Skip(failedIndex + 1), s => Assert.Equal(InstallStageStatus.NotRun, s.Status));
+        Assert.Equal(["Something the heuristic cannot place."], report.Errors);
+    }
+
+    [Fact]
+    public void A_host_failure_means_no_stage_was_reached_and_an_unknown_stage_falls_back_to_the_messages()
+    {
+        PluginInstallReport host = PluginInstallReportMapper.Map(new InstallPluginResponse(false, null, ["The plugin check did not complete. Try again."], "Host"));
+        PluginInstallReport unknown = PluginInstallReportMapper.Map(new InstallPluginResponse(false, null, ["Plugin.cs(4,9): error CS1002: ; expected"], "FutureStage"));
+
+        Assert.All(host.Stages, s => Assert.Equal(InstallStageStatus.NotRun, s.Status));
+        Assert.Equal(["The plugin check did not complete. Try again."], host.Errors);
+        Assert.Equal(InstallStageStatus.Failed, unknown.Stages.Single(s => s.Name == "Compile").Status);
+    }
+
+    [Fact]
+    public void Tests_reported_by_the_service_include_the_passing_ones_and_are_not_repeated_as_errors()
+    {
+        PluginInstallReport report = PluginInstallReportMapper.Map(new InstallPluginResponse(
+            false,
+            "my.plugin",
+            ["Failed: Tests.Adds: expected 3 but was 4"],
+            "Tests",
+            [
+                new PluginTestResultDto("Tests.Ok", PluginTestOutcomeDto.Passed),
+                new PluginTestResultDto("Tests.Adds", PluginTestOutcomeDto.Failed, "expected 3 but was 4"),
+                new PluginTestResultDto("Tests.Slow", PluginTestOutcomeDto.TimedOut, "exceeded 2 s"),
+                new PluginTestResultDto("Tests.Data", PluginTestOutcomeDto.NotSupported),
+            ]));
+
+        Assert.Equal(["Tests.Ok", "Tests.Adds", "Tests.Slow", "Tests.Data"], report.Tests.Select(t => t.Name));
+        Assert.Equal([true, false, false, false], report.Tests.Select(t => t.Passed));
+        Assert.Null(report.Tests[0].Detail);
+        Assert.Equal("Failed: expected 3 but was 4", report.Tests[1].Detail);
+        Assert.Equal("TimedOut: exceeded 2 s", report.Tests[2].Detail);
+        Assert.Equal("NotSupported", report.Tests[3].Detail);
+        Assert.Empty(report.Errors);
+        Assert.Equal(InstallStageStatus.Failed, report.Stages[^1].Status);
+        Assert.All(report.Stages.Take(5), s => Assert.Equal(InstallStageStatus.Passed, s.Status));
+    }
+
+    [Fact]
+    public void A_successful_install_lists_every_test_as_passed()
+    {
+        PluginInstallReport report = PluginInstallReportMapper.Map(new InstallPluginResponse(
+            true,
+            "my.plugin",
+            [],
+            null,
+            [new PluginTestResultDto("Tests.A", PluginTestOutcomeDto.Passed), new PluginTestResultDto("Tests.B", PluginTestOutcomeDto.Passed)]));
+
+        Assert.True(report.Succeeded);
+        Assert.True(report.HasTests);
+        Assert.All(report.Tests, t => Assert.True(t.Passed));
+        Assert.All(report.Stages, s => Assert.Equal(InstallStageStatus.Passed, s.Status));
+    }
 }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Blocker.Service</RootNamespace>
+    <AssemblyName>Blocker.Service</AssemblyName>
+    <Description>The Blocker Windows service: the only decision maker. Session clock, allowlist enforcement, filter proxy, rollback journal and the IPC pipe.</Description>
+  </PropertyGroup>
+  <!-- Developer abort exists only in Debug builds; a Release build can never enable it, whatever its command line says. -->
+  <PropertyGroup>
+    <DefineConstants Condition="'$(Configuration)'=='Debug'">$(DefineConstants);DEVMODE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Blocker.Contracts\Blocker.Contracts.csproj" />
+    <ProjectReference Include="..\Blocker.Core\Blocker.Core.csproj" />
+    <ProjectReference Include="..\Blocker.Platform.Windows\Blocker.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Blocker.Plugin.Templates\Blocker.Plugin.Templates.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+  </ItemGroup>
+</Project>

@@ -46,7 +46,7 @@ public sealed partial class EnforcementCoordinator(
     internal static readonly TimeSpan GracefulCloseBudget = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ReapplyBackoff = TimeSpan.FromSeconds(10);
 
-    private readonly EnforcementSettings _settings = Validated(settings);
+    private EnforcementSettings _settings = Validated(settings);
     private readonly Func<int, CancellationToken, Task<bool>> _closeGracefully =
         closeGracefully ?? ((pid, ct) => controller.TryCloseGracefullyAsync(pid, GracefulCloseBudget, ct));
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -161,6 +161,31 @@ public sealed partial class EnforcementCoordinator(
             _runtime = runtime;
             LogRecovering(logger, session.Snapshot.Phase);
             await BeginAsync(runtime, strict: false, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Replaces the installed-application inventory that plans the IFEO redirects of the next session. Ignored while a session runs
+    /// (the running session keeps its plan), in which case <see langword="false"/> is returned.
+    /// </summary>
+    public async ValueTask<bool> UpdateScannedAppsAsync(IReadOnlyList<InstalledApp> apps, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(apps);
+        ThrowIfDisposed();
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_runtime is not null)
+            {
+                return false;
+            }
+
+            _settings = _settings with { ScannedApps = [.. apps] };
+            return true;
         }
         finally
         {

@@ -35,6 +35,9 @@ public sealed class CriticalProcesses
         "Blocker.Service", "Blocker.Watchdog", "Blocker.UI", "Blocker.Stub", "Blocker.PluginHost",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gets every protected image name (without extension), Windows and Blocker's own, in ordinal order.</summary>
+    public static IReadOnlyList<string> KnownImageNames { get; } = [.. SystemNames.Concat(OwnNames).Order(StringComparer.OrdinalIgnoreCase)];
+
     private readonly string[] _systemRoots;
     private readonly string _installDirectory;
 

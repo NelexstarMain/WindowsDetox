@@ -99,6 +99,7 @@ public enum PluginInstallStageDto
 /// <param name="Capabilities">Declared capability names.</param>
 /// <param name="TestsPassed">Number of passed plugin tests.</param>
 /// <param name="TestsTotal">Number of plugin tests that ran.</param>
+/// <param name="Tests">Every test that ran; absent when the tests did not run.</param>
 public sealed record PluginInstallReportDto(
     PluginInstallStageDto Stage,
     IReadOnlyList<string> Errors,
@@ -108,7 +109,8 @@ public sealed record PluginInstallReportDto(
     string? Author,
     IReadOnlyList<string> Capabilities,
     int TestsPassed,
-    int TestsTotal)
+    int TestsTotal,
+    IReadOnlyList<PluginTestResultDto>? Tests = null)
 {
     /// <summary>Gets whether the plugin passed every stage.</summary>
     [JsonIgnore]
