@@ -114,7 +114,9 @@ public sealed partial class IpcClient : IAsyncDisposable
     public async ValueTask<JsonElement> InvokeAsync(string method, JsonElement? parameters, CancellationToken cancellationToken)
     {
         var connection = await GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-        return await connection.InvokeAsync(method, parameters, _options.RequestTimeout, cancellationToken).ConfigureAwait(false);
+        // Scanning installed apps walks the disk and can take well over the usual budget on a real machine.
+        var timeout = method == Blocker.Contracts.IpcMethods.AllowlistScanApps ? TimeSpan.FromMinutes(2) : _options.RequestTimeout;
+        return await connection.InvokeAsync(method, parameters, timeout, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Typed request; both types must be registered in <see cref="IpcJsonContext"/>.</summary>

@@ -15,6 +15,12 @@ public sealed class AppInventoryScanner : IAppInventoryScanner
 {
     private static readonly int MaxParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4);
 
+    /// <summary>Hashing stops after this long (apps after it are listed without a hash) so the picker fills promptly.</summary>
+    private static readonly TimeSpan HashBudget = TimeSpan.FromSeconds(15);
+
+    /// <summary>Executables larger than this are not hashed during a scan (games, IDEs): the path still identifies them.</summary>
+    private const long MaxHashBytes = 256L * 1024 * 1024;
+
     private readonly Func<IReadOnlyList<ProcessInfo>> _runningProcesses;
 
     /// <summary>Scanner over the live process list.</summary>
@@ -37,10 +43,11 @@ public sealed class AppInventoryScanner : IAppInventoryScanner
         // Insertion order decides the display name: Start Menu names are the most user-facing.
         var merged = Merge(startMenu.Result.Concat(store.Result).Concat(registry.Result).Concat(running.Result));
         var apps = new InstalledApp[merged.Count];
+        var hashUntil = DateTime.UtcNow + HashBudget;
         await Parallel.ForEachAsync(
             Enumerable.Range(0, merged.Count),
             new ParallelOptions { MaxDegreeOfParallelism = MaxParallelism, CancellationToken = cancellationToken },
-            async (index, token) => apps[index] = await EnrichAsync(merged[index], token).ConfigureAwait(false)).ConfigureAwait(false);
+            async (index, token) => apps[index] = await EnrichAsync(merged[index], DateTime.UtcNow < hashUntil, token).ConfigureAwait(false)).ConfigureAwait(false);
 
         return [.. apps.OrderBy(static a => a.DisplayName, StringComparer.OrdinalIgnoreCase)];
     }
@@ -70,13 +77,17 @@ public sealed class AppInventoryScanner : IAppInventoryScanner
         return [.. byKey.Values];
     }
 
-    private static async Task<InstalledApp> EnrichAsync(AppCandidate candidate, CancellationToken cancellationToken)
+    private static async Task<InstalledApp> EnrichAsync(AppCandidate candidate, bool hashAllowed, CancellationToken cancellationToken)
     {
         string? hash = null;
         var icon = candidate.LogoPng;
         if (candidate.ExecutablePath is { } path && File.Exists(path))
         {
-            hash = await TryHashAsync(path, cancellationToken).ConfigureAwait(false);
+            if (hashAllowed)
+            {
+                hash = await TryHashAsync(path, cancellationToken).ConfigureAwait(false);
+            }
+
             icon ??= IconExtractor.TryExtractPng(path);
         }
 
@@ -87,7 +98,12 @@ public sealed class AppInventoryScanner : IAppInventoryScanner
     {
         try
         {
-            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (stream.Length > MaxHashBytes)
+            {
+                return null;
+            }
+
             return Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

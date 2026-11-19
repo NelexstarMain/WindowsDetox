@@ -20,6 +20,7 @@ internal sealed partial class App : Application
     {
         base.OnStartup(e);
         Motion.Apply(Resources);
+        Behaviors.WheelPassThrough.Register();
         StartupOptions options = StartupOptions.Parse(e.Args);
 
         if (options.IsAgent)
