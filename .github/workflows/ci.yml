@@ -81,19 +81,23 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          mkdir -p docs/screenshots && cp shots/*.png docs/screenshots/
-          # Animation frame sequences: replace the folder so frames of an older, longer recording do not linger.
-          if [ -d shots/anim ]; then
-            rm -rf docs/screenshots/anim
-            cp -r shots/anim docs/screenshots/anim
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/screenshots
-          git diff --cached --quiet && exit 0
-          git commit -m "Update UI screenshots from CI [skip ci]"
+          # Generated images never merge: on every attempt start from the newest remote tip and lay this run's files on top,
+          # so overlapping runs (or a screenshot commit from an earlier run) cannot cause binary conflicts.
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            mkdir -p docs/screenshots && cp shots/*.png docs/screenshots/
+            # Animation frame sequences: replace the folder so frames of an older, longer recording do not linger.
+            if [ -d shots/anim ]; then
+              rm -rf docs/screenshots/anim
+              cp -r shots/anim docs/screenshots/anim
+            fi
+            git add docs/screenshots
+            git diff --cached --quiet && exit 0
+            git commit -m "Update UI screenshots from CI [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
             sleep $((attempt * 5))
           done
           exit 1
