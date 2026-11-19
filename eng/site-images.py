@@ -3,10 +3,23 @@
 
     python3 eng/site-images.py            # from the screenshots CI has produced so far
     python3 eng/site-images.py --in-use   # prefer 18-goals-in-use and 19-session-widgets-in-use once CI has made them
+    python3 eng/site-images.py --out DIR  # write somewhere else (a dry run that leaves site/assets/img alone)
 
 Needs Pillow and ffmpeg. Every capture has a 1 px window-edge line (the focus border), which is cropped off here.
-The loops are made from the frame sequences in docs/screenshots/anim (about 12 fps), cropped to the widget board,
-scaled 1.5x with Lanczos, held for a moment at both ends, and encoded as MP4 and WebM with a WebP poster.
+
+The loops (picker, drag, resize) are made from the frame sequences in docs/screenshots/anim/<name>/NN.png, which
+eng/screenshots.ps1 records at full window size (1000 x 660), about 15 per second, up to 48 frames per clip:
+
+  picker  "+" clicked, rail slides in, pointer on the Goals rail item, flyout, pointer on the "Add Goals & Tasks" banner,
+          click, the widget lands on the board, Esc closes the rail
+  drag    pointer on the first widget, 600 ms long press, slow carry onto the second widget, drop
+  resize  Edit, pointer on the first widget's corner, drag one column right, release, Done
+
+Frames are cropped to the page area only (no sidebar, no title bar, no 1 px edge) and are never upscaled; they are scaled down
+only when the crop is wider than MAX_WIDTH. The picker crop keeps the top of the page, where the rail and its flyout are; the
+drag and resize crops start just above the "Widgets" header, so the idle session clock is not in the picture. The first
+frame is held for 0.7 s and the last one for 1 s, the encode is H.264 (crf 18, yuv420p) and VP9 (crf 30), and each poster is
+the most telling frame of its clip.
 """
 import glob
 import os
@@ -21,6 +34,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SHOTS = os.path.join(ROOT, "docs", "screenshots")
 OUT = os.path.join(ROOT, "site", "assets", "img")
 IN_USE = "--in-use" in sys.argv
+if "--out" in sys.argv:
+    OUT = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
 
 
 def shot(name):
@@ -50,15 +65,27 @@ def inner(im):
 session, session_new = pick("19-session-widgets-in-use", "02-session")
 
 
+def session_scroll(im):
+    """How far the Session page sits below where the coordinates in running_session were measured: the top of the green
+    Start session button was at y 249 there. 0 when it is the same, 65 for a capture of the page scrolled to the top."""
+    for y in range(150, 460):
+        r, g, b = im.getpixel((520, y))
+        if g > b + 40 and g > 90:
+            return y - 249
+    return 0
+
+
 def running_session(im):
     """19-session-widgets-in-use is captured idle: the clock shows its placeholder dashes and there is a Start session button.
     The landing page shows a running session, so the clock face and the button row are painted over with the canvas colour,
     a time is set in the app's clock style (Segoe UI Variable Display Light 74 px, tabular figures, Text.Primary; Inter Display
     Light is the closest face installed here) and the 460 x 4 session progress bar from DashboardPage.xaml takes the buttons' place.
-    Coordinates are in the 1000 x 660 capture, before the 1 px edge is cropped."""
+    Coordinates are in the 1000 x 660 capture, before the 1 px edge is cropped; they were measured on a page scrolled 65 px and
+    are moved by dy, the distance the page is actually scrolled from that (0 then, 65 for an unscrolled capture)."""
+    dy = session_scroll(im)
     canvas = im.getpixel((400, 150))                      # Blocker.Bg.Canvas, flat around the clock
     d = ImageDraw.Draw(im)
-    d.rectangle((300, 150, 930, 300), fill=canvas)        # clock face, buttons: nothing else lives in this band
+    d.rectangle((300, 150 + dy, 994, 300 + dy), fill=canvas)  # clock face, buttons: nothing else lives in this band
     face = None
     for name in ("InterDisplay-Light.otf", "Inter-Light.otf"):
         for base in ("/usr/share/fonts/opentype/inter", "/usr/share/fonts/truetype/inter", os.path.expanduser("~/.fonts")):
@@ -81,13 +108,13 @@ def running_session(im):
     mask = big.resize((big.width // k, big.height // k), Image.LANCZOS)
     mbox = (box[0] // k, box[1] // k, -(-box[2] // k), -(-box[3] // k))
     glyphs = mask.crop(mbox)
-    cx, baseline = 611, 206                               # centre of the old clock and of the button row; baseline of the old colon dots
+    cx, baseline = 611, 206 + dy                          # centre of the old clock and of the button row; baseline of the old colon dots
     x = cx - glyphs.width // 2
     y = baseline - glyphs.height
     ink = (238, 240, 244)                                 # Text.Primary #EEF0F4
     im.paste(Image.new("RGB", glyphs.size, ink), (x, y), glyphs)
     # ProgressBar: 460 x 4, track #16181F, fill Blocker.Accent.Bar #7C913D, about 30 % of a two hour session elapsed.
-    bx, by = cx - 230, 246
+    bx, by = cx - 230, 246 + dy
     d.rectangle((bx, by, bx + 459, by + 3), fill=(22, 24, 31))
     d.rectangle((bx, by, bx + 459 * 30 // 100, by + 3), fill=(124, 145, 61))
     return im
@@ -113,49 +140,77 @@ else:
     save(Image.open(goals).convert("RGB").crop((255, 95, 968, 397)), "plugin-goals.webp")
 
 # --- Loops ------------------------------------------------------------------------------------------------------------
-CROP = (108, 28, 500, 320)  # the session page without its sidebar: timer, buttons and the widget board (392x292)
-SCALE = 1.5
-FPS = 12
+FPS = 15                # what eng/screenshots.ps1 records at
+HOLD_START = 0.7        # seconds the first frame stays
+HOLD_END = 1.0          # seconds the last frame stays (the result)
+MAX_WIDTH = 900         # wider crops are scaled down to this; narrower ones are left alone
+SIDEBAR = 218           # the left navigation, in pixels of a 1000 px wide capture
 CLIPS = {
-    # name: (frames to hold at the start, frames to hold at the end, poster frame)
-    "picker": (5, 7, 13),
-    "drag": (2, 9, 7),
-    "resize": (4, 9, 12),
+    # name: (crop top as a fraction of the frame height, poster frame as a fraction of the clip)
+    # picker: from just above the rail's close button, so the rail and its flyout are whole; poster: pointer on the banner,
+    #         flyout open (just before the click)
+    "picker": (0.085, 0.68),
+    # drag and resize: from just above the "Widgets" header (y 422 of 660); drag poster: widget lifted, mid-carry;
+    #         resize poster: corner pulled out, mid-resize
+    "drag": (0.575, 0.62),
+    "resize": (0.575, 0.52),
 }
 
 if not shutil.which("ffmpeg"):
     sys.exit("ffmpeg not found: skipped the loops")
 
-size = (int(CROP[2] - CROP[0]) * 3 // 2, int(CROP[3] - CROP[1]) * 3 // 2)
+
+def clip_box(im, top_fraction):
+    """The page area of a full-size frame as (left, top, right, bottom): right of the sidebar, below the crop top, inside the
+    1 px edge. Scales with the frame (a half-size frame gets half the margins) and has even width and height for yuv420p."""
+    w, h = im.size
+    k = w / 1000
+    left = round(SIDEBAR * k)
+    right = w - max(1, round(k))
+    top = round(h * top_fraction)
+    bottom = h - max(1, round(k))
+    right -= (right - left) % 2
+    bottom -= (bottom - top) % 2
+    return left, top, right, bottom
 
 
-def frame(path):
-    """Crops a recorded frame to the board; CROP is in half-size (500 px wide) coordinates, so full-size frames scale it."""
+def frame(path, top_fraction):
+    """A recorded frame cropped to the page area, scaled down only when it is wider than MAX_WIDTH (never up)."""
     im = Image.open(path).convert("RGB")
-    k = im.width / 500
-    return im.crop(tuple(round(v * k) for v in CROP)).resize(size, Image.LANCZOS)
+    out = im.crop(clip_box(im, top_fraction))
+    if out.width > MAX_WIDTH:
+        w = MAX_WIDTH - MAX_WIDTH % 2
+        h = round(out.height * w / out.width)
+        out = out.resize((w, h - h % 2), Image.LANCZOS)
+    return out
 
 
-for name, (hold_a, hold_b, poster) in CLIPS.items():
+for name, (top_fraction, poster_at) in CLIPS.items():
     frames = sorted(glob.glob(os.path.join(SHOTS, "anim", name, "*.png")))
     if not frames:
         print("no frames for", name)
         continue
+    os.makedirs(OUT, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
+        hold_a, hold_b = round(HOLD_START * FPS), round(HOLD_END * FPS)
         seq = [frames[0]] * hold_a + frames + [frames[-1]] * hold_b
+        cache = {}
         for i, f in enumerate(seq):
-            im = frame(f)
-            im.save(os.path.join(tmp, "%03d.png" % i))
+            if f not in cache:
+                cache[f] = frame(f, top_fraction)
+            cache[f].save(os.path.join(tmp, "%03d.png" % i))
+        size = cache[frames[0]].size
         src = os.path.join(tmp, "%03d.png")
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", src,
-                        "-c:v", "libx264", "-profile:v", "high", "-crf", "20", "-preset", "slow",
-                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an",
+                        "-c:v", "libx264", "-profile:v", "high", "-crf", "18", "-preset", "slow",
+                        "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", "-an",
                         os.path.join(OUT, name + ".mp4")], check=True)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", src,
-                        "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-pix_fmt", "yuv420p", "-an",
+                        "-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0", "-pix_fmt", "yuv420p", "-r", str(FPS), "-an",
                         os.path.join(OUT, name + ".webm")], check=True)
-    pf = frames[min(poster, len(frames)) - 1]
-    save(frame(pf), name + "-poster.webp", 90)
+    pf = frames[min(len(frames) - 1, round(poster_at * len(frames)))]
+    print(name, len(frames), "frames", "%dx%d" % size, "poster", os.path.basename(pf))
+    save(cache[pf], name + "-poster.webp", 95)
     for ext in ("mp4", "webm"):
         p = os.path.join(OUT, name + "." + ext)
         print("wrote", name + "." + ext, os.path.getsize(p) // 1024, "KB")

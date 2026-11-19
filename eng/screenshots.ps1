@@ -1,5 +1,6 @@
 # CI only: captures the installer, every main-window page and the block screen into ./shots, plus short frame sequences of the
 # main window's animations (picker, drag, resize, page navigation) into ./shots/anim/<name>/NN.png (Windows PowerShell 5.1).
+# Frames are full window size (the DWM frame, 1000 x 660 on CI) at about 15 per second, at most 48 per sequence.
 # Usage: powershell -File eng/screenshots.ps1 -Setup out\WindowsDetox-Setup.exe -InstallDir "C:\Program Files\WindowsDetox" -Phase installer|app
 param([string]$Setup, [string]$InstallDir, [string]$Phase)
 $ErrorActionPreference = 'Stop'
@@ -36,12 +37,20 @@ function Wait-Window([int]$processId, [int]$seconds = 30) {
   throw "no window for process $processId"
 }
 
-# DWM extended frame bounds: the visible window without its invisible resize border and shadow.
-function Capture-Window($window) {
+# DWM extended frame bounds: the visible window without its invisible resize border and shadow. -Pointer paints the arrow
+# cursor into the picture (CopyFromScreen never includes it), so a viewer of a recording can follow the mouse.
+function Capture-Window($window, [switch]$Pointer) {
   $f = [Native]::Frame([IntPtr]$window.Current.NativeWindowHandle)
   $bmp = New-Object System.Drawing.Bitmap ($f.Right - $f.Left), ($f.Bottom - $f.Top)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen($f.Left, $f.Top, 0, 0, $bmp.Size)
+  if ($Pointer) {
+    try {
+      $c = [System.Windows.Forms.Cursor]::Position
+      $box = New-Object System.Drawing.Rectangle ($c.X - $f.Left), ($c.Y - $f.Top), 32, 32
+      [System.Windows.Forms.Cursors]::Arrow.Draw($g, $box)
+    } catch { }
+  }
   $g.Dispose()
   return $bmp
 }
@@ -57,32 +66,85 @@ function Shot($window, [string]$name) {
 }
 
 # Records a short frame sequence of the window into shots\anim\<name>\NN.png. $steps drives the UI (real mouse input) and calls
-# Snap wherever a frame is wanted; frames are paced at about 12 per second, halved in size, and at most 24 per sequence.
+# Snap wherever a frame is wanted. Frames are paced at about 15 per second at full window size and are kept in memory (one
+# Bitmap each) while the steps run: encoding a PNG per frame costs more than a frame interval and made earlier recordings
+# stall. They are written out, and every bitmap disposed, only after the sequence ends. At most $script:MaxFrames per sequence.
+$script:MaxFrames = 48
+$script:FrameMs = 66
 function Record($window, [string]$name, [scriptblock]$steps) {
   $dir = Join-Path (Join-Path (Resolve-Path shots) 'anim') $name
   if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
   New-Item -ItemType Directory -Force $dir | Out-Null
   [Native]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle) | Out-Null
   Start-Sleep -Milliseconds 300
-  $script:rec = @{ Window = $window; Dir = $dir; Frames = 0; Clock = [System.Diagnostics.Stopwatch]::StartNew(); Next = 0 }
-  try { & $steps | Out-Null } finally { "recorded $($script:rec.Frames) frames of $name"; $script:rec = $null }
+  $frames = New-Object 'System.Collections.Generic.List[System.Drawing.Bitmap]'
+  $script:rec = @{ Window = $window; Frames = $frames; Clock = [System.Diagnostics.Stopwatch]::StartNew(); Next = 0; Dropped = 0 }
+  $ms = 0; $dropped = 0
+  try { & $steps | Out-Null }
+  finally {
+    $ms = $script:rec.Clock.ElapsedMilliseconds; $dropped = $script:rec.Dropped
+    $script:rec = $null
+    $i = 0
+    foreach ($b in $frames) {
+      try { $i++; $b.Save((Join-Path $dir ('{0:D2}.png' -f $i)), [System.Drawing.Imaging.ImageFormat]::Png) } finally { $b.Dispose() }
+    }
+    $frames.Clear()
+    $fps = 0
+    if ($ms -gt 0) { $fps = [Math]::Round($i * 1000.0 / $ms, 1) }
+    "recorded $i frames of $name in $ms ms ($fps fps, $dropped over the $($script:MaxFrames) frame cap)"
+  }
 }
 
+# Takes $count frames, each at least one frame interval after the previous one, so Snap also works as a timed pause.
 function Snap([int]$count = 1) {
-  for ($i = 0; $i -lt $count -and $script:rec.Frames -lt 24; $i++) {
+  for ($i = 0; $i -lt $count; $i++) {
+    if ($script:rec.Frames.Count -ge $script:MaxFrames) { $script:rec.Dropped++; continue }
     $wait = $script:rec.Next - $script:rec.Clock.ElapsedMilliseconds
     if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
-    $script:rec.Next = $script:rec.Clock.ElapsedMilliseconds + 83
-    $full = Capture-Window $script:rec.Window
-    $small = New-Object System.Drawing.Bitmap $full.Width, $full.Height
-    $g = [System.Drawing.Graphics]::FromImage($small)
-    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $g.DrawImage($full, 0, 0, $small.Width, $small.Height)
-    $g.Dispose(); $full.Dispose()
-    $script:rec.Frames++
-    $small.Save((Join-Path $script:rec.Dir ('{0:D2}.png' -f $script:rec.Frames)), [System.Drawing.Imaging.ImageFormat]::Png)
-    $small.Dispose()
+    $script:rec.Next = $script:rec.Clock.ElapsedMilliseconds + $script:FrameMs
+    $script:rec.Frames.Add((Capture-Window $script:rec.Window -Pointer))
   }
+}
+
+# Moves the pointer to a screen point in $steps eased steps (slow at both ends, like a hand); a frame is taken per step while
+# recording, so the viewer sees the pointer travel.
+function Move-Smooth([int]$x, [int]$y, [int]$steps = 8) {
+  $p = [System.Windows.Forms.Cursor]::Position
+  $x0 = $p.X; $y0 = $p.Y
+  for ($i = 1; $i -le $steps; $i++) {
+    $t = $i / $steps
+    $e = $t * $t * (3 - 2 * $t)
+    [Native]::Move([int][Math]::Round($x0 + ($x - $x0) * $e), [int][Math]::Round($y0 + ($y - $y0) * $e))
+    if ($script:rec) { Snap 1 } else { Start-Sleep -Milliseconds 40 }
+  }
+}
+
+# Centre of an automation element on screen, as an object with X and Y.
+function Get-Center($element) {
+  $r = $element.Current.BoundingRectangle
+  return [pscustomobject]@{ X = [int]($r.X + $r.Width / 2); Y = [int]($r.Y + $r.Height / 2) }
+}
+
+# True while the widget board is in edit mode (only then do the widgets carry a resize handle).
+function Test-Editing($window) { return [bool](Find-Named $window 'Resize widget') }
+
+# Enters or leaves edit mode through the Edit/Done button; it does nothing when the board is already in the wanted state.
+function Set-Editing($window, [bool]$on) {
+  if ((Test-Editing $window) -ne $on) {
+    Click-Named $window 'Edit widgets' -Anywhere | Out-Null
+    Start-Sleep -Milliseconds 900
+  }
+}
+
+# The widgets' resize handles, top to bottom and then left to right (the first one belongs to the first widget of the board).
+function Get-Handles($window) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Resize widget')
+  $found = @()
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    $r = $e.Current.BoundingRectangle
+    if ($r.Width -gt 0) { $found += [pscustomobject]@{ Element = $e; X = $r.X; Y = $r.Y } }
+  }
+  return @($found | Sort-Object Y, X)
 }
 
 # The first visible element with this name, or $null.
@@ -233,7 +295,12 @@ if (Click-Named $main 'Session') {
 }
 if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
 
-# --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input.
+# --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input at a human pace.
+# Every clip starts on the Session page with the board out of edit mode and scrolled to the top (the page is not tall enough to
+# scroll with two 1 x 1 widgets, so that is the resting state; nothing below scrolls it). Order matters: picker, drag, resize.
+$f = [Native]::Frame([IntPtr]$main.Current.NativeWindowHandle)
+$cx = [int](($f.Left + $f.Right) / 2 + 100); $cy = [int](($f.Top + $f.Bottom) / 2)
+
 # Page navigation: Goals -> Insights -> Session.
 Record $main 'nav' {
   Snap 1
@@ -245,71 +312,149 @@ Record $main 'nav' {
 }
 Start-Sleep -Seconds 2
 
-# Widget picker: the rail slides in, the pointer rests on the first plugin (its flyout fades in), Esc closes everything.
+# The picker clip has to show a widget being added, so the Goals and Tasks widget must not be on the board yet: leave nothing but
+# Focus Insights. Edit mode, the widget's own remove button (named "Remove <title>"), then out of edit mode.
+Set-Editing $main $false
+if (Find-Named $main 'Open Goals & Tasks') {
+  Set-Editing $main $true
+  $removed = $false
+  if (Find-Named $main 'Remove Goals & Tasks') { $removed = Press-Named $main 'Remove Goals & Tasks' }
+  Start-Sleep -Milliseconds 1000
+  if (Find-Named $main 'Open Goals & Tasks') { Write-Host 'picker: the Goals & Tasks widget is still on the board after the remove click' }
+  else { Write-Host "picker: removed the Goals & Tasks widget from the board ($removed)" }
+  Set-Editing $main $false
+}
+else { Write-Host 'picker: the Goals & Tasks widget was not on the board' }
+[Native]::Wheel($cx, $cy, -10)
+Start-Sleep -Seconds 1
+
+# Widget picker: click "+", the rail slides in, rest the pointer on the Goals rail item (its flyout fades in), move down to the
+# banner "Add Goals & Tasks" and click it: the widget lands on the board. Esc closes the rail.
 Record $main 'picker' {
   Snap 1
-  Click-Named $main 'Add widgets' -Anywhere
-  Snap 6
-  Move-ToRailItem $main
-  Snap 6
-  Start-Sleep -Milliseconds 400
-  Snap 1
-  [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
-  Snap 6
+  $plus = Find-Named $main 'Add widgets'
+  if ($plus) {
+    $c = Get-Center $plus
+    Move-Smooth $c.X $c.Y 5
+    Snap 1
+    [Native]::Click($c.X, $c.Y)
+    Snap 5
+    # The rail item: approached from the left at its own height, so the pointer does not cross the other rail items on the way.
+    $rail = Find-Named $main 'Widgets from Goals & Tasks'
+    if (-not $rail) {
+      foreach ($e in $main.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))) {
+        if (-not $rail -and $e.Current.Name -like 'Widgets from *' -and $e.Current.BoundingRectangle.Width -gt 0) { $rail = $e }
+      }
+    }
+    if ($rail) {
+      $r = Get-Center $rail
+      Move-Smooth ($r.X - 70) $r.Y 4
+      $r = Get-Center $rail
+      Move-Smooth $r.X $r.Y 4
+      Snap 4
+      $banner = $null
+      for ($k = 0; $k -lt 30 -and -not $banner; $k++) {
+        $banner = Find-Named $main 'Add Goals & Tasks'
+        if (-not $banner) { Start-Sleep -Milliseconds 100 }
+      }
+      if ($banner) {
+        $b = Get-Center $banner
+        Move-Smooth $b.X $b.Y 6
+        Snap 1
+        $b = Get-Center $banner
+        [Native]::Click($b.X, $b.Y)
+        Snap 9
+      } else { Write-Host 'picker: the Add Goals & Tasks banner did not appear' }
+    } else { Write-Host 'picker: no rail item found' }
+    [System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+    Snap 5
+  } else { Write-Host 'picker: no Add widgets button found' }
 }
 Start-Sleep -Milliseconds 500
 if (Find-Named $main 'Close widget picker') { Click-Named $main 'Close widget picker' -Anywhere | Out-Null; Start-Sleep -Seconds 1 }
 
-# Drag: long-press the first widget, carry it over the second one (the others reflow), drop it.
-$f = [Native]::Frame([IntPtr]$main.Current.NativeWindowHandle)
-[Native]::Wheel([int](($f.Left + $f.Right) / 2 + 100), [int](($f.Top + $f.Bottom) / 2), 10)
-Start-Sleep -Seconds 1
+# Drag: long-press the first widget's header and keep still for 600 ms (WidgetBoardInteraction lifts it after a 450 ms press, and a
+# move of more than a few pixels before that cancels the press), then carry it slowly over the second widget, hold while the
+# others reflow, drop it. The long press switches the board into edit mode, so the clip ends with the outlines still showing.
+Set-Editing $main $false
+[Native]::Wheel($cx, $cy, -10)
+Start-Sleep -Milliseconds 500
 $cards = @(Get-Widgets $main)
 if ($cards.Count -ge 2) {
   $sx = [int]($cards[0].X + $cards[0].W / 2); $sy = [int]($cards[0].Y + $cards[0].H / 2)
-  $tx = [int]($cards[1].X + $cards[1].W / 2); $ty = [int]($cards[1].Y + $cards[1].H / 2 + 50)
+  # Inside the second widget's body, clear of its header and of the 24 px the edit-mode hint line moves the board down.
+  $tx = [int]($cards[1].X + 120); $ty = [int]($cards[1].Y + 60)
   Record $main 'drag' {
-    [Native]::Move($sx, $sy)
-    Start-Sleep -Milliseconds 150
+    Move-Smooth $sx $sy 5
     Snap 1
     [Native]::Down()
-    Start-Sleep -Milliseconds 440
-    Snap 3
-    for ($i = 1; $i -le 15; $i++) {
-      [Native]::Move([int]($sx + ($tx - $sx) * $i / 15), [int]($sy + ($ty - $sy) * $i / 15))
-      Snap 1
-    }
+    Snap 9
+    # The lift is confirmed by the board entering edit mode; wait a little longer (still without moving) if it has not yet.
+    for ($k = 0; $k -lt 6 -and -not (Test-Editing $main); $k++) { Snap 1 }
+    Move-Smooth $tx $ty 24
+    Snap 4
     [Native]::Up()
-    Snap 5
+    Snap 2
   }
 } else { Write-Host 'drag: fewer than two widgets found' }
+Set-Editing $main $false
+Start-Sleep -Milliseconds 500
 
-# Resize: enter edit mode (the outlines fade in), pull the first widget's corner one column wider and a little taller, release.
-if (Find-Named $main 'Resize widget') { Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Milliseconds 800 }
+# Resize: click Edit (the outlines fade in), pull the first widget's corner right by one column (the widget becomes two columns
+# wide and the other one moves down), release, click Done. Resize handles are found by their automation name.
 $cards = @(Get-Widgets $main)
 $colStep = 372
-if ($cards.Count -ge 2) { $colStep = [int]($cards[1].X - $cards[0].X) }
+if ($cards.Count -ge 2) { $colStep = [int][Math]::Abs($cards[1].X - $cards[0].X) }
+if ($colStep -lt 100) { $colStep = 372 }
 Record $main 'resize' {
   Snap 1
-  Click-Named $main 'Edit widgets' -Anywhere
-  Snap 4
-  $handle = Find-Named $main 'Resize widget'
-  if ($handle) {
-    $r = $handle.Current.BoundingRectangle
+  $edit = Find-Named $main 'Edit widgets'
+  if ($edit) {
+    $c = Get-Center $edit
+    Move-Smooth $c.X $c.Y 4
+    [Native]::Click($c.X, $c.Y)
+    Snap 4
+  }
+  $handles = @(Get-Handles $main)
+  if ($handles.Count -gt 0) {
+    $r = $handles[0].Element.Current.BoundingRectangle
     $hx = [int]($r.X + $r.Width / 2); $hy = [int]($r.Y + $r.Height / 2)
-    [Native]::Move($hx, $hy)
-    Start-Sleep -Milliseconds 150
+    Move-Smooth $hx $hy 5
+    Snap 1
     [Native]::Down()
     Snap 1
-    for ($i = 1; $i -le 10; $i++) {
-      [Native]::Move([int]($hx + $colStep * $i / 10), [int]($hy + 110 * $i / 10))
-      Snap 1
-    }
+    Move-Smooth ($hx + $colStep) $hy 12
+    Snap 4
     [Native]::Up()
-    Snap 6
+    Snap 2
+    $edit = Find-Named $main 'Edit widgets'
+    if ($edit) {
+      $c = Get-Center $edit
+      Move-Smooth $c.X $c.Y 5
+      [Native]::Click($c.X, $c.Y)
+      Snap 5
+    }
   } else { Write-Host 'resize: no resize handle found' }
 }
-if (Find-Named $main 'Resize widget') { Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Seconds 1 }
+# Not recorded: put the widget back to one column and leave edit mode, so the shots below see the board as the other clips did.
+Start-Sleep -Milliseconds 500
+if (Test-Editing $main) {
+  Set-Editing $main $false
+  Start-Sleep -Milliseconds 500
+}
+Set-Editing $main $true
+$handles = @(Get-Handles $main)
+if ($handles.Count -gt 0) {
+  $r = $handles[0].Element.Current.BoundingRectangle
+  $hx = [int]($r.X + $r.Width / 2); $hy = [int]($r.Y + $r.Height / 2)
+  [Native]::Move($hx, $hy); Start-Sleep -Milliseconds 200
+  [Native]::Down(); Start-Sleep -Milliseconds 200
+  Move-Smooth ($hx - $colStep) $hy 8
+  Start-Sleep -Milliseconds 200
+  [Native]::Up(); Start-Sleep -Milliseconds 500
+}
+Set-Editing $main $false
+Start-Sleep -Seconds 1
 
 # --- In-use shots, taken last so nothing above sees the tasks. Goals page: three tasks typed in, the first ticked.
 # Then the Session page, whose Goals and Tasks widget now shows them. (Focus Insights stays at 0 min: no session has run.)
