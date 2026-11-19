@@ -116,3 +116,21 @@ jobs:
           if (Test-Path "$env:ProgramFiles\WindowsDetox") { Get-ChildItem -Recurse "$env:ProgramFiles\WindowsDetox" | Select-Object -First 20 FullName; throw 'install directory left behind' }
           if (Get-Service WindowsDetoxService -ErrorAction SilentlyContinue) { throw 'service still registered' }
           if (Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name WindowsDetoxAgent -ErrorAction SilentlyContinue) { throw 'agent autorun left behind' }
+      - name: Publish the installer as the latest-build release
+        # Only after the install/uninstall checks above passed, and only for pushes (not pull requests).
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha256sum out/WindowsDetox-Setup.exe | sed 's| out/| |' > out/WindowsDetox-Setup.exe.sha256
+          notes="Installer built and install/uninstall-tested by CI from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}. Unsigned: Windows SmartScreen may warn (More info, Run anyway). Try it in a VM first."
+          git tag -f latest-build "$GITHUB_SHA"
+          git push -f origin refs/tags/latest-build
+          if gh release view latest-build > /dev/null 2>&1; then
+            gh release edit latest-build --title "Windows Detox (latest build)" --notes "$notes" --latest --prerelease=false
+          else
+            gh release create latest-build --title "Windows Detox (latest build)" --notes "$notes" --latest --verify-tag
+          fi
+          gh release upload latest-build out/WindowsDetox-Setup.exe out/WindowsDetox-Setup.exe.sha256 --clobber
