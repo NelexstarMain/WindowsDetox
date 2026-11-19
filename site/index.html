@@ -101,37 +101,28 @@
     <div class="flow" data-flow>
      <div class="flow-pin">
       <div class="flow-text">
-        <div class="flow-meta" aria-hidden="true"><span class="flow-count"><b>01</b> / 03</span><span class="flow-track"><i></i></span></div>
-      <ol class="flow-steps">
-        <li class="step is-active" data-pane="0">
-          <div class="step-copy">
-            <h3>Choose what stays open</h3>
-            <p>Pick the apps and sites you still need. Everything else is closed or blocked.</p>
-          </div>
+        <div class="flow-num" aria-hidden="true"><span>01</span><span>02</span><span>03</span></div>
+        <ol class="flow-steps">
+        <li class="step">
+          <div class="step-copy"><h3>Choose what stays open</h3><p>Pick the apps and sites you still need. Everything else is closed or blocked.</p></div>
           <div class="step-shot"><div class="window"><img src="assets/img/step-allowlist.webp?v=dev" width="784" height="658" alt="The Allowlist page: an Apps column that scans installed apps, and a Domains column with a field for example.com or *.example.com." loading="lazy"></div></div>
         </li>
-        <li class="step" data-pane="1">
-          <div class="step-copy">
-            <h3>Start a session</h3>
-            <p>From one hour to two days, or a length you set. Once it starts, the app can't shorten or cancel it.</p>
-          </div>
+        <li class="step">
+          <div class="step-copy"><h3>Start a session</h3><p>From one hour to two days, or a length you set. Once it starts, the app can't shorten or cancel it.</p></div>
           <div class="step-shot"><div class="window"><img src="assets/img/step-setup.webp?v=dev" width="784" height="658" alt="The Session setup page: duration choices from 1 hour to 2 days and Custom, emergency pass settings, and a summary with a Start session button." loading="lazy"></div></div>
         </li>
-        <li class="step" data-pane="2">
-          <div class="step-copy">
-            <h3>Keep a few emergency passes</h3>
-            <p>A pass pauses blocking for a few minutes. When it ends, anything not allowed closes again.</p>
-          </div>
+        <li class="step">
+          <div class="step-copy"><h3>Keep a few emergency passes</h3><p>A pass pauses blocking for a few minutes. When it ends, anything not allowed closes again.</p></div>
           <div class="step-shot step-shot--small"><div class="window"><img src="assets/img/hero-blocked.webp?v=dev" width="558" height="418" alt="The block screen for a blocked app, with a Use emergency exit button that shows how many passes are left, and a Close button." loading="lazy"></div></div>
         </li>
-      </ol>
+        </ol>
+        <div class="flow-tabs" aria-hidden="true"><button type="button" class="flow-tab" data-go="0"><span>Allowlist</span><i></i></button><button type="button" class="flow-tab" data-go="1"><span>Session</span><i></i></button><button type="button" class="flow-tab" data-go="2"><span>Passes</span><i></i></button></div>
       </div>
-
       <div class="flow-stage" aria-hidden="true">
-        <div class="frame">
-          <div class="pane is-on"><div class="window"><img src="assets/img/step-allowlist.webp?v=dev" width="784" height="658" alt="" loading="lazy"></div></div>
-          <div class="pane"><div class="window"><img src="assets/img/step-setup.webp?v=dev" width="784" height="658" alt="" loading="lazy"></div></div>
-          <div class="pane pane--center"><div class="window"><img src="assets/img/hero-blocked.webp?v=dev" width="558" height="418" alt="" loading="lazy"></div></div>
+        <div class="deck">
+          <div class="card"><div class="window"><img src="assets/img/step-allowlist.webp?v=dev" width="784" height="658" alt="" loading="lazy"></div></div>
+          <div class="card"><div class="window"><img src="assets/img/step-setup.webp?v=dev" width="784" height="658" alt="" loading="lazy"></div></div>
+          <div class="card card--small"><div class="window"><img src="assets/img/hero-blocked.webp?v=dev" width="558" height="418" alt="" loading="lazy"></div></div>
         </div>
       </div>
      </div>
@@ -356,28 +347,63 @@
     reveals.forEach(function (el) { rio.observe(el); });
   }
 
-  // How it works: the section is pinned for a few screens; scroll progress through it picks the step and fills the track.
+  // How it works: the block is pinned while you scroll past it. Scroll position is turned into a continuous step value
+  // (with a short rest on each step) that drives the card deck, the rolling number, the copy and the tabs every frame.
   var flow = document.querySelector("[data-flow]");
   if (flow) {
-    var steps = Array.prototype.slice.call(flow.querySelectorAll(".step"));
-    var panes = Array.prototype.slice.call(flow.querySelectorAll(".pane"));
-    var pin = flow.querySelector(".flow-pin"), count = flow.querySelector(".flow-count b");
-    var current = -1, queued = false;
-    function show(i) {
-      if (i === current) return;
-      current = i;
-      steps.forEach(function (s, k) { s.classList.toggle("is-active", k === i); s.classList.toggle("is-past", k < i); });
-      panes.forEach(function (p, k) { p.classList.toggle("is-on", k === i); p.classList.toggle("is-past", k < i); });
-      if (count) count.textContent = "0" + (i + 1);
+    var pin = flow.querySelector(".flow-pin");
+    var cards = [].slice.call(flow.querySelectorAll(".card"));
+    var copies = [].slice.call(flow.querySelectorAll(".step"));
+    var tabs = [].slice.call(flow.querySelectorAll(".flow-tab"));
+    var num = flow.querySelector(".flow-num");
+    var n = cards.length, queued = false;
+    var clamp = function (v, lo, hi) { return Math.min(hi, Math.max(lo, v)); };
+    var ease = function (x) { return x * x * (3 - 2 * x); };
+    function geometry() {
+      var r = flow.getBoundingClientRect(), span = r.height - pin.getBoundingClientRect().height;
+      return { r: r, span: span };
     }
     function update() {
       queued = false;
-      if (getComputedStyle(pin).position !== "sticky") { show(0); return; }
-      var r = flow.getBoundingClientRect(), span = r.height - pin.getBoundingClientRect().height;
-      var p = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
-      flow.style.setProperty("--p", p.toFixed(4));
-      show(Math.min(steps.length - 1, Math.floor(p * steps.length)));
+      if (getComputedStyle(pin).position !== "sticky") { flow.classList.remove("is-live"); return; }
+      flow.classList.add("is-live");
+      var g = geometry(), prog = g.span > 0 ? clamp(-g.r.top / g.span, 0, 1) : 0;
+      var t = prog * (n - 1), k = Math.min(n - 2, Math.floor(t)), f = t - k;
+      var p = k + ease(clamp((f - .18) / .64, 0, 1));
+      cards.forEach(function (c, i) {
+        var d = i - p, s;
+        if (d < 0) { // leaving: lifts, tips back and fades
+          var a = clamp(-d, 0, 1);
+          s = "translate3d(0," + (-a * 70) + "%,0) rotateX(" + (a * 28) + "deg) scale(" + (1 - a * .1) + ")";
+          c.style.opacity = (1 - ease(clamp((a - .4) / .4, 0, 1))).toFixed(3);
+        } else {     // waiting behind: peeks out above, smaller and darker
+          var b = Math.min(d, 2.5);
+          s = "translate3d(0," + (-b * 7) + "%,0) scale(" + (1 - b * .08) + ")";
+          c.style.opacity = clamp(2 - d, 0, 1).toFixed(3);
+          c.style.filter = "brightness(" + (1 - Math.min(d, 1) * .55).toFixed(3) + ")";
+        }
+        if (d < 0) c.style.filter = "none";
+        c.style.transform = s;
+        c.style.zIndex = String(100 - Math.round(Math.abs(d) * 10));
+      });
+      copies.forEach(function (c, i) {
+        var d = i - p, a = clamp(1 - Math.abs(d) * 2.6, 0, 1);
+        c.style.opacity = a.toFixed(3);
+        c.style.transform = "translate3d(0," + (d * 48) + "px,0)";
+        c.style.pointerEvents = a > .5 ? "auto" : "none";
+      });
+      num.style.setProperty("--p", p.toFixed(4));
+      tabs.forEach(function (b, i) {
+        b.style.setProperty("--f", clamp(p - i + 1, 0, 1).toFixed(4));
+        b.classList.toggle("is-on", Math.round(p) === i);
+      });
     }
+    tabs.forEach(function (b, i) {
+      b.addEventListener("click", function () {
+        var g = geometry(), top = g.r.top + window.scrollY;
+        window.scrollTo({ top: top + g.span * (i / (n - 1)), behavior: "smooth" });
+      });
+    });
     function onScroll() { if (!queued) { queued = true; requestAnimationFrame(update); } }
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);

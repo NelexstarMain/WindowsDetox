@@ -143,40 +143,45 @@ body[data-release="latest"] .when-ci{display:none}
 .sec-head h2{max-width:20ch;font-size:clamp(2rem,1.35rem + 2.4vw,3.25rem);font-weight:350;line-height:1.08;letter-spacing:-.03em}
 .sec-head p{margin-top:16px;max-width:36rem;font-size:1.1875rem;line-height:1.55;color:var(--text-2)}
 
-/* ---------- How it works: steps on the left, a sticky window on the right ---------- */
+/* ---------- How it works: a pinned block; scroll drives a deck of window cards, a rolling number and the copy ---------- */
 .step-copy h3{font-size:1.375rem;font-weight:500;letter-spacing:-.015em;line-height:1.25}
 .step-copy p{margin-top:10px;max-width:34ch;color:var(--text-2)}
 .step-shot{margin-top:24px}
 .step-shot .window{max-width:784px}
 .step-shot--small .window{max-width:558px}
 .step + .step{margin-top:56px}
-.flow-stage{display:none}
-.frame{position:relative;aspect-ratio:784/658}
-.pane{position:absolute;inset:0;display:grid;place-items:center;opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility 0s .45s}
-.pane.is-on{opacity:1;visibility:visible;transition:opacity .45s var(--ease)}
-.pane .window{width:100%}
-.pane--center .window{width:min(100%,558px)}
-.flow-meta{display:none}
+.flow-num,.flow-tabs,.flow-stage{display:none}
 @media (min-width:900px) and (prefers-reduced-motion:no-preference){
-  /* Pinned scrollytelling: the block is ~3 screens tall, its inner frame sticks for that distance (minus the nav). */
-  .js .flow{height:calc(var(--vh) * 2.9)}
-  .js .flow-pin{position:sticky;top:64px;height:calc(var(--vh) - 64px);display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);column-gap:clamp(48px,6vw,96px);align-items:center}
-  .js .flow-meta{display:flex;align-items:center;gap:16px;margin-bottom:28px;font-family:var(--mono);font-size:.8125rem;color:var(--text-3);letter-spacing:.04em}
-  .js .flow-count b{font-weight:500;color:var(--text)}
-  .js .flow-track{position:relative;flex:0 0 120px;height:1px;background:var(--line-strong);overflow:hidden}
-  .js .flow-track i{position:absolute;inset:0;background:var(--sage);transform-origin:left;transform:scaleX(var(--p,0))}
-  .js .flow-steps{display:grid}
-  .js .step{grid-area:1/1;opacity:0;transform:translateY(20px);transition:opacity .4s var(--ease),transform .6s var(--ease);pointer-events:none}
-  .js .step.is-past{transform:translateY(-20px)}
-  .js .step.is-active{opacity:1;transform:none;pointer-events:auto;transition-delay:.08s}
+  .js .flow{height:calc(var(--vh) * 3.2)}
+  .js .flow-pin{position:sticky;top:64px;height:calc(var(--vh) - 64px);display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);column-gap:clamp(40px,5vw,88px);align-items:center}
+  .js .flow-pin::before{content:"";position:absolute;right:-6%;top:50%;width:70%;aspect-ratio:1;translate:0 -50%;background:radial-gradient(closest-side,rgba(124,145,61,.16),transparent 70%);pointer-events:none;z-index:-1}
+
+  /* rolling number: a column of numerals moved by the continuous step value */
+  .js .flow-num{display:block;height:1em;overflow:hidden;font-size:clamp(6rem,9vw,9.5rem);font-weight:300;line-height:1;letter-spacing:-.06em;margin-bottom:28px;
+    -webkit-mask:linear-gradient(transparent,#000 22%,#000 78%,transparent);mask:linear-gradient(transparent,#000 22%,#000 78%,transparent)}
+  .js .flow-num span{display:block;height:1em;transform:translateY(calc(var(--p,0) * -100%));
+    background:linear-gradient(180deg,var(--text) 10%,var(--sage) 120%);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .js .flow-steps{display:grid;min-height:9.5em}
+  .js .step{grid-area:1/1;will-change:transform,opacity}
   .js .step + .step{margin-top:0}
-  /* the in-step pictures stay for screen readers; the stage shows them instead */
+  .js .step-copy h3{font-size:clamp(1.5rem,1.1rem + 1vw,2rem);font-weight:450;letter-spacing:-.025em}
+  .js .step-copy p{font-size:1.0625rem;margin-top:14px}
   .js .step-shot{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%)}
-  .js .flow-stage{display:block;width:100%;max-height:calc(var(--vh) - 160px);aspect-ratio:784/658;justify-self:end}
-  .js .frame{height:100%;aspect-ratio:784/658;margin-left:auto;max-width:100%}
-  .js .pane{transform:translateY(24px) scale(.985);transition:opacity .45s var(--ease),transform .7s var(--ease),visibility 0s .45s}
-  .js .pane.is-past{transform:translateY(-24px) scale(.985)}
-  .js .pane.is-on{transform:none;transition:opacity .45s var(--ease),transform .7s var(--ease)}
+
+  .js .flow-tabs{display:flex;gap:6px;margin-top:36px}
+  .js .flow-tab{flex:1;max-width:120px;padding:0 0 12px;background:none;border:0;color:var(--text-3);font:500 .8125rem/1 var(--font);text-align:left;cursor:pointer;position:relative;transition:color .25s var(--ease)}
+  .js .flow-tab i{position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:2px;background:var(--line-strong);overflow:hidden}
+  .js .flow-tab i::after{content:"";position:absolute;inset:0;background:var(--sage);transform-origin:left;transform:scaleX(var(--f,0))}
+  .js .flow-tab.is-on,.js .flow-tab:hover{color:var(--text)}
+  .js .flow-tab:focus-visible{outline:2px solid var(--sage);outline-offset:4px;border-radius:2px}
+
+  /* the deck: every card sits in the same cell; JS sets transform, opacity, brightness and order */
+  .js .flow-stage{display:block;perspective:1600px;perspective-origin:50% 0}
+  .js .deck{display:grid;place-items:end center;aspect-ratio:784/658;max-height:calc(var(--vh) - 200px);margin:60px 0 0 auto}
+  .js .card{grid-area:1/1;width:100%;transform-origin:50% 0;will-change:transform,opacity}
+  .js .card--small{width:76%;align-self:center}
+  .js .card .window{box-shadow:0 40px 80px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.02)}
 }
 
 /* ---------- Four plain statements ---------- */
