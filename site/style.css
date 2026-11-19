@@ -1,24 +1,24 @@
-/* Windows Detox landing page. Tokens mirror src/Blocker.UI.Controls/Themes/Blocker.xaml. */
+/* Windows Detox landing page */
 @font-face{font-family:"Hanken Grotesk";src:url("assets/fonts/hanken-grotesk.woff2") format("woff2");font-weight:300 700;font-style:normal;font-display:swap}
 @font-face{font-family:"Geist Mono";src:url("assets/fonts/geist-mono.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap}
 
 :root{
   color-scheme:light;
-  --base:#EEF0E8;        /* page edges, footer */
-  --canvas:#F5F6F1;      /* page background: warm off-white */
-  --card:#FFFFFF;        /* cards */
+  --base:#EEF0E8;
+  --canvas:#F5F6F1;
+  --card:#FFFFFF;
   --raised:#E9EBE3;
   --line:rgba(20,22,18,.08);
   --line-strong:rgba(20,22,18,.14);
-  --text:#151712;        /* graphite with a touch of olive: 17:1 */
-  --text-2:#4D5345;      /* body copy: 7.9:1 */
-  --text-3:#646B5B;      /* de-emphasised, still AA: 5.3:1 */
-  --sage:#4A5724;        /* olive ink for small accents, links, icons: 7.6:1 */
-  --olive:#5F6F2E;       /* brand accent (unchanged) */
+  --text:#151712;
+  --text-2:#4D5345;
+  --text-3:#646B5B;
+  --sage:#4A5724;
+  --olive:#5F6F2E;
   --olive-hover:#53622A;
   --olive-bar:#5F6F2E;
-  --on-accent:#FFFFFF;   /* white on the brand olive: 5.6:1 */
-  --app:#0B0C0F;         /* the app's own dark canvas, for screenshots */
+  --on-accent:#FFFFFF;
+  --app:#0B0C0F;
   --font:"Hanken Grotesk","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
   --mono:"Geist Mono","Cascadia Mono",Consolas,ui-monospace,monospace;
   --gutter:clamp(20px,5vw,40px);
@@ -28,22 +28,52 @@
   interpolate-size:allow-keywords;
   --vh:100svh;
 }
+
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px}
-body{margin:0;background:var(--canvas);color:var(--text);font:400 1.0625rem/1.6 var(--font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;overflow-x:clip}
-html{overflow-x:clip}
-/* Background: the logo, tiny and nearly invisible, on alternate cells of a checkerboard (scrolls with the page),
-   faded out towards the edges, over two soft olive glows that stay put. */
-body{position:relative;isolation:isolate}
-body::before{content:"";position:fixed;inset:-176px;z-index:-1;pointer-events:none;background:url(assets/bg-logos.svg?v=dev) 0 0/176px 176px repeat;opacity:.03;
-  -webkit-mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);}
-body::after{content:"";position:fixed;inset:-12%;z-index:-2;pointer-events:none;
-  background:radial-gradient(36% 32% at 84% 16%,rgba(95,111,46,.08),transparent 70%),radial-gradient(42% 38% at 10% 84%,rgba(95,111,46,.06),transparent 72%);
-  animation:bg-glow 28s ease-in-out infinite alternate;will-change:transform}
-/* The logo grid drifts one tile diagonally every 90 s (seamless loop); the glows breathe slowly. Both stop under reduced motion. */
-@keyframes bg-drift{to{transform:translate3d(176px,176px,0)}}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px;overflow-x:clip}
+
+/* Główny, bardzo lekki gradient w ciepłą stronę */
+body{
+  margin:0;
+  background-color:var(--canvas);
+  background-image:linear-gradient(95deg,#F3F5EF 0%,#F5F6F0 50%,#F8F7EC 100%);
+  background-attachment:fixed;
+  color:var(--text);
+  font:400 1.0625rem/1.6 var(--font);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:clip;
+  position:relative;
+  isolation:isolate;
+}
+
+/* Subtelna faktura logo w tle */
+body::before{
+  content:"";
+  position:fixed;
+  inset:-176px;
+  z-index:-1;
+  pointer-events:none;
+  background:url(assets/bg-logos.svg?v=dev) 0 0/176px 176px repeat;
+  opacity:.03;
+  -webkit-mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);
+  mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);
+}
+
+body::after{
+  content:"";
+  position:fixed;
+  inset:-12%;
+  z-index:-2;
+  pointer-events:none;
+  background:radial-gradient(36% 32% at 84% 16%,rgba(95,111,46,.07),transparent 70%),radial-gradient(42% 38% at 10% 84%,rgba(95,111,46,.05),transparent 72%);
+  animation:bg-glow 28s ease-in-out infinite alternate;
+  will-change:transform;
+}
+
 @keyframes bg-glow{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-2.5%,1.5%,0) scale(1.06)}100%{transform:translate3d(2%,-2%,0) scale(1.03)}}
-@media (prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
+@media (prefers-reduced-motion:reduce){body::after{animation:none}}
+
 img,svg{display:block;max-width:100%}
 img{height:auto}
 a{color:inherit}
@@ -62,10 +92,10 @@ kbd{white-space:nowrap;padding:1px 6px;border-radius:4px;background:var(--raised
 .skip:focus{top:12px}
 .mark{fill:currentColor}
 
-/* ---------- Buttons: one shape, two weights ---------- */
+/* ---------- Przyciski ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 24px;font:600 1rem/1 var(--font);text-decoration:none;border:1px solid transparent;border-radius:4px;cursor:pointer;transition:background-color .18s var(--ease),border-color .18s var(--ease)}
 .btn svg{width:18px;height:18px;flex:none}
-.btn--primary{background:var(--olive);color:var(--on-accent);box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 6px 16px -8px rgba(74,87,36,.6)}
+.btn--primary{background:var(--olive);color:var(--on-accent);box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 4px 12px -4px rgba(74,87,36,.5)}
 .btn--primary:hover{background:var(--olive-hover)}
 .btn--ghost{background:var(--card);color:var(--text);border-color:var(--line-strong)}
 .btn--ghost:hover{border-color:rgba(20,22,18,.28)}
@@ -73,8 +103,8 @@ kbd{white-space:nowrap;padding:1px 6px;border-radius:4px;background:var(--raised
 .btn--outline:hover{background:rgba(95,111,46,.08);border-color:var(--olive)}
 .btn--sm{min-height:38px;padding:0 16px;font-size:.9375rem}
 
-/* ---------- Nav ---------- */
-.nav{position:sticky;top:0;z-index:50;background:rgba(245,246,241,.78);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
+/* ---------- Nawigacja ---------- */
+.nav{position:sticky;top:0;z-index:50;background:rgba(245,246,241,.82);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .nav .wrap{display:flex;align-items:center;gap:32px;height:64px}
 .brand{display:inline-flex;align-items:center;gap:12px;font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;text-decoration:none}
 .brand svg{width:26px;height:26px;color:var(--olive)}
@@ -88,48 +118,76 @@ kbd{white-space:nowrap;padding:1px 6px;border-radius:4px;background:var(--raised
 @media (max-width:899px){.nav-links{display:none}.nav-actions{margin-left:auto}}
 @media (max-width:480px){.nav-gh span{display:none}}
 
-/* ---------- Hero: the product is the picture, and it runs past the first screen ---------- */
-.hero{position:relative;padding:clamp(24px,4vh,56px) 0 clamp(40px,6vh,72px);text-align:center;overflow:hidden;isolation:isolate}
-.badge{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;padding:6px 14px 6px 10px;border:1px solid var(--line-strong);border-radius:999px;background:var(--card);font-size:.8125rem;font-weight:500;color:var(--text-2)}
-.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--olive);box-shadow:0 0 0 3px rgba(95,111,46,.18)}
-.hero-meta{margin-top:12px;font-size:.875rem;color:var(--text-3)}
+/* ---------- Hero ---------- */
+.hero{position:relative;padding:clamp(32px,5vh,64px) 0 clamp(40px,6vh,72px);text-align:center;overflow:hidden;isolation:isolate}
+.hero-meta{margin-top:14px;font-size:.875rem;color:var(--text-3)}
 .hero h1{margin:0 auto;max-width:12ch;font-size:clamp(2.75rem,1.5rem + 4.4vw,4.75rem);font-weight:300;line-height:1;letter-spacing:-.04em}
 .hero .sub{margin:clamp(14px,2.2vh,22px) auto 0;max-width:38rem;font-size:clamp(1.0625rem,.98rem + .4vw,1.25rem);line-height:1.5;color:var(--text-2)}
 .cta-row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:clamp(22px,3.2vh,32px)}
 .dl-note{margin:24px auto 0;max-width:36rem;font-size:.9375rem;line-height:1.55;color:var(--text-2)}
 .dl-note a{color:var(--sage);text-underline-offset:3px}
 body[data-release="latest"] .when-ci{display:none}
-/* the window is as wide as fits under the headline on the first screen (998 x 658 capture), never under 560 px */
-.showcase{position:relative;width:min(100%,max(560px,min(1080px,calc((var(--vh) - 520px) * 1.517))));margin:clamp(24px,3.4vh,36px) auto 0}
-.window{position:relative;border-radius:12px;overflow:hidden;background:var(--app);border:1px solid rgba(20,22,18,.18);box-shadow:0 1px 2px rgba(20,22,18,.06),0 12px 24px -10px rgba(20,22,18,.18),0 32px 64px -24px rgba(20,22,18,.28)}
-.window img,.window video{width:100%;height:auto}
-.window--hero{border-radius:14px;box-shadow:0 1px 2px rgba(20,22,18,.08),0 18px 36px -16px rgba(20,22,18,.22),0 48px 96px -32px rgba(20,22,18,.32)}
-/* Phones: show the page area without the sidebar, so the clock and widgets are readable */
+
+.showcase{position:relative;width:min(100%,max(560px,min(1080px,calc((var(--vh) - 480px) * 1.517))));margin:clamp(24px,3.4vh,36px) auto 0}
+
+/* ---------- Okna aplikacji (.window) z zieloną ramką, małym cieniem i miękkim opacity ---------- */
+.window{
+  position:relative;
+  border-radius:12px;
+  overflow:hidden;
+  background-color:var(--canvas);
+  border:1px solid rgba(95,111,46,.28);
+  box-shadow:0 3px 10px rgba(20,22,18,.08);
+}
+.window img,.window video{
+  width:100%;
+  height:auto;
+  display:block;
+  opacity:.93;
+  transition:opacity .25s ease;
+}
+.window:hover img,.window:hover video{
+  opacity:1;
+}
+
+.window--hero{
+  border-radius:14px;
+  border-color:rgba(95,111,46,.35);
+  box-shadow:0 6px 16px rgba(20,22,18,.10);
+}
+
 @media (max-width:640px){
   .window--hero img{width:127.4%;max-width:none;margin-left:-27.4%}
   .cta-row .btn{width:100%}
 }
 
-/* load-in: one orchestrated moment, only without reduced motion */
 @media (prefers-reduced-motion:no-preference){
   .rise{opacity:0;transform:translateY(12px);animation:rise .7s var(--ease) forwards;animation-delay:calc(var(--i,0)*80ms)}
-  .rise-shot{opacity:0;transform:translateY(28px);animation:rise 1s var(--ease) .4s forwards}
+  .rise-shot{opacity:0;transform:translateY(28px);animation:rise 1s var(--ease) .35s forwards}
   @keyframes rise{to{opacity:1;transform:none}}
 }
 
-/* Content fades in once as it scrolls into view. Only when the script confirmed it can reveal it again. */
 @media (prefers-reduced-motion:no-preference){
   .reveal-on [data-reveal]{opacity:0;transform:translateY(10px);transition:opacity .4s ease-out,transform .4s ease-out}
   .reveal-on [data-reveal].in{opacity:1;transform:none}
 }
 
-/* ---------- Sections ---------- */
+/* ---------- Sekcje ---------- */
 .section{padding:var(--section) 0;position:relative;isolation:isolate}
-/* Each section has its own quiet backdrop: a soft olive glow on alternating sides that fades in as the section arrives and then
-   drifts slowly, plus a large faint logo watermark behind two of them. Static (but visible) under reduced motion. */
-.section::before{content:"";position:absolute;z-index:-1;pointer-events:none;width:min(820px,70vw);aspect-ratio:1;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(95,111,46,.09),rgba(95,111,46,.03) 55%,transparent);filter:blur(10px);
-  opacity:0;transform:scale(.9);transition:opacity 1.2s var(--ease),transform 1.6s var(--ease)}
+.section::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  pointer-events:none;
+  width:min(820px,70vw);
+  aspect-ratio:1;
+  border-radius:50%;
+  background:radial-gradient(closest-side,rgba(95,111,46,.08),rgba(95,111,46,.02) 55%,transparent);
+  filter:blur(10px);
+  opacity:0;
+  transform:scale(.9);
+  transition:opacity 1.2s var(--ease),transform 1.6s var(--ease);
+}
 .section.lit::before,.no-js .section::before{opacity:1;transform:scale(1);animation:sec-glow 22s ease-in-out 1.6s infinite alternate}
 #how::before{left:-18%;top:6%}
 #features::before{right:-16%;top:10%}
@@ -137,17 +195,29 @@ body[data-release="latest"] .when-ci{display:none}
 #plugins::before{left:-20%;top:18%}
 #safe::before{right:-14%;bottom:-10%}
 #faq::before{left:-16%;bottom:-6%}
-#features::after,#safe::after{content:"";position:absolute;z-index:-1;pointer-events:none;width:clamp(260px,32vw,460px);aspect-ratio:1;
-  background:url(assets/bg-logo-big.svg?v=dev) center/contain no-repeat;opacity:.05}
+
+/* Duże logo w tle — statyczne */
+#features::after,#safe::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  pointer-events:none;
+  width:clamp(260px,32vw,460px);
+  aspect-ratio:1;
+  background:url(assets/bg-logo-big.svg?v=dev) center/contain no-repeat;
+  opacity:.04;
+}
 #features::after{left:-6%;bottom:2%}
 #safe::after{right:-11%;top:-4%}
+
 @keyframes sec-glow{to{transform:translate3d(6%,-5%,0) scale(1.08)}}
 @media (prefers-reduced-motion:reduce){.section::before{opacity:1;transform:none;transition:none}.section.lit::before{animation:none}}
+
 .sec-head{margin-bottom:clamp(40px,5vw,64px)}
 .sec-head h2{max-width:20ch;font-size:clamp(2rem,1.35rem + 2.4vw,3.25rem);font-weight:350;line-height:1.08;letter-spacing:-.03em}
 .sec-head p{margin-top:16px;max-width:36rem;font-size:1.1875rem;line-height:1.55;color:var(--text-2)}
 
-/* ---------- How it works: a pinned block; scroll drives a deck of window cards, a rolling number and the copy ---------- */
+/* ---------- How it works ---------- */
 .step-copy h3{font-size:1.375rem;font-weight:500;letter-spacing:-.015em;line-height:1.25}
 .step-copy p{margin-top:10px;max-width:34ch;color:var(--text-2)}
 .step-shot{margin-top:24px}
@@ -155,12 +225,12 @@ body[data-release="latest"] .when-ci{display:none}
 .step-shot--small .window{max-width:558px}
 .step + .step{margin-top:56px}
 .flow-num,.flow-tabs,.flow-stage{display:none}
+
 @media (min-width:900px) and (prefers-reduced-motion:no-preference){
   .js .flow{height:calc(var(--vh) * 3.2)}
   .js .flow-pin{position:sticky;top:64px;height:calc(var(--vh) - 64px);display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);column-gap:clamp(40px,5vw,88px);align-items:center}
   .js .flow-pin::before{content:"";position:absolute;right:-6%;top:50%;width:70%;aspect-ratio:1;translate:0 -50%;background:radial-gradient(closest-side,rgba(95,111,46,.08),transparent 70%);pointer-events:none;z-index:-1}
 
-  /* rolling number: a column of numerals moved by the continuous step value */
   .js .flow-num{display:block;height:1em;overflow:hidden;font-size:clamp(6rem,9vw,9.5rem);font-weight:300;line-height:1;letter-spacing:-.06em;margin-bottom:28px;
     -webkit-mask:linear-gradient(transparent,#000 22%,#000 78%,transparent);mask:linear-gradient(transparent,#000 22%,#000 78%,transparent)}
   .js .flow-num span{display:block;height:1em;transform:translateY(calc(var(--p,0) * -100%));
@@ -180,15 +250,14 @@ body[data-release="latest"] .when-ci{display:none}
   .js .flow-tab.is-on,.js .flow-tab:hover{color:var(--text)}
   .js .flow-tab:focus-visible{outline:2px solid var(--sage);outline-offset:4px;border-radius:2px}
 
-  /* the deck: every card sits in the same cell; JS sets transform, opacity, brightness and order */
   .js .flow-stage{display:block;perspective:1600px;perspective-origin:50% 0}
   .js .deck{display:grid;place-items:end center;aspect-ratio:784/658;max-height:calc(var(--vh) - 200px);margin:60px 0 0 auto}
   .js .card{grid-area:1/1;width:100%;transform-origin:50% 0;will-change:transform,opacity}
   .js .card--small{width:76%;align-self:center}
-  .js .card .window{box-shadow:0 2px 4px rgba(20,22,18,.06),0 24px 48px -20px rgba(20,22,18,.3)}
+  .js .card .window{box-shadow:0 4px 14px rgba(20,22,18,.10)}
 }
 
-/* ---------- Four plain statements ---------- */
+/* ---------- Grid bloków (Features / Limits) ---------- */
 .quad,.trio{display:grid;gap:40px 32px;grid-template-columns:1fr}
 @media (min-width:600px){.quad{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1000px){.quad{grid-template-columns:repeat(4,minmax(0,1fr))}.trio{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -197,7 +266,7 @@ body[data-release="latest"] .when-ci{display:none}
 .quad p,.trio p{margin-top:10px;color:var(--text-2)}
 .trio p{max-width:36ch}
 
-/* ---------- Widgets: tabs beside the recording ---------- */
+/* ---------- Widgets ---------- */
 .tab-list{display:flex;flex-direction:column}
 .tab{all:unset;box-sizing:border-box;display:block;position:relative;padding:16px 0 16px 24px;cursor:pointer}
 .tab::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;background:var(--line-strong);transition:background-color .18s var(--ease)}
@@ -225,7 +294,7 @@ body[data-release="latest"] .when-ci{display:none}
 .loop-btn:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
 @media (hover:none){.loop-btn{opacity:1}}
 
-/* ---------- Plugins: one row each, the picture large enough to read ---------- */
+/* ---------- Plugins ---------- */
 .plug{display:grid;gap:28px;align-items:center}
 .plug + .plug{margin-top:clamp(56px,7vw,96px)}
 .plug .window{max-width:686px}
@@ -276,13 +345,11 @@ body[data-release="latest"] .when-ci{display:none}
 .foot nav a:hover{color:var(--text);text-decoration:underline;text-underline-offset:4px}
 .legal{margin-top:28px;max-width:62ch;font-size:.875rem;line-height:1.6;color:var(--text-3)}
 
-/* ---------- Narrow screens ---------- */
 @media (max-width:899px){
   .tab{padding:14px 0 14px 20px}
 }
 
-/* Large monitors: the layout is designed at 1440 px; above that the whole page scales up in steps instead of leaving a narrow
-   column in a sea of empty space. Capped so the product screenshots (about 1000 px wide) are never blown up much. */
+/* Skalowanie na bardzo dużych monitorach */
 @media (min-width:1680px){body{zoom:1.12}:root{--vh:calc(100svh / 1.12)}}
 @media (min-width:1920px){body{zoom:1.25}:root{--vh:calc(100svh / 1.25)}}
 @media (min-width:2240px){body{zoom:1.35}:root{--vh:calc(100svh / 1.35)}}
