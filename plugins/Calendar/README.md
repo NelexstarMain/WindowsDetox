@@ -1,6 +1,6 @@
 # Calendar
 
-First-party Blocker plugin (`com.windowsdetox.calendar`, version 1.0.0). Your own calendar on this PC: plan focus sessions and tasks, repeat them, and let planned sessions start by themselves. Nothing leaves the device: no account, no network.
+First-party Blocker plugin (`com.windowsdetox.calendar`, version 1.0.1). Your own calendar on this PC: plan focus sessions and tasks, repeat them, and let planned sessions start by themselves. Nothing leaves the device: no account, no network.
 
 ## What it stores
 
@@ -14,8 +14,8 @@ Times are local wall-clock times: "09:00 every Monday" stays 09:00 across daylig
 
 ## What it shows
 
-* Page "Calendar", built like the Insights page: tiles (Next session, Today, This week, Streak), the calendar card with a **month grid** (dots per day, click a day for its agenda), a **week** view and an **agenda** of the next 14 days, and the Plan card (add or edit an entry; editing a repeating entry asks whether the change applies to this occurrence or to all of them). Skip and delete ask for a second click.
-* Dashboard widgets: a compact one (next session countdown and title, today's progress) and a rich one (next session, today's agenda with tick boxes, a mini month with dots and a highlighted today, the selected day's agenda, what is coming up, and a quick-add field such as `15:30 Call Anna`). The widget API does not tell a widget its size, so the rich widget lists its content by importance and the host clips the rest. Tapping a widget opens this page.
+* Page "Calendar", built like the Insights page: tiles (Next session, Today, This week, Streak), the calendar card and the Plan card. The calendar card has a view switch (Month, Week, Agenda; the current one is filled) and separate navigation (previous, Today, next). **Month** is a host-drawn grid (`UiMonthGrid`): the weekday header and the days share one grid, today is a filled circle, the selected day is outlined, days with entries carry dots, other months are dimmed; click a day for its agenda. **Week** shows a week strip and the seven days grouped with their entries. **Agenda** lists the next 14 days grouped by day. Empty days and an empty calendar invite planning. The Plan card is closed until you press "Plan a session" or "Add a task"; the open form picks the kind and the repeat rule with buttons, shows only the fields that matter, and has one Save button (editing a repeating entry asks whether the change applies to this occurrence or to all of them). Skip and delete ask for a second click.
+* Dashboard widgets: "Next session" (one flat tile: countdown, title and time; fits one cell) and "Calendar" (next session, a compact month with its own previous/next buttons, the selected day's agenda with tick boxes, what is coming up). The widget API does not tell a widget its size and the host opens every widget one column wide with up to three rows, so the rich widget lists its content by importance and the host clips the rest. Tapping a widget opens this page.
 * Settings: auto-start on or off, default session length, reminder lead time, week starts on Sunday, 24-hour clock, clear past entries.
 
 ## Planned sessions start by themselves

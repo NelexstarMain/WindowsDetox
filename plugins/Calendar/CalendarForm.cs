@@ -190,7 +190,8 @@ public static class CalendarForm
             return FormOutcome.Refused("That entry no longer exists.");
         }
 
-        EntryKind kind = Get(KindId) switch
+        // The kind and the repeat rule are chosen with buttons next to the form, so the form may not carry them: the draft has them then.
+        EntryKind kind = !values.ContainsKey(KindId) ? editing.Kind : Get(KindId) switch
         {
             "session" => EntryKind.Session,
             "task" => EntryKind.Task,
@@ -252,7 +253,7 @@ public static class CalendarForm
             length = 0;
         }
 
-        RepeatKind repeat = Get(RepeatId) switch
+        RepeatKind repeat = !values.ContainsKey(RepeatId) ? editing.Repeat : Get(RepeatId) switch
         {
             "once" => RepeatKind.Once,
             "daily" => RepeatKind.Daily,
@@ -264,7 +265,8 @@ public static class CalendarForm
             return FormOutcome.Refused("Choose how often it repeats.");
         }
 
-        if (!TryNumber(Get(EveryId), out int every) || every is < 1 or > CalendarLimits.MaxInterval)
+        int every = 1;
+        if ((values.ContainsKey(EveryId) || repeat != RepeatKind.Once) && (!TryNumber(Get(EveryId), out every) || every is < 1 or > CalendarLimits.MaxInterval))
         {
             return FormOutcome.Refused($"Repeat every 1 to {CalendarLimits.MaxInterval}.");
         }

@@ -108,7 +108,7 @@ public sealed class BundledPluginTests
         PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
         Assert.Equal("com.windowsdetox.calendar", manifest.Id.Value);
         Assert.Equal("Calendar", manifest.Name);
-        Assert.Equal(new Version(1, 0, 0), manifest.Version);
+        Assert.Equal(new Version(1, 0, 1), manifest.Version);
         Assert.Equal("CalendarPlanner.CalendarPlugin", manifest.EntryType);
         Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
         Assert.NotEqual(FocusInsightsIcon(), manifest.Icon);

@@ -229,6 +229,38 @@ function Add-Task($window, [string]$text) {
   return $true
 }
 
+# Replaces the text of the text box with this label (UI Automation name) with real key presses; $false when there is no such box.
+function Set-Field($window, [string]$label, [string]$text) {
+  $field = $null
+  $edit = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $edit)) {
+    if ($e.Current.Name -eq $label) { $field = $e; break }
+  }
+  if (-not $field) { Write-Host "could not find the '$label' field"; return $false }
+  try { $field.SetFocus() } catch {
+    $r = $field.Current.BoundingRectangle
+    [Native]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2))
+  }
+  Start-Sleep -Milliseconds 400
+  [System.Windows.Forms.SendKeys]::SendWait('^a')
+  [System.Windows.Forms.SendKeys]::SendWait($text)
+  Start-Sleep -Milliseconds 400
+  return $true
+}
+
+# Scrolls the page until a text that contains this fragment is fully on screen (at most eight notches).
+function Scroll-ToText($window, [string]$fragment) {
+  $f = [Native]::Frame([IntPtr]$window.Current.NativeWindowHandle)
+  $textCond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
+  for ($k = 0; $k -lt 8; $k++) {
+    foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $textCond)) {
+      if ($e.Current.Name -like "*$fragment*" -and $e.Current.BoundingRectangle.Width -gt 0 -and $e.Current.BoundingRectangle.Bottom -lt ($f.Bottom - 8)) { return }
+    }
+    [Native]::Wheel([int](($f.Left + $f.Right) / 2 + 100), [int](($f.Top + $f.Bottom) / 2), 1)
+    Start-Sleep -Milliseconds 500
+  }
+}
+
 if ($Phase -eq 'installer') {
   $p = Start-Process $Setup -PassThru
   Shot (Wait-Window $p.Id) '01-installer'
@@ -294,7 +326,8 @@ if (Click-Named $main 'Session') {
   }
 }
 if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
-# The Calendar plugin is fully local: its page opens on an empty calendar, so this shot needs no sample data and no network.
+# The Calendar plugin is fully local: its page opens on an empty calendar (with an inviting empty state), so this shot needs no sample data and no network.
+# 21-calendar-in-use is taken with the in-use shots at the end.
 if (Click-Named $main 'Calendar') { Start-Sleep -Seconds 3; Shot $main '20-calendar' }
 
 # --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input at a human pace.
@@ -475,6 +508,27 @@ if (Click-Named $main 'Goals') {
     Start-Sleep -Milliseconds 500
   }
   Shot $main '18-goals-in-use'
+}
+if (Click-Named $main 'Calendar') {
+  # A planned session three days ahead (never close enough to start by itself while the shots are taken) and a task today, both
+  # entered through the real form: the page opens it with the buttons, the fields get real key presses.
+  Start-Sleep -Seconds 2
+  if (Press-Named $main 'Plan a session') {
+    Start-Sleep -Milliseconds 1500
+    Set-Field $main 'Title' 'Deep work' | Out-Null
+    Set-Field $main 'Date (yyyy-mm-dd)' (Get-Date).AddDays(3).ToString('yyyy-MM-dd') | Out-Null
+    Press-Named $main 'Save' | Out-Null
+    Start-Sleep -Milliseconds 1500
+  }
+  if (Press-Named $main 'Add a task') {
+    Start-Sleep -Milliseconds 1500
+    Set-Field $main 'Title' 'Reply to supervisor' | Out-Null
+    Set-Field $main 'Date (yyyy-mm-dd)' (Get-Date).ToString('yyyy-MM-dd') | Out-Null
+    Press-Named $main 'Save' | Out-Null
+    Start-Sleep -Milliseconds 1500
+  }
+  Scroll-ToText $main 'Reply to supervisor'
+  Shot $main '21-calendar-in-use'
 }
 if (Click-Named $main 'Session') { Start-Sleep -Seconds 3; Shot $main '19-session-widgets-in-use' }
 

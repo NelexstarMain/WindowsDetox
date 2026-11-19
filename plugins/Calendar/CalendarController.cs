@@ -42,6 +42,18 @@ public static class CalendarIds
     /// <summary>Leaves edit mode.</summary>
     public const string CancelEdit = "cal-cancel-edit";
 
+    /// <summary>Opens the Plan form for a focus session (also switches an open form to a session).</summary>
+    public const string PlanSession = "cal-plan-session";
+
+    /// <summary>Opens the Plan form for a task (also switches an open form to a task).</summary>
+    public const string PlanTask = "cal-plan-task";
+
+    /// <summary>The "Plan a session" button of an empty day or an empty calendar.</summary>
+    public const string EmptyPlan = "cal-empty-plan";
+
+    /// <summary>Prefix of the repeat chips of the Plan form; <c>once</c>, <c>daily</c> or <c>weekly</c> follows.</summary>
+    public const string RepeatPrefix = "cal-repeat-";
+
     /// <summary>Widget: previous month.</summary>
     public const string WidgetPrev = "cal-w-prev";
 
@@ -53,12 +65,6 @@ public static class CalendarIds
 
     /// <summary>Prefix of the widget's done toggles.</summary>
     public const string WidgetDonePrefix = "cal-w-done-";
-
-    /// <summary>Id of the widget's quick-add form.</summary>
-    public const string WidgetAddForm = "cal-w-add";
-
-    /// <summary>Id of the widget's quick-add text field.</summary>
-    public const string WidgetAddField = "cal-w-add-text";
 
     /// <summary>Settings: Sunday as first day of the week.</summary>
     public const string SetWeek = "cal-set-week";
@@ -120,9 +126,6 @@ public static class CalendarIds
 /// <summary>Applies actions.</summary>
 public sealed class CalendarController(CalendarStore store, CalendarUiState state)
 {
-    /// <summary>Most entries the quick-add field creates in one go: one.</summary>
-    public const int QuickAddMaxLength = 80;
-
     /// <summary>Handles an action of the page.</summary>
     public async ValueTask HandlePageAsync(UiAction action, CancellationToken cancellationToken)
     {
@@ -149,9 +152,6 @@ public sealed class CalendarController(CalendarStore store, CalendarUiState stat
             case UiActionKind.Toggle when bool.TryParse(action.Value, out bool done) && CalendarIds.TryParse(action.ElementId, CalendarIds.WidgetDonePrefix, 2, out int[] t):
                 _ = await store.SetDoneAsync(t[0], t[1], done, cancellationToken);
                 break;
-            case UiActionKind.Submit when action.ElementId == CalendarIds.WidgetAddForm && action.FormValues.TryGetValue(CalendarIds.WidgetAddField, out string? text):
-                await QuickAddAsync(text, state.WidgetSelected ?? today, cancellationToken);
-                break;
             case UiActionKind.Click when action.ElementId == CalendarIds.WidgetPrev:
                 state.SetWidgetMonth(CalTime.AddMonths(state.WidgetMonth ?? today, -1));
                 break;
@@ -161,40 +161,6 @@ public sealed class CalendarController(CalendarStore store, CalendarUiState stat
             case UiActionKind.Click when CalendarIds.TryParse(action.ElementId, CalendarIds.WidgetDayPrefix, 1, out int[] d) && IsValidDay(d[0]):
                 state.SetWidgetSelected(d[0]);
                 break;
-        }
-    }
-
-    /// <summary>Adds a task from the quick-add field: <c>hh:mm title</c> or just a title, on <paramref name="day"/>.</summary>
-    public async ValueTask QuickAddAsync(string? text, int day, CancellationToken cancellationToken)
-    {
-        string value = (text ?? string.Empty).Trim();
-        if (value.Length == 0 || value.Length > QuickAddMaxLength * 2)
-        {
-            return;
-        }
-
-        if (CalTime.TryParseTime(value, out _))
-        {
-            return;   // a time alone is not a task
-        }
-
-        int minute = -1;
-        int space = value.IndexOf(' ', StringComparison.Ordinal);
-        if (space > 0 && CalTime.TryParseTime(value[..space], out int parsed))
-        {
-            minute = parsed;
-            value = value[(space + 1)..].Trim();
-        }
-
-        if (value.Length == 0)
-        {
-            return;
-        }
-
-        var entry = new CalendarEntry { Kind = EntryKind.Task, Title = value, StartDay = day, StartMinute = minute };
-        if (await store.AddAsync(entry, cancellationToken) is null)
-        {
-            state.SetMessage(new CalendarMessage($"The calendar is full ({CalendarLimits.MaxEntries} entries). Delete some first.", IsError: true));
         }
     }
 
@@ -289,7 +255,48 @@ public sealed class CalendarController(CalendarStore store, CalendarUiState stat
             case CalendarIds.CancelEdit:
                 state.SetDraft(null);
                 break;
+            case CalendarIds.PlanSession:
+            case CalendarIds.EmptyPlan:
+                OpenForm(EntryKind.Session);
+                break;
+            case CalendarIds.PlanTask:
+                OpenForm(EntryKind.Task);
+                break;
+            case CalendarIds.RepeatPrefix + "once":
+                SetRepeat(RepeatKind.Once);
+                break;
+            case CalendarIds.RepeatPrefix + "daily":
+                SetRepeat(RepeatKind.Daily);
+                break;
+            case CalendarIds.RepeatPrefix + "weekly":
+                SetRepeat(RepeatKind.Weekly);
+                break;
         }
+    }
+
+    // Opens the Plan form for a new entry on the selected day. Choosing the kind of an open new entry keeps its repeat rule.
+    private void OpenForm(EntryKind kind)
+    {
+        CalendarDraft? open = state.Draft;
+        if (open is { EditId: > 0 })
+        {
+            return;   // an entry being edited keeps its kind
+        }
+
+        CalendarDraft draft = CalendarForm.NewDraft(open?.Day ?? state.Selected ?? store.Today, store.Time.GetUtcNow(), store.Zone, store.Settings, kind);
+        state.SetDraft(open is null ? draft : draft with { Repeat = open.Repeat, Mask = open.Mask });
+        state.SetMessage(null);
+    }
+
+    private void SetRepeat(RepeatKind repeat)
+    {
+        if (state.Draft is not { } draft)
+        {
+            return;
+        }
+
+        int mask = draft.Mask != 0 ? draft.Mask : 1 << CalTime.Weekday(draft.Day);
+        state.SetDraft(draft with { Repeat = repeat, Mask = mask });
     }
 
     private async ValueTask ConfirmedAsync(string id, Func<ValueTask> action)
@@ -401,12 +408,12 @@ public sealed class CalendarController(CalendarStore store, CalendarUiState stat
         _ = int.TryParse(Get(CalendarForm.ColorId), NumberStyles.None, CultureInfo.InvariantCulture, out int color);
         return editing with
         {
-            Kind = Get(CalendarForm.KindId) == "task" ? EntryKind.Task : EntryKind.Session,
+            Kind = !values.ContainsKey(CalendarForm.KindId) ? editing.Kind : Get(CalendarForm.KindId) == "task" ? EntryKind.Task : EntryKind.Session,
             Title = Get(CalendarForm.TitleId),
             Day = day == 0 ? editing.Day : day,
             Time = Get(CalendarForm.TimeId),
             Length = (int)Math.Clamp(length, 0, CalendarLimits.MaxTaskMinutes),
-            Repeat = Get(CalendarForm.RepeatId) switch { "daily" => RepeatKind.Daily, "weekly" => RepeatKind.Weekly, _ => RepeatKind.Once },
+            Repeat = !values.ContainsKey(CalendarForm.RepeatId) ? editing.Repeat : Get(CalendarForm.RepeatId) switch { "daily" => RepeatKind.Daily, "weekly" => RepeatKind.Weekly, _ => RepeatKind.Once },
             Every = (int)Math.Clamp(every, 1, CalendarLimits.MaxInterval),
             Mask = mask,
             End = Get(CalendarForm.EndId) switch { "date" => EndKind.OnDate, "count" => EndKind.AfterCount, _ => EndKind.Never },

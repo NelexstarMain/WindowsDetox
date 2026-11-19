@@ -1,7 +1,9 @@
 // Dashboard widgets. The host draws the surface, the header (icon and name) and tap-to-open; the trees contain only content.
-// The widget API does not tell a widget how many cells it has, so the content is ordered by importance and the host clips the rest:
-//   * CalendarCompactWidget  small: next session, today's progress
-//   * CalendarWidget         rich: next session, today's agenda, a mini month with dots, the selected day, what is coming, quick add
+// The widget API does not tell a widget how many cells it has and starts every widget one column wide, with as many rows (at most 3,
+// each about 140 px tall minus the host header) as the content estimate needs, so the content is ordered by importance and the host clips the rest:
+//   * CalendarCompactWidget  "Next session": one flat tile, designed for a single 1 x 1 cell (260 x 140 px)
+//   * CalendarWidget         "Calendar": next session, a compact month with its own previous/next buttons, the selected day's agenda
+//                            with tick boxes, then what is coming; designed for one column and three rows
 
 using System.Globalization;
 using Blocker.UI.Sdk;
@@ -11,14 +13,14 @@ namespace CalendarPlanner;
 /// <summary>The rich dashboard widget. Requires "ui.dashboard".</summary>
 public sealed class CalendarWidget(CalendarStore store, CalendarUiState state, CalendarController controller) : CalendarContribution(store, state, controller), IDashboardWidgetPlugin
 {
-    /// <summary>Rows shown for one day.</summary>
+    /// <summary>Rows shown for the selected day.</summary>
     public const int MaxDayRows = 3;
 
-    /// <summary>Entries listed under "Upcoming".</summary>
-    public const int MaxUpcoming = 3;
+    /// <summary>Entries listed under "Coming up".</summary>
+    public const int MaxUpcoming = 2;
 
     /// <inheritdoc/>
-    public UiWidgetSize Size => UiWidgetSize.Wide;
+    public UiWidgetSize Size => UiWidgetSize.Medium;
 
     /// <inheritdoc/>
     public ValueTask<UiCard> RenderAsync(UiRenderContext context, CancellationToken cancellationToken)
@@ -40,33 +42,21 @@ public sealed class CalendarWidget(CalendarStore store, CalendarUiState state, C
         int today = view.Today;
         int month = state.WidgetMonth ?? today;
         int selected = state.WidgetSelected ?? today;
-        List<UiNode> body = [CalendarCompactWidget.NextStat(view)];
+        List<UiNode> body =
+        [
+            CalendarCompactWidget.NextStat(view),
+            CalendarPage.MonthGrid(view, month, selected, CalendarIds.WidgetDayPrefix, compact: true, trim: true, CalTime.MonthTitle(month), CalendarIds.WidgetPrev, CalendarIds.WidgetNext),
+        ];
 
-        // Today's agenda first: it is the most useful thing after the countdown.
-        Occurrence[] todays = [.. view.Between(today, today)];
-        if (todays.Length == 0)
+        Occurrence[] chosen = [.. view.Between(selected, selected)];
+        string heading = selected == today ? "Today" : CalTime.ShortDate(selected);
+        if (chosen.Length == 0)
         {
-            body.Add(Ui.Text("Nothing planned today.", UiTextStyle.Caption));
+            body.Add(Ui.Text($"{heading}: nothing planned.", UiTextStyle.Caption));
         }
         else
         {
-            body.AddRange(todays.Take(MaxDayRows).Select(o => Row(view, o)));
-            if (todays.Length > MaxDayRows)
-            {
-                body.Add(Ui.Text($"+{todays.Length - MaxDayRows} more today", UiTextStyle.Caption));
-            }
-        }
-
-        body.AddRange(MiniMonth(view, month, selected));
-        if (selected != today)
-        {
-            body.Add(Ui.Text(CalTime.ShortDate(selected), UiTextStyle.Subtitle));
-            Occurrence[] chosen = [.. view.Between(selected, selected)];
-            if (chosen.Length == 0)
-            {
-                body.Add(Ui.Text("Nothing planned.", UiTextStyle.Caption));
-            }
-
+            body.Add(Ui.Text(heading, UiTextStyle.Caption));
             body.AddRange(chosen.Take(MaxDayRows).Select(o => Row(view, o)));
             if (chosen.Length > MaxDayRows)
             {
@@ -74,34 +64,14 @@ public sealed class CalendarWidget(CalendarStore store, CalendarUiState state, C
             }
         }
 
-        Occurrence[] upcoming = [.. view.Between(today + 1, today + 60).Take(MaxUpcoming)];
+        Occurrence[] upcoming = [.. view.Between(selected + 1, selected + 60).Take(MaxUpcoming)];
         if (upcoming.Length > 0)
         {
-            body.Add(Ui.Text("Coming up", UiTextStyle.Subtitle));
-            body.AddRange(upcoming.Select(o => Ui.Text($"{CalTime.ShortDate(o.Day)}  {view.Line(o)}", UiTextStyle.Caption)));
+            body.Add(Ui.Text("Coming up", UiTextStyle.Caption));
+            body.AddRange(upcoming.Select(o => Ui.Text($"{CalTime.ShortDate(o.Day)}  {view.Line(o)}")));
         }
 
-        body.Add(Ui.Form(
-            CalendarIds.WidgetAddForm,
-            "Add",
-            new UiTextField(CalendarIds.WidgetAddField, "Quick add a task", string.Empty, $"{(selected == today ? "Today" : CalTime.ShortDate(selected))}: 15:30 Call Anna", CalendarController.QuickAddMaxLength)));
         return Ui.Card([.. body]);
-    }
-
-    private static IEnumerable<UiNode> MiniMonth(CalendarView view, int month, int selected)
-    {
-        yield return Ui.Row(
-            Ui.Button(CalendarIds.WidgetPrev, "Previous month", UiButtonVariant.Subtle),
-            Ui.Text(CalTime.MonthTitle(month), UiTextStyle.Subtitle),
-            Ui.Button(CalendarIds.WidgetNext, "Next month", UiButtonVariant.Subtle));
-        IReadOnlyList<int> days = CalTime.MonthGrid(month, view.Settings.WeekStartsOnSunday);
-        Dictionary<int, int> counts = view.Between(days[0], days[^1]).GroupBy(o => o.Day).ToDictionary(g => g.Key, g => g.Count());
-        int monthStart = CalTime.MonthStart(month);
-        yield return Ui.Row([.. Enumerable.Range(0, 7).Select(i => Ui.Text(CalTime.DayName(days[0] + i)[..2], UiTextStyle.Caption))]);
-        for (int week = 0; week < 6; week++)
-        {
-            yield return Ui.Row([.. days.Skip(week * 7).Take(7).Select(day => CalendarPage.DayButton(CalendarIds.WidgetDayPrefix, day, counts.GetValueOrDefault(day), day == selected, day == view.Today, CalTime.SameMonth(day, monthStart), todayIsPrimary: true))]);
-        }
     }
 
     private static UiNode Row(CalendarView view, Occurrence occurrence)
@@ -113,9 +83,11 @@ public sealed class CalendarWidget(CalendarStore store, CalendarUiState state, C
     }
 }
 
-/// <summary>The compact dashboard widget: the next session and today's progress. Requires "ui.dashboard".</summary>
+/// <summary>The compact dashboard widget "Next session": one flat tile that fits a single cell. Requires "ui.dashboard".</summary>
 public sealed class CalendarCompactWidget(CalendarStore store, CalendarUiState state, CalendarController controller) : CalendarContribution(store, state, controller), IDashboardWidgetPlugin
 {
+    private const int CaptionLength = 30;
+
     /// <inheritdoc/>
     public UiWidgetSize Size => UiWidgetSize.Small;
 
@@ -133,25 +105,10 @@ public sealed class CalendarCompactWidget(CalendarStore store, CalendarUiState s
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>Builds the widget from a snapshot.</summary>
-    public static UiCard Build(CalendarView view)
-    {
-        List<UiNode> body = [NextStat(view)];
-        DayProgress today = view.ProgressOf(view.Today);
-        if (today.Total > 0)
-        {
-            body.Add(Ui.Progress(today.Done, today.Total, null));
-            body.Add(Ui.Text($"Today: {today.Done} of {today.Total} done", UiTextStyle.Caption));
-        }
-        else
-        {
-            body.Add(Ui.Text("Nothing planned today.", UiTextStyle.Caption));
-        }
+    /// <summary>Builds the widget from a snapshot: the tile only, so nothing is clipped in a 1 x 1 cell.</summary>
+    public static UiCard Build(CalendarView view) => Ui.Card(NextStat(view));
 
-        return Ui.Card([.. body]);
-    }
-
-    /// <summary>The single primary value of both widgets: the next planned session.</summary>
+    /// <summary>The single primary value of both widgets: the next planned session, one short line of caption.</summary>
     public static UiStatTile NextStat(CalendarView view)
     {
         NextSession? next = view.NextSession();
@@ -160,14 +117,22 @@ public sealed class CalendarCompactWidget(CalendarStore store, CalendarUiState s
             return Ui.Stat("Next session", "None", "Plan one on the Calendar page", UiTone.Neutral);
         }
 
-        string title = next.Occurrence.Title.Length <= 28 ? next.Occurrence.Title : next.Occurrence.Title[..27] + ".";
         if (next.InProgress)
         {
-            return Ui.Stat("Next session", "Now", title, UiTone.Success);
+            string until = CalTime.Clock(CalTime.MinuteOf(next.EndUtc, view.Zone), view.Settings.Use24Hour);
+            return Ui.Stat("Next session", "Now", Fit(next.Occurrence.Title, $"until {until}"), UiTone.Success);
         }
 
         string time = CalTime.Clock(next.Occurrence.StartMinute, view.Settings.Use24Hour);
         string when = next.Occurrence.Day == view.Today ? time : next.Occurrence.Day == view.Today + 1 ? "tomorrow " + time : CalTime.ShortDate(next.Occurrence.Day) + " " + time;
-        return Ui.Stat("Next session", CalTime.Countdown(next.StartUtc - view.Now), $"{title}, {when}", UiTone.Accent);
+        return Ui.Stat("Next session", CalTime.Countdown(next.StartUtc - view.Now), Fit(next.Occurrence.Title, when), UiTone.Accent);
+    }
+
+    // "title, suffix" in at most CaptionLength characters: the title gives way, the time stays.
+    private static string Fit(string title, string suffix)
+    {
+        int room = CaptionLength - suffix.Length - 2;
+        string shown = room >= title.Length ? title : room >= 2 ? title[..(room - 1)] + "." : string.Empty;
+        return shown.Length == 0 ? suffix : string.Create(CultureInfo.InvariantCulture, $"{shown}, {suffix}");
     }
 }

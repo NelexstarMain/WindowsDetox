@@ -79,6 +79,7 @@ public ValueTask<UiPage> RenderAsync(UiRenderContext context, CancellationToken 
 | `UiHeatmap(rowLabels, colLabels, values, title, suffix)` | weekday x hour | rows 1-12, columns 1-24, `Values[row][col]` finite and >= 0, exact dimensions |
 | `UiTable(columns, rows)` with `UiTableColumn(header, alignment, monospace)` / `UiTableRow(cells)` | short fact lists | 1-12 columns, <= 500 rows, one cell per column; right-align and `Monospace` numbers |
 | `UiProgress(value, max, label, tone)` | amount done | max > 0, 0 <= value <= max |
+| `UiMonthGrid(weekdayLabels, cells, title, previousId, nextId, isCompact)` with `UiMonthCell(id, day, markers, isToday, isSelected, isOutside, tone, description)` | month or week strip with clickable days; header and days share one grid so they align; host draws today, selected, up to 3 marker dots, dimmed outside days; `isCompact` for widgets | exactly 7 labels, 7-42 cells (whole weeks), unique cell ids (clicks arrive as `UiAction.Click`), day 1-31, markers 0-99; title + previousId + nextId adds host-drawn chevron buttons |
 
 Pass a null chart title when the surrounding card already has one (Insights does). All counts count toward the 2000-node tree budget (points, rows, fields count as nodes) and 512 KiB serialized size. Keep charts to what the user needs; cap loops (`Take(n)`). No `UiGlyph` with a chart title as decoration.
 

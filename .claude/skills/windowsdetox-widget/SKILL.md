@@ -12,6 +12,7 @@ Interface (`src/Blocker.UI.SDK/Contributions.cs`): `UiWidgetSize Size { get; }` 
 The host draws: the widget surface, the header with the plugin icon (manifest `icon`, 14 px) and plugin name, tap-to-open the plugin page, and edit mode (drag, resize, remove). Spans (1x1 up to 2x3 cells) are persisted by the host. Therefore the widget tree has:
 - NO `UiCard` title/subtitle/icon (`Ui.Card(children)` only), NO `UiGlyph` logo, NO nested cards, NO plugin name text, NO "open page" hint/button.
 - ONE primary value: a `UiStatTile` (`Ui.Stat`), rendered flat (no tile box) in widgets. Its label names the value ("Today"), caption is optional.
+- A compact month (`UiMonthGrid` with `isCompact`) is acceptable in a calendar widget, right after the primary value; a widget always starts one column wide with up to 3 rows, so keep it to about 5 week rows and put what matters before it or right below it.
 - At most ONE `UiProgress` (`Ui.Progress`). At most 3 list rows (toggle rows, text rows or a 3-row `UiTable`). No grids of tiles, no heatmaps, no multi-series charts; a tiny `UiBarChart` is acceptable only in a 2-wide widget and never first.
 - A short, calm empty-state line (`Ui.Text(..., UiTextStyle.Caption)`), e.g. "Stats appear after your first session." One line, no button needed (tap opens the page).
 - Interactive controls (`UiToggle`, `UiButton`) are allowed but sparing: only for the single quick action users do daily (tick a task, start/stop). Tapping anywhere else opens the plugin page, so never add a button just to navigate. No forms in widgets.

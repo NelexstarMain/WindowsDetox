@@ -1,3 +1,4 @@
+using Blocker.UI.Sdk;
 using Blocker.UI.ViewModels;
 using Blocker.UI.Views;
 
@@ -106,5 +107,32 @@ public sealed class WidgetSpansTests
         Assert.Equal(WidgetSpans.CellMinWidth, WidgetSpans.SlotWidth(1));
         Assert.Equal((2 * WidgetSpans.CellMinWidth) + WidgetSpans.Gap, WidgetSpans.SlotWidth(2));
         Assert.Equal((2 * WidgetSpans.CellHeight) + WidgetSpans.Gap, WidgetSpans.SlotHeight(2));
+    }
+
+    private static UiMonthCell[] Weeks(int weeks) => [.. Enumerable.Range(0, weeks * 7).Select(i => new UiMonthCell("d" + i, (i % 28) + 1))];
+
+    private static readonly string[] Weekdays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+    [Fact]
+    public void A_single_tile_needs_one_row_and_a_widget_with_a_month_grid_grows_to_three()
+    {
+        UiCard tile = Ui.Card(Ui.Stat("Next session", "25 min", "Deep work, 15:30"));
+        UiCard calendar = Ui.Card(
+            Ui.Stat("Next session", "25 min", "Deep work, 15:30"),
+            Ui.MonthGrid(Weekdays, Weeks(5), "November 2026", "p", "n", isCompact: true),
+            Ui.Text("Today", UiTextStyle.Caption),
+            Ui.Toggle("t", "10:00  Reply", false));
+
+        Assert.Equal(1, WidgetSpans.DefaultRows(tile));
+        Assert.Equal(3, WidgetSpans.DefaultRows(calendar));
+    }
+
+    [Fact]
+    public void A_month_grid_is_taller_with_more_weeks_and_a_title()
+    {
+        double bare4 = WidgetSpans.DefaultRows(Ui.Card(Ui.MonthGrid(Weekdays, Weeks(4), isCompact: true)));
+        double titled6 = WidgetSpans.DefaultRows(Ui.Card(Ui.MonthGrid(Weekdays, Weeks(6), "T", "p", "n")));
+
+        Assert.True(titled6 > bare4);
     }
 }

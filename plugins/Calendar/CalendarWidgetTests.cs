@@ -12,6 +12,8 @@ public class CalendarWidgetTests
 
     private static UiStatTile Stat(UiNode root) => Kit.Descendants(root).OfType<UiStatTile>().Single();
 
+    private static UiMonthGrid Month(UiNode root) => Kit.Descendants(root).OfType<UiMonthGrid>().Single();
+
     [Fact]
     public async Task Both_widgets_are_cards_without_title_logo_or_nested_cards()
     {
@@ -25,48 +27,43 @@ public class CalendarWidgetTests
             Assert.Null(card.Icon);
             Assert.Empty(Kit.Descendants(card).OfType<UiGlyph>());
             Assert.Empty(Kit.Descendants(card).Skip(1).OfType<UiCard>());
+            Assert.Empty(Kit.Descendants(card).OfType<UiForm>());
             Assert.Single(Kit.Descendants(card).OfType<UiStatTile>());
             Assert.IsType<UiStatTile>(card.Children[0]);
         }
     }
 
     [Fact]
-    public async Task The_sizes_are_small_and_wide()
+    public async Task The_sizes_are_small_and_medium()
     {
         var rig = await Rig.CreateAsync();
 
-        Assert.Equal((UiWidgetSize.Small, UiWidgetSize.Wide), (rig.Compact.Size, rig.Widget.Size));
+        Assert.Equal((UiWidgetSize.Small, UiWidgetSize.Medium), (rig.Compact.Size, rig.Widget.Size));
     }
 
     [Fact]
-    public async Task The_compact_widget_with_nothing_planned_has_a_calm_empty_state()
-    {
-        var rig = await Rig.CreateAsync();
-
-        UiCard card = await rig.CompactAsync();
-
-        UiStatTile stat = Stat(card);
-        Assert.Equal(("Next session", "None", "Plan one on the Calendar page"), (stat.Label, stat.Value, stat.Caption));
-        Assert.True(Kit.HasText(card, "Nothing planned today."));
-        Assert.Empty(Kit.Descendants(card).OfType<UiProgress>());
-        Assert.Empty(Kit.Descendants(card).OfType<UiButton>());
-    }
-
-    [Fact]
-    public async Task The_compact_widget_shows_the_countdown_the_title_and_todays_progress()
+    public async Task The_small_widget_is_a_single_tile_so_nothing_is_clipped_in_one_cell()
     {
         var rig = await Rig.CreateAsync();
         _ = await rig.AddSessionTodayAsync("Deep work", 10 * 60);
-        CalendarEntry task = await rig.AddAsync(Kit.Task("a", Today));
-        _ = await rig.Store.SetDoneAsync(task.Id, Today, true, CancellationToken.None);
 
         UiCard card = await rig.CompactAsync();
 
-        Assert.Equal(("60 min", "Deep work, 10:00", UiTone.Accent), (Stat(card).Value, Stat(card).Caption, Stat(card).Tone));
-        UiProgress progress = Kit.Descendants(card).OfType<UiProgress>().Single();
-        Assert.Equal((1d, 2d), (progress.Value, progress.Maximum));
-        Assert.True(Kit.HasText(card, "Today: 1 of 2 done"));
-        Assert.True(Kit.Descendants(card).Count(n => n is UiText or UiProgress or UiStatTile) <= 4);
+        UiStatTile tile = Assert.IsType<UiStatTile>(Assert.Single(card.Children));
+        Assert.Equal(("Next session", "60 min", "Deep work, 10:00", UiTone.Accent), (tile.Label, tile.Value, tile.Caption, tile.Tone));
+        Assert.True(tile.Caption!.Length <= 30);
+        Assert.Null(tile.Icon);
+    }
+
+    [Fact]
+    public async Task The_small_widget_with_nothing_planned_has_a_calm_empty_state()
+    {
+        var rig = await Rig.CreateAsync();
+
+        UiCard card = await rig.CompactAsync();
+
+        UiStatTile stat = Assert.IsType<UiStatTile>(Assert.Single(card.Children));
+        Assert.Equal(("Next session", "None", "Plan one on the Calendar page", UiTone.Neutral), (stat.Label, stat.Value, stat.Caption, stat.Tone));
     }
 
     [Theory]
@@ -98,7 +95,7 @@ public class CalendarWidgetTests
     }
 
     [Fact]
-    public async Task A_started_session_shows_now_in_success_tone()
+    public async Task A_started_session_shows_now_in_success_tone_and_when_it_ends()
     {
         var rig = await Rig.CreateAsync();
         CalendarEntry s = await rig.AddSessionTodayAsync("Deep work", 8 * 60, 240);
@@ -106,7 +103,7 @@ public class CalendarWidgetTests
 
         UiStatTile stat = Stat(await rig.CompactAsync());
 
-        Assert.Equal(("Now", UiTone.Success, "Deep work"), (stat.Value, stat.Tone, stat.Caption));
+        Assert.Equal(("Now", UiTone.Success, "Deep work, until 12:00"), (stat.Value, stat.Tone, stat.Caption));
     }
 
     [Fact]
@@ -121,14 +118,16 @@ public class CalendarWidgetTests
     }
 
     [Fact]
-    public async Task A_long_title_is_cut_to_fit_the_widget()
+    public async Task A_long_title_gives_way_but_the_time_stays_in_one_line()
     {
         var rig = await Rig.CreateAsync();
-        _ = await rig.AddSessionTodayAsync(new string('W', 60));
+        _ = await rig.AddSessionTodayAsync(new string('W', 60), 10 * 60);
 
         string caption = Stat(await rig.CompactAsync()).Caption!;
 
-        Assert.StartsWith(new string('W', 27) + ".", caption, StringComparison.Ordinal);
+        Assert.Equal(30, caption.Length);
+        Assert.EndsWith("., 10:00", caption, StringComparison.Ordinal);
+        Assert.StartsWith("WWW", caption, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -141,30 +140,35 @@ public class CalendarWidgetTests
 
         UiCard card = await rig.WidgetAsync();
 
-        UiNode[] top = [.. card.Children.Take(3)];
+        UiNode[] top = [.. card.Children.Take(5)];
         Assert.IsType<UiStatTile>(top[0]);
-        Assert.Equal("10:00-11:00  Deep work", Assert.IsType<UiText>(top[1]).Text.Replace(" (started)", string.Empty));
-        Assert.Equal("11:00  Water plants", Assert.IsType<UiToggle>(top[2]).Label);
-        Assert.IsType<UiForm>(card.Children[^1]);
+        Assert.IsType<UiMonthGrid>(top[1]);
+        Assert.Equal("Today", Assert.IsType<UiText>(top[2]).Text);
+        Assert.Equal("10:00-11:00  Deep work", Assert.IsType<UiText>(top[3]).Text.Replace(" (started)", string.Empty));
+        Assert.Equal("11:00  Water plants", Assert.IsType<UiToggle>(top[4]).Label);
         Assert.True(Kit.HasText(card, "Coming up"));
         Assert.True(Kit.HasText(card, "Fri 2 Jan  Tomorrow's task"));
     }
 
     [Fact]
-    public async Task The_rich_widget_has_a_mini_month_with_one_highlighted_today()
+    public async Task The_rich_widget_has_a_compact_month_with_its_own_navigation_and_one_today()
     {
         var rig = await Rig.CreateAsync();
         _ = await rig.AddSessionTodayAsync();
 
         UiCard card = await rig.WidgetAsync();
 
-        UiButton[] days = [.. Kit.Descendants(card).OfType<UiButton>().Where(b => b.Id.StartsWith(CalendarIds.WidgetDayPrefix, StringComparison.Ordinal))];
-        Assert.Equal(42, days.Length);
-        Assert.Equal(1, Kit.Descendants(card).OfType<UiButton>().Count(b => b.Variant == UiButtonVariant.Primary));
-        Assert.Equal(UiButtonVariant.Primary, Kit.Button(card, CalendarIds.WidgetDayPrefix + Today).Variant);
-        Assert.Equal("[1•]", Kit.Button(card, CalendarIds.WidgetDayPrefix + Today).Label);
-        Assert.True(Kit.HasText(card, "January 2026"));
-        Assert.Equal(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], Kit.Descendants(card).OfType<UiStack>().First(s => s.Children.Count == 7 && s.Children[0] is UiText).Children.Cast<UiText>().Select(t => t.Text));
+        UiMonthGrid month = Month(card);
+        Assert.True(month.IsCompact);
+        Assert.Equal(("January 2026", CalendarIds.WidgetPrev, CalendarIds.WidgetNext), (month.Title, month.PreviousId, month.NextId));
+        Assert.Equal(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], month.WeekdayLabels);
+        Assert.Equal(35, month.Cells.Count);   // the sixth week has no day of January and is left out
+        Assert.Equal(1, month.Cells.Count(c => c.IsToday));
+        UiMonthCell today = month.Cells.Single(c => c.IsToday);
+        Assert.Equal((CalendarIds.WidgetDayPrefix + Today, 1, 1, true), (today.Id, today.Day, today.Markers, today.IsSelected));
+        Assert.StartsWith("Monday 29 December", month.Cells[0].Description, StringComparison.Ordinal);
+        Assert.All(month.Cells.Take(3), c => Assert.True(c.IsOutside));
+        Assert.Empty(Kit.Descendants(card).OfType<UiButton>());
     }
 
     [Fact]
@@ -174,11 +178,24 @@ public class CalendarWidgetTests
 
         UiCard card = await rig.WidgetAsync();
 
-        Assert.True(Kit.HasText(card, "Nothing planned today."));
+        Assert.True(Kit.HasText(card, "Today: nothing planned."));
         Assert.False(Kit.HasText(card, "Coming up"));
         Assert.Equal("None", Stat(card).Value);
-        Assert.Equal(42, Kit.Descendants(card).OfType<UiButton>().Count(b => b.Id.StartsWith(CalendarIds.WidgetDayPrefix, StringComparison.Ordinal)));
-        Assert.Contains(Kit.Descendants(card).OfType<UiForm>().Single().Fields, f => f.Id == CalendarIds.WidgetAddField);
+        Assert.Equal(35, Month(card).Cells.Count);
+        Assert.All(Month(card).Cells, c => Assert.Equal(0, c.Markers));
+    }
+
+    [Fact]
+    public async Task A_month_that_needs_six_weeks_keeps_all_six()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Widget, CalendarIds.WidgetNext);
+        await rig.Click(rig.Widget, CalendarIds.WidgetNext);   // March 2026 starts on a Sunday: Monday-first needs six rows
+
+        UiMonthGrid month = Month(await rig.WidgetAsync());
+
+        Assert.Equal("March 2026", month.Title);
+        Assert.Equal(42, month.Cells.Count);
     }
 
     [Fact]
@@ -193,36 +210,38 @@ public class CalendarWidgetTests
         UiCard card = await rig.WidgetAsync();
 
         Assert.Equal(CalendarWidget.MaxDayRows, Kit.Descendants(card).OfType<UiToggle>().Count());
-        Assert.True(Kit.HasText(card, "+5 more today"));
+        Assert.True(Kit.HasText(card, "+5 more"));
     }
 
     [Fact]
-    public async Task Previous_and_next_month_move_the_mini_calendar()
+    public async Task Previous_and_next_month_move_the_compact_calendar()
     {
         var rig = await Rig.CreateAsync();
 
         await rig.Click(rig.Widget, CalendarIds.WidgetNext);
-        Assert.True(Kit.HasText(await rig.WidgetAsync(), "February 2026"));
+        Assert.Equal("February 2026", Month(await rig.WidgetAsync()).Title);
         await rig.Click(rig.Widget, CalendarIds.WidgetNext);
         await rig.Click(rig.Widget, CalendarIds.WidgetPrev);
-        UiCard card = await rig.WidgetAsync();
+        UiMonthGrid month = Month(await rig.WidgetAsync());
 
-        Assert.True(Kit.HasText(card, "February 2026"));
-        Assert.Equal(UiButtonVariant.Subtle, Kit.Button(card, CalendarIds.WidgetDayPrefix + Kit.D(2026, 2, 1)).Variant);
+        Assert.Equal("February 2026", month.Title);
+        Assert.Contains(month.Cells, c => c.Id == CalendarIds.WidgetDayPrefix + Kit.D(2026, 2, 1) && !c.IsOutside && !c.IsSelected);
     }
 
     [Fact]
-    public async Task Selecting_a_day_shows_its_agenda_under_the_calendar()
+    public async Task Selecting_a_day_shows_its_agenda_instead_of_todays()
     {
         var rig = await Rig.CreateAsync();
         _ = await rig.AddAsync(Kit.Task("Dentist", Kit.D(2026, 1, 8), 14 * 60));
+        _ = await rig.AddAsync(Kit.Task("Today's thing", Today));
 
         await rig.Click(rig.Widget, CalendarIds.WidgetDayPrefix + Kit.D(2026, 1, 8));
         UiCard card = await rig.WidgetAsync();
 
         Assert.True(Kit.HasText(card, "Thu 8 Jan"));
-        Assert.Contains(Kit.Descendants(card).OfType<UiToggle>(), t => t.Label == "14:00  Dentist");
-        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(card, CalendarIds.WidgetDayPrefix + Kit.D(2026, 1, 8)).Variant);
+        Assert.Equal(["14:00  Dentist"], Kit.Descendants(card).OfType<UiToggle>().Select(t => t.Label));
+        Assert.True(Month(card).Cells.Single(c => c.Id == CalendarIds.WidgetDayPrefix + Kit.D(2026, 1, 8)).IsSelected);
+        Assert.False(Month(card).Cells.Single(c => c.IsToday).IsSelected);
     }
 
     [Fact]
@@ -232,7 +251,7 @@ public class CalendarWidgetTests
 
         await rig.Click(rig.Widget, CalendarIds.WidgetDayPrefix + Kit.D(2026, 1, 20));
 
-        Assert.True(Kit.HasText(await rig.WidgetAsync(), "Nothing planned."));
+        Assert.True(Kit.HasText(await rig.WidgetAsync(), "Tue 20 Jan: nothing planned."));
     }
 
     [Fact]
@@ -251,58 +270,6 @@ public class CalendarWidgetTests
     }
 
     [Fact]
-    public async Task Quick_add_creates_a_task_today_with_an_optional_time()
-    {
-        var rig = await Rig.CreateAsync();
-
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "15:30 Call Anna" });
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "Buy bread" });
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "  " });
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "09:00" });
-
-        Assert.Equal([("Call Anna", 930), ("Buy bread", -1)], rig.Store.Entries.Select(e => (e.Title, e.StartMinute)));
-        Assert.All(rig.Store.Entries, e => Assert.Equal((EntryKind.Task, Today), (e.Kind, e.StartDay)));
-    }
-
-    [Fact]
-    public async Task Quick_add_uses_the_selected_day()
-    {
-        var rig = await Rig.CreateAsync();
-        await rig.Click(rig.Widget, CalendarIds.WidgetDayPrefix + Kit.D(2026, 1, 12));
-
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "Monday thing" });
-
-        Assert.Equal(Kit.D(2026, 1, 12), Assert.Single(rig.Store.Entries).StartDay);
-    }
-
-    [Fact]
-    public async Task Quick_add_ignores_other_forms_missing_fields_and_oversized_text()
-    {
-        var rig = await Rig.CreateAsync();
-
-        await rig.Submit(rig.Widget, "cal-other", new() { [CalendarIds.WidgetAddField] = "x" });
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new());
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = new string('x', 500) });
-
-        Assert.Empty(rig.Store.Entries);
-    }
-
-    [Fact]
-    public async Task Quick_add_into_a_full_calendar_tells_the_page()
-    {
-        var rig = await Rig.CreateAsync();
-        for (int i = 0; i < CalendarLimits.MaxEntries; i++)
-        {
-            _ = await rig.AddAsync(Kit.Task("t", Today));
-        }
-
-        await rig.Submit(rig.Widget, CalendarIds.WidgetAddForm, new() { [CalendarIds.WidgetAddField] = "one more" });
-
-        Assert.Equal(CalendarLimits.MaxEntries, rig.Store.Entries.Count);
-        Assert.True(Kit.HasTextContaining(await rig.PageAsync(), "The calendar is full"));
-    }
-
-    [Fact]
     public async Task Widget_clicks_with_bad_ids_change_nothing()
     {
         var rig = await Rig.CreateAsync();
@@ -313,8 +280,8 @@ public class CalendarWidgetTests
         }
 
         UiCard card = await rig.WidgetAsync();
-        Assert.True(Kit.HasText(card, "January 2026"));
-        Assert.False(Kit.HasText(card, "Nothing planned."));
+        Assert.Equal("January 2026", Month(card).Title);
+        Assert.True(Kit.HasText(card, "Today: nothing planned."));
     }
 
     [Fact]
@@ -332,7 +299,7 @@ public class CalendarWidgetTests
     }
 
     [Fact]
-    public async Task The_compact_widget_ignores_actions()
+    public async Task The_small_widget_ignores_actions()
     {
         var rig = await Rig.CreateAsync();
 
@@ -434,6 +401,7 @@ public class CalendarSettingsTests
     {
         var rig = await Rig.CreateAsync();
         await rig.Click(rig.Settings, CalendarIds.SetLengthUp);
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
 
         UiNumberField length = Kit.Descendants(await rig.PageAsync()).OfType<UiForm>().Single().Fields.OfType<UiNumberField>().Single(f => f.Id == CalendarForm.LengthId);
 

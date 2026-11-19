@@ -68,6 +68,12 @@ public class CalendarPageTests
 
     private static UiSelectField Select(UiNode root, string id) => Kit.Descendants(root).OfType<UiForm>().Single().Fields.OfType<UiSelectField>().Single(f => f.Id == id);
 
+    private static UiCard CalendarCard(UiPage page) => page.Children.OfType<UiCard>().First();
+
+    private static UiCard PlanCard(UiPage page) => page.Children.OfType<UiCard>().Last();
+
+    private static UiMonthGrid Month(UiNode root) => Kit.Descendants(root).OfType<UiMonthGrid>().Single();
+
     [Fact]
     public async Task The_empty_page_follows_the_standard_layout()
     {
@@ -78,11 +84,36 @@ public class CalendarPageTests
         Assert.Equal("Calendar", page.Title);
         Assert.False(string.IsNullOrWhiteSpace(page.Subtitle));
         Assert.Equal(4, Assert.IsType<UiGrid>(page.Children[0]).Columns);
-        Assert.Equal(["Calendar", "Plan"], page.Children.OfType<UiCard>().Select(c => c.Title));
+        Assert.Equal(["January 2026", "Plan"], page.Children.OfType<UiCard>().Select(c => c.Title));
         Assert.Empty(Kit.Descendants(page).OfType<UiGlyph>());
         Assert.DoesNotContain(Kit.Descendants(page).OfType<UiText>(), t => t.Text == "Calendar");
         Assert.Empty(page.Children.OfType<UiCard>().SelectMany(c => c.Children).OfType<UiStatTile>());
-        Assert.True(Kit.HasText(page, "Nothing planned yet. Use the Plan card below to add a focus session or a task."));
+        Assert.Empty(Kit.Descendants(page).OfType<UiCard>().Skip(2));
+    }
+
+    [Fact]
+    public async Task An_empty_calendar_invites_planning_with_a_primary_button()
+    {
+        var rig = await Rig.CreateAsync();
+
+        UiPage page = await rig.PageAsync();
+
+        Assert.True(Kit.HasText(page, "Your calendar is empty. Plan a focus session and it starts by itself when its time comes."));
+        UiButton invite = Kit.Button(page, CalendarIds.EmptyPlan);
+        Assert.Equal(("Plan a session", UiButtonVariant.Primary), (invite.Label, invite.Variant));
+        Assert.True(Kit.HasText(page, "Nothing planned"));
+    }
+
+    [Fact]
+    public async Task A_free_day_in_a_busy_calendar_gets_a_quieter_invitation()
+    {
+        var rig = await Rig.CreateAsync();
+        _ = await rig.AddAsync(Kit.Task("x", Kit.D(2026, 1, 9)));
+
+        UiPage page = await rig.PageAsync();
+
+        Assert.True(Kit.HasText(page, "A free day. Plan a focus session for it, or pick another day."));
+        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(page, CalendarIds.EmptyPlan).Variant);
     }
 
     [Fact]
@@ -98,6 +129,8 @@ public class CalendarPageTests
         Assert.All(tiles, t => Assert.True(t.Value.Length <= 6));
         Assert.All(tiles, t => Assert.True(t.Label.Split(' ').Length <= 2));
         Assert.All(tiles, t => Assert.NotNull(t.Icon));
+        Assert.Equal([UiIcon.Clock, UiIcon.Checkmark, UiIcon.Timer, UiIcon.Flame], tiles.Select(t => t.Icon!.Value));
+        Assert.All(tiles, t => Assert.Equal(UiTone.Neutral, t.Tone));
     }
 
     [Fact]
@@ -110,7 +143,7 @@ public class CalendarPageTests
         UiStatTile[] tiles = Kit.Tiles(await rig.PageAsync());
 
         Assert.Equal(("60 min", "Deep work, today 10:00"), (tiles[0].Value, tiles[0].Caption));
-        Assert.Equal(("0 / 2", "2 to go"), (tiles[1].Value, tiles[1].Caption));
+        Assert.Equal(("0 / 2", "2 to go", UiTone.Accent), (tiles[1].Value, tiles[1].Caption, tiles[1].Tone));
         Assert.Equal("1 h", tiles[2].Value);
     }
 
@@ -152,7 +185,40 @@ public class CalendarPageTests
     }
 
     [Fact]
-    public async Task The_month_grid_has_42_day_buttons_and_marks_today_and_entries()
+    public async Task The_view_switch_and_the_navigation_are_separate_and_the_current_view_is_filled()
+    {
+        var rig = await Rig.CreateAsync();
+
+        UiStack toolbar = Assert.IsType<UiStack>(CalendarCard(await rig.PageAsync()).Children[0]);
+
+        Assert.Equal((UiOrientation.Horizontal, UiGap.Large, 2), (toolbar.Orientation, toolbar.Gap, toolbar.Children.Count));
+        UiButton[] views = [.. Assert.IsType<UiStack>(toolbar.Children[0]).Children.Cast<UiButton>()];
+        UiButton[] navigation = [.. Assert.IsType<UiStack>(toolbar.Children[1]).Children.Cast<UiButton>()];
+        Assert.Equal([CalendarIds.ViewPrefix + "month", CalendarIds.ViewPrefix + "week", CalendarIds.ViewPrefix + "agenda"], views.Select(b => b.Id));
+        Assert.Equal(["Month", "Week", "Agenda"], views.Select(b => b.Label));
+        Assert.Equal([UiButtonVariant.Primary, UiButtonVariant.Subtle, UiButtonVariant.Subtle], views.Select(b => b.Variant));
+        Assert.Equal([CalendarIds.Prev, CalendarIds.Today, CalendarIds.Next], navigation.Select(b => b.Id));
+        Assert.Equal(["‹", "Today", "›"], navigation.Select(b => b.Label));
+        Assert.All(navigation, b => Assert.Equal(UiButtonVariant.Secondary, b.Variant));
+    }
+
+    [Theory]
+    [InlineData("week", 1)]
+    [InlineData("agenda", 2)]
+    public async Task Choosing_another_view_fills_that_button(string view, int index)
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.ViewPrefix + view);
+
+        UiStack toolbar = Assert.IsType<UiStack>(CalendarCard(await rig.PageAsync()).Children[0]);
+
+        UiButton[] views = [.. Assert.IsType<UiStack>(toolbar.Children[0]).Children.Cast<UiButton>()];
+        Assert.Equal(index, Array.FindIndex(views, b => b.Variant == UiButtonVariant.Primary));
+        Assert.Single(views, b => b.Variant == UiButtonVariant.Primary);
+    }
+
+    [Fact]
+    public async Task The_month_is_one_aligned_grid_with_today_selected_and_entries_marked()
     {
         var rig = await Rig.CreateAsync();
         _ = await rig.AddSessionTodayAsync();
@@ -160,17 +226,36 @@ public class CalendarPageTests
 
         UiPage page = await rig.PageAsync();
 
-        UiButton[] days = [.. Kit.Descendants(page).OfType<UiButton>().Where(b => b.Id.StartsWith(CalendarIds.DayPrefix, StringComparison.Ordinal))];
-        Assert.Equal(42, days.Length);
-        Assert.Equal("[1••]", Kit.Button(page, CalendarIds.DayPrefix + Today).Label);
-        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(page, CalendarIds.DayPrefix + Today).Variant);
-        Assert.Equal("·29", Kit.Button(page, CalendarIds.DayPrefix + Kit.D(2025, 12, 29)).Label);
-        Assert.Equal("2", Kit.Button(page, CalendarIds.DayPrefix + Kit.D(2026, 1, 2)).Label);
-        Assert.Equal("January 2026", Assert.Single(page.Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
+        UiMonthGrid month = Month(page);
+        Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], month.WeekdayLabels);
+        Assert.Equal(42, month.Cells.Count);
+        Assert.False(month.IsCompact);
+        Assert.Null(month.Title);
+        Assert.Null(month.PreviousId);
+        UiMonthCell today = month.Cells.Single(c => c.IsToday);
+        Assert.Equal((CalendarIds.DayPrefix + Today, 1, 2, true, false), (today.Id, today.Day, today.Markers, today.IsSelected, today.IsOutside));
+        Assert.Equal("Thursday 1 January, 2 entries", today.Description);
+        UiMonthCell december = month.Cells[0];
+        Assert.Equal((CalendarIds.DayPrefix + Kit.D(2025, 12, 29), 29, 0, true), (december.Id, december.Day, december.Markers, december.IsOutside));
+        Assert.Equal(Kit.D(2026, 1, 2), 1 + Kit.D(2026, 1, 1));
+        Assert.Equal(("January 2026", "Pick a day to see its plan"), (CalendarCard(page).Title, CalendarCard(page).Subtitle));
+        Assert.Equal(month.Cells.Count, month.Cells.Select(c => c.Id).Distinct().Count());
+        Assert.Equal(31, month.Cells.Count(c => !c.IsOutside));
     }
 
     [Fact]
-    public async Task More_than_three_entries_on_a_day_show_a_plus()
+    public async Task A_day_with_one_entry_says_entry_in_its_description()
+    {
+        var rig = await Rig.CreateAsync();
+        _ = await rig.AddAsync(Kit.Task("b", Kit.D(2026, 1, 5)));
+
+        UiMonthCell cell = Month(await rig.PageAsync()).Cells.Single(c => c.Id == CalendarIds.DayPrefix + Kit.D(2026, 1, 5));
+
+        Assert.Equal(("Monday 5 January, 1 entry", 1), (cell.Description, cell.Markers));
+    }
+
+    [Fact]
+    public async Task More_than_three_entries_on_a_day_report_the_real_count()
     {
         var rig = await Rig.CreateAsync();
         for (int i = 0; i < 5; i++)
@@ -178,7 +263,7 @@ public class CalendarPageTests
             _ = await rig.AddAsync(Kit.Task("t" + i, Today));
         }
 
-        Assert.Equal("[1•••+]", Kit.Button(await rig.PageAsync(), CalendarIds.DayPrefix + Today).Label);
+        Assert.Equal(5, Month(await rig.PageAsync()).Cells.Single(c => c.IsToday).Markers);
     }
 
     [Fact]
@@ -190,7 +275,8 @@ public class CalendarPageTests
 
         UiPage page = await rig.PageAsync();
 
-        Assert.Equal(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], Kit.Descendants(page).OfType<UiStack>().First(s => s.Children.Count == 7 && s.Children[0] is UiText).Children.Cast<UiText>().Select(t => t.Text));
+        Assert.Equal(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], Month(page).WeekdayLabels);
+        Assert.Equal(28, Month(page).Cells[0].Day);
         Assert.Equal("Deep work, today 10:00 AM", Kit.Tiles(page)[0].Caption);
     }
 
@@ -205,17 +291,9 @@ public class CalendarPageTests
 
         Assert.True(Kit.HasText(page, "Thursday 8 January"));
         Assert.Contains(Kit.Descendants(page).OfType<UiToggle>(), t => t.Label == "14:00  Dentist");
-        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(page, CalendarIds.DayPrefix + Kit.D(2026, 1, 8)).Variant);
-        Assert.Equal(UiButtonVariant.Subtle, Kit.Button(page, CalendarIds.DayPrefix + Today).Variant);
-    }
-
-    [Fact]
-    public async Task A_day_without_entries_says_so()
-    {
-        var rig = await Rig.CreateAsync();
-        _ = await rig.AddAsync(Kit.Task("x", Kit.D(2026, 1, 9)));
-
-        Assert.True(Kit.HasText(await rig.PageAsync(), "Nothing planned on Thu 1 Jan."));
+        UiMonthGrid month = Month(page);
+        Assert.Equal([CalendarIds.DayPrefix + Kit.D(2026, 1, 8)], month.Cells.Where(c => c.IsSelected).Select(c => c.Id));
+        Assert.True(month.Cells.Single(c => c.IsToday).Id == CalendarIds.DayPrefix + Today);
     }
 
     [Fact]
@@ -226,7 +304,8 @@ public class CalendarPageTests
         await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 2, 2));
         UiPage page = await rig.PageAsync();
 
-        Assert.Equal("February 2026", Assert.Single(page.Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
+        Assert.Equal("February 2026", CalendarCard(page).Title);
+        Assert.Equal(["Monday 2 February"], Kit.Descendants(page).OfType<UiText>().Where(t => t.Style == UiTextStyle.Subtitle).Select(t => t.Text));
     }
 
     [Fact]
@@ -236,17 +315,17 @@ public class CalendarPageTests
 
         await rig.Click(rig.Page, CalendarIds.Next);
         await rig.Click(rig.Page, CalendarIds.Next);
-        Assert.Equal("March 2026", Assert.Single((await rig.PageAsync()).Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
+        Assert.Equal("March 2026", CalendarCard(await rig.PageAsync()).Title);
         await rig.Click(rig.Page, CalendarIds.Prev);
-        Assert.Equal("February 2026", Assert.Single((await rig.PageAsync()).Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
+        Assert.Equal("February 2026", CalendarCard(await rig.PageAsync()).Title);
         await rig.Click(rig.Page, CalendarIds.Today);
         UiPage page = await rig.PageAsync();
-        Assert.Equal("January 2026", Assert.Single(page.Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
-        Assert.True(Kit.HasText(page, "Thursday 1 January"));
+        Assert.Equal("January 2026", CalendarCard(page).Title);
+        Assert.True(Kit.HasText(page, "Thursday 1 January (today)"));
     }
 
     [Fact]
-    public async Task The_week_view_lists_seven_days_with_their_entries()
+    public async Task The_week_view_has_a_week_strip_and_groups_the_entries_by_day()
     {
         var rig = await Rig.CreateAsync();
         _ = await rig.AddSessionTodayAsync();
@@ -255,13 +334,21 @@ public class CalendarPageTests
 
         UiPage page = await rig.PageAsync();
 
-        UiCard card = Assert.Single(page.Children.OfType<UiCard>(), c => c.Title == "Calendar");
-        Assert.Equal("Mon 29 Dec - Sun 4 Jan", card.Subtitle);
-        Assert.Equal(7, Kit.Descendants(page).OfType<UiButton>().Count(b => b.Id.StartsWith(CalendarIds.DayPrefix, StringComparison.Ordinal)));
-        Assert.Equal("Thu 1 Jan (today)", Kit.Button(page, CalendarIds.DayPrefix + Today).Label);
+        UiCard card = CalendarCard(page);
+        Assert.Equal(("Mon 29 Dec - Sun 4 Jan", "Seven days, grouped by day"), (card.Title, card.Subtitle));
+        UiMonthGrid strip = Month(page);
+        Assert.Equal(7, strip.Cells.Count);
+        Assert.Equal(Enumerable.Range(Kit.D(2025, 12, 29), 7).Select(d => CalendarIds.DayPrefix + d), strip.Cells.Select(c => c.Id));
+        Assert.All(strip.Cells, c => Assert.False(c.IsOutside));
+        Assert.Equal(1, strip.Cells.Single(c => c.IsToday).Markers);
+        Assert.Equal(1, strip.Cells.Single(c => c.Id == CalendarIds.DayPrefix + Kit.D(2026, 1, 2)).Markers);
+        UiText[] headers = [.. Kit.Descendants(card).OfType<UiText>().Where(t => t.Style == UiTextStyle.Subtitle)];
+        Assert.Equal(7, headers.Length);
+        Assert.Equal(("Thursday 1 January", UiTone.Accent), (headers[3].Text, headers[3].Tone));
         Assert.True(Kit.HasText(page, "10:00-11:00  Deep work"));
         Assert.Contains(Kit.Descendants(page).OfType<UiToggle>(), t => t.Label == "Friday task");
         Assert.Equal(5, Kit.Descendants(page).OfType<UiText>().Count(t => t.Text == "Free"));
+        Assert.True(Kit.HasText(page, "Today, 1 entry"));
     }
 
     [Fact]
@@ -272,7 +359,20 @@ public class CalendarPageTests
 
         await rig.Click(rig.Page, CalendarIds.Next);
 
-        Assert.Equal("Mon 5 Jan - Sun 11 Jan", Assert.Single((await rig.PageAsync()).Children.OfType<UiCard>(), c => c.Title == "Calendar").Subtitle);
+        Assert.Equal("Mon 5 Jan - Sun 11 Jan", CalendarCard(await rig.PageAsync()).Title);
+    }
+
+    [Fact]
+    public async Task Clicking_a_day_of_the_week_strip_selects_it_without_leaving_the_week()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.ViewPrefix + "week");
+
+        await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 1, 3));
+        UiPage page = await rig.PageAsync();
+
+        Assert.Equal("Mon 29 Dec - Sun 4 Jan", CalendarCard(page).Title);
+        Assert.Equal([CalendarIds.DayPrefix + Kit.D(2026, 1, 3)], Month(page).Cells.Where(c => c.IsSelected).Select(c => c.Id));
     }
 
     [Fact]
@@ -286,18 +386,21 @@ public class CalendarPageTests
 
         UiPage page = await rig.PageAsync();
 
-        UiCard card = Assert.Single(page.Children.OfType<UiCard>(), c => c.Title == "Calendar");
-        Assert.Equal("Thu 1 Jan - Wed 14 Jan", card.Subtitle);
-        Assert.Equal(["Thu 1 Jan (today)", "Fri 9 Jan"], Kit.Descendants(card).OfType<UiText>().Where(t => t.Style == UiTextStyle.Subtitle).Select(t => t.Text));
+        UiCard card = CalendarCard(page);
+        Assert.Equal(("Next 14 days", "Thu 1 Jan - Wed 14 Jan"), (card.Title, card.Subtitle));
+        Assert.Equal(["Thursday 1 January", "Friday 9 January"], Kit.Descendants(card).OfType<UiText>().Where(t => t.Style == UiTextStyle.Subtitle).Select(t => t.Text));
         Assert.DoesNotContain(Kit.Descendants(page).OfType<UiToggle>(), t => t.Label == "Too far");
+        Assert.Empty(Kit.Descendants(card).OfType<UiMonthGrid>());
     }
 
     [Fact]
-    public async Task An_empty_agenda_says_so_and_a_long_one_is_cut()
+    public async Task An_empty_agenda_invites_planning_and_a_long_one_is_cut()
     {
         var rig = await Rig.CreateAsync();
         await rig.Click(rig.Page, CalendarIds.ViewPrefix + "agenda");
-        Assert.True(Kit.HasText(await rig.PageAsync(), "Nothing planned in these days."));
+        UiPage empty = await rig.PageAsync();
+        Assert.True(Kit.HasText(empty, "Nothing planned in these days. Plan a focus session and it shows up here."));
+        Assert.Equal(UiButtonVariant.Primary, Kit.Button(empty, CalendarIds.EmptyPlan).Variant);
 
         _ = await rig.AddAsync(Kit.Daily(Kit.Task("daily", Today, 480)));
         _ = await rig.AddAsync(Kit.Daily(Kit.Task("daily 2", Today, 490)));
@@ -306,6 +409,7 @@ public class CalendarPageTests
 
         Assert.Equal(CalendarPage.MaxAgendaRows, Kit.Descendants(page).OfType<UiToggle>().Count());
         Assert.True(Kit.HasText(page, "+2 more"));
+        Assert.False(Kit.HasButton(page, CalendarIds.EmptyPlan));
     }
 
     [Fact]
@@ -389,7 +493,7 @@ public class CalendarPageTests
 
         Assert.Equal([Today], rig.Store.Find(daily.Id)!.Skipped);
         Assert.True(Kit.HasText(await rig.PageAsync(), "Skipped \"daily\" on Thu 1 Jan."));
-        Assert.True(Kit.HasText(await rig.PageAsync(), "Nothing planned on Thu 1 Jan."));
+        Assert.True(Kit.HasText(await rig.PageAsync(), "A free day. Plan a focus session for it, or pick another day."));
     }
 
     [Fact]
@@ -411,7 +515,7 @@ public class CalendarPageTests
         var rig = await Rig.CreateAsync();
         CalendarEntry task = await rig.AddAsync(Kit.Task("a", Today));
 
-        foreach (string id in new[] { "cal-done-x-y", "cal-done-1", "cal-done--1-2", "cal-del-", "cal-del-1", "cal-del-x-y", "cal-edit-1-2", "cal-day-99999999999", "cal-day-5", "cal-view-year", "unknown", string.Empty })
+        foreach (string id in new[] { "cal-done-x-y", "cal-done-1", "cal-done--1-2", "cal-del-", "cal-del-1", "cal-del-x-y", "cal-edit-1-2", "cal-day-99999999999", "cal-day-5", "cal-view-year", "cal-repeat-yearly", "cal-repeat-", "unknown", string.Empty })
         {
             await rig.Click(rig.Page, id);
         }
@@ -421,6 +525,7 @@ public class CalendarPageTests
 
         Assert.Single(rig.Store.Entries);
         Assert.Empty(rig.Store.Find(task.Id)!.DoneDays);
+        Assert.Null(rig.State.Draft);
         Assert.NotEmpty((await rig.PageAsync()).Children);
     }
 
@@ -437,6 +542,8 @@ public class CalendarPageTests
         Assert.True(Kit.HasText(page, "Added \"Report\" on Thu 15 Jan."));
         Assert.True(Kit.HasText(page, "Thursday 15 January"));
         Assert.True(Kit.HasText(page, "13:30-15:00  Report"));
+        Assert.Equal("Plan", PlanCard(page).Title);
+        Assert.Empty(Kit.Descendants(page).OfType<UiForm>());
     }
 
     [Fact]
@@ -475,28 +582,33 @@ public class CalendarPageTests
         await rig.Click(rig.Page, CalendarIds.Make(CalendarIds.EditPrefix, session.Id, session.StartDay, session.StartDay));
         UiPage editing = await rig.PageAsync();
 
-        Assert.Equal(["Calendar", "Edit entry"], editing.Children.OfType<UiCard>().Select(c => c.Title));
+        Assert.Equal(["January 2026", "Edit entry"], editing.Children.OfType<UiCard>().Select(c => c.Title));
         Assert.Equal(("Morning", "09:00", "2026-01-02"), (Field(editing, CalendarForm.TitleId).Value, Field(editing, CalendarForm.TimeId).Value, Field(editing, CalendarForm.DateId).Value));
-        Assert.Equal("Save changes", Kit.Descendants(editing).OfType<UiForm>().Single().SubmitLabel);
+        Assert.Equal("Save", Kit.Descendants(editing).OfType<UiForm>().Single().SubmitLabel);
         Assert.True(Kit.HasButton(editing, CalendarIds.CancelEdit));
+        Assert.False(Kit.HasButton(editing, CalendarIds.PlanTask));   // the kind of an existing entry is not switched with buttons
 
         await rig.Submit(rig.Page, CalendarForm.FormId, Kit.Form(title: "Renamed", date: "2026-01-02", time: "09:30"));
 
         Assert.Equal(("Renamed", 570), (rig.Store.Find(session.Id)!.Title, rig.Store.Find(session.Id)!.StartMinute));
         Assert.Single(rig.Store.Entries);
-        Assert.Equal("Plan", (await rig.PageAsync()).Children.OfType<UiCard>().Last().Title);
+        Assert.Equal("Plan", PlanCard(await rig.PageAsync()).Title);
     }
 
     [Fact]
-    public async Task Cancelling_an_edit_returns_to_a_fresh_form()
+    public async Task Cancelling_closes_the_form()
     {
         var rig = await Rig.CreateAsync();
         CalendarEntry task = await rig.AddAsync(Kit.Task("a", Today));
         await rig.Click(rig.Page, CalendarIds.Make(CalendarIds.EditPrefix, task.Id, Today, Today));
+        Assert.NotEmpty(Kit.Descendants(await rig.PageAsync()).OfType<UiForm>());
 
         await rig.Click(rig.Page, CalendarIds.CancelEdit);
 
-        Assert.Equal("Plan", (await rig.PageAsync()).Children.OfType<UiCard>().Last().Title);
+        UiPage page = await rig.PageAsync();
+        Assert.Equal("Plan", PlanCard(page).Title);
+        Assert.Empty(Kit.Descendants(page).OfType<UiForm>());
+        Assert.True(Kit.HasButton(page, CalendarIds.PlanSession));
     }
 
     [Fact]
@@ -520,18 +632,149 @@ public class CalendarPageTests
     }
 
     [Fact]
-    public async Task The_form_has_the_documented_fields_and_valid_ids()
+    public async Task The_closed_plan_card_offers_two_buttons_and_no_form()
     {
         var rig = await Rig.CreateAsync();
 
-        UiForm form = Kit.Descendants(await rig.PageAsync()).OfType<UiForm>().Single();
+        UiCard plan = PlanCard(await rig.PageAsync());
 
-        Assert.Equal(CalendarForm.FormId, form.Id);
-        List<string> expected = [CalendarForm.KindId, CalendarForm.TitleId, CalendarForm.DateId, CalendarForm.TimeId, CalendarForm.LengthId, CalendarForm.RepeatId, CalendarForm.EveryId];
+        Assert.Equal(("Plan", "A focus session or a task"), (plan.Title, plan.Subtitle));
+        Assert.Empty(Kit.Descendants(plan).OfType<UiForm>());
+        UiButton[] buttons = [.. Kit.Descendants(plan).OfType<UiButton>()];
+        Assert.Equal([(CalendarIds.PlanSession, "Plan a session", UiButtonVariant.Primary), (CalendarIds.PlanTask, "Add a task", UiButtonVariant.Secondary)], buttons.Select(b => (b.Id, b.Label, b.Variant)));
+        Assert.True(Kit.HasTextContaining(plan, "starts by itself when its time comes"));
+    }
+
+    [Fact]
+    public async Task Plan_a_session_opens_a_short_form_for_the_selected_day()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 1, 8));
+
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        UiPage page = await rig.PageAsync();
+
+        UiCard plan = PlanCard(page);
+        Assert.Equal(("New session", "Thu 8 Jan"), (plan.Title, plan.Subtitle));
+        UiForm form = Kit.Descendants(plan).OfType<UiForm>().Single();
+        Assert.Equal("Save", form.SubmitLabel);
+        Assert.Equal([CalendarForm.TitleId, CalendarForm.DateId, CalendarForm.TimeId, CalendarForm.LengthId, CalendarForm.ColorId], form.Fields.Select(f => f.Id));
+        Assert.Equal("2026-01-08", Field(page, CalendarForm.DateId).Value);
+        Assert.Equal(("Start time (hh:mm)", "10:00"), (Field(page, CalendarForm.TimeId).Label, Field(page, CalendarForm.TimeId).Value));
+        UiNumberField length = form.Fields.OfType<UiNumberField>().Single();
+        Assert.Equal(("Length (minutes)", 120d, 15d, 720d), (length.Label, length.Value, length.Minimum, length.Maximum));
+        Assert.Equal(1, plan.Children.OfType<UiForm>().Count());
+        Assert.True(Kit.HasButton(plan, CalendarIds.CancelEdit));
+    }
+
+    [Fact]
+    public async Task The_kind_buttons_switch_between_a_session_and_a_task_form()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(await rig.PageAsync(), CalendarIds.PlanSession).Variant);
+        Assert.Equal(UiButtonVariant.Subtle, Kit.Button(await rig.PageAsync(), CalendarIds.PlanTask).Variant);
+
+        await rig.Click(rig.Page, CalendarIds.PlanTask);
+        UiPage page = await rig.PageAsync();
+
+        Assert.Equal("New task", PlanCard(page).Title);
+        Assert.Equal(UiButtonVariant.Subtle, Kit.Button(page, CalendarIds.PlanSession).Variant);
+        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(page, CalendarIds.PlanTask).Variant);
+        Assert.Equal("Time (hh:mm, optional)", Field(page, CalendarForm.TimeId).Label);
+        UiNumberField duration = Kit.Descendants(page).OfType<UiForm>().Single().Fields.OfType<UiNumberField>().Single();
+        Assert.Equal(("Duration (minutes, optional)", 0d, 1440d), (duration.Label, duration.Minimum, duration.Maximum));
+        Assert.False(Kit.HasTextContaining(PlanCard(page), "starts by itself"));   // only sessions start by themselves
+    }
+
+    [Fact]
+    public async Task The_repeat_buttons_add_only_the_fields_that_repeating_needs()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(await rig.PageAsync(), CalendarIds.RepeatPrefix + "once").Variant);
+
+        await rig.Click(rig.Page, CalendarIds.RepeatPrefix + "daily");
+        UiPage daily = await rig.PageAsync();
+        Assert.Equal(
+            [CalendarForm.TitleId, CalendarForm.DateId, CalendarForm.TimeId, CalendarForm.LengthId, CalendarForm.EveryId, CalendarForm.EndId, CalendarForm.UntilId, CalendarForm.CountId, CalendarForm.ColorId],
+            Kit.Descendants(daily).OfType<UiForm>().Single().Fields.Select(f => f.Id));
+        Assert.Equal(UiButtonVariant.Secondary, Kit.Button(daily, CalendarIds.RepeatPrefix + "daily").Variant);
+        Assert.Equal(UiButtonVariant.Subtle, Kit.Button(daily, CalendarIds.RepeatPrefix + "once").Variant);
+
+        await rig.Click(rig.Page, CalendarIds.RepeatPrefix + "weekly");
+        UiForm weekly = Kit.Descendants(await rig.PageAsync()).OfType<UiForm>().Single();
+        List<string> expected = [CalendarForm.TitleId, CalendarForm.DateId, CalendarForm.TimeId, CalendarForm.LengthId, CalendarForm.EveryId];
         expected.AddRange(Enumerable.Range(0, 7).Select(i => CalendarForm.WeekdayPrefix + i));
         expected.AddRange([CalendarForm.EndId, CalendarForm.UntilId, CalendarForm.CountId, CalendarForm.ColorId]);
-        Assert.Equal(expected, form.Fields.Select(f => f.Id));
-        Assert.DoesNotContain(Kit.Descendants(await rig.PageAsync()).OfType<UiButton>(), b => b.Variant == UiButtonVariant.Primary);
+        Assert.Equal(expected, weekly.Fields.Select(f => f.Id));
+        Assert.Equal(["wd3"], weekly.Fields.OfType<UiCheckboxField>().Where(c => c.IsChecked).Select(c => c.Id[^3..]));   // the selected day is a Thursday
+
+        await rig.Click(rig.Page, CalendarIds.RepeatPrefix + "once");
+        Assert.Equal(5, Kit.Descendants(await rig.PageAsync()).OfType<UiForm>().Single().Fields.Count);
+    }
+
+    [Fact]
+    public async Task Choosing_the_kind_keeps_the_repeat_rule_and_a_form_without_them_uses_the_draft()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        await rig.Click(rig.Page, CalendarIds.RepeatPrefix + "daily");
+
+        await rig.Click(rig.Page, CalendarIds.PlanTask);
+        Assert.Equal(RepeatKind.Daily, rig.State.Draft!.Repeat);
+
+        // The submitted form carries no kind and no repeat field: the draft decides.
+        Dictionary<string, string> values = Kit.Form(kind: "task", title: "Stretch", date: "2026-01-02", time: "08:00", length: "10", repeat: "daily", every: "2");
+        _ = values.Remove(CalendarForm.KindId);
+        _ = values.Remove(CalendarForm.RepeatId);
+        await rig.Submit(rig.Page, CalendarForm.FormId, values);
+
+        CalendarEntry entry = Assert.Single(rig.Store.Entries);
+        Assert.Equal((EntryKind.Task, RepeatKind.Daily, 2), (entry.Kind, entry.Repeat, entry.Interval));
+    }
+
+    [Fact]
+    public async Task The_empty_day_button_opens_a_session_form_on_that_day()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 1, 20));
+
+        await rig.Click(rig.Page, CalendarIds.EmptyPlan);
+        UiPage page = await rig.PageAsync();
+
+        Assert.Equal("New session", PlanCard(page).Title);
+        Assert.Equal("2026-01-20", Field(page, CalendarForm.DateId).Value);
+    }
+
+    [Fact]
+    public async Task A_new_entry_form_can_be_opened_again_and_keeps_its_day()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 1, 20));
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        await rig.Click(rig.Page, CalendarIds.DayPrefix + Kit.D(2026, 1, 21));
+
+        await rig.Click(rig.Page, CalendarIds.PlanTask);
+
+        Assert.Equal(Kit.D(2026, 1, 20), rig.State.Draft!.Day);   // switching the kind does not move the date the form was opened for
+        Assert.Equal(EntryKind.Task, rig.State.Draft.Kind);
+    }
+
+    [Fact]
+    public async Task Saving_a_planned_session_through_the_buttons_and_the_form_adds_it()
+    {
+        var rig = await Rig.CreateAsync();
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+
+        Dictionary<string, string> values = Kit.Form(title: "Study", date: "2026-01-02", time: "10:00", length: "45");
+        _ = values.Remove(CalendarForm.KindId);
+        _ = values.Remove(CalendarForm.RepeatId);
+        await rig.Submit(rig.Page, CalendarForm.FormId, values);
+
+        CalendarEntry entry = Assert.Single(rig.Store.Entries);
+        Assert.Equal((EntryKind.Session, "Study", 45), (entry.Kind, entry.Title, entry.Duration));
+        Assert.Null(rig.State.Draft);
     }
 
     [Fact]
@@ -543,6 +786,18 @@ public class CalendarPageTests
         await rig.Store.SetSettingsAsync(new CalendarSettings { AutoStart = false }, CancellationToken.None);
 
         Assert.True(Kit.HasTextContaining(await rig.PageAsync(), "Auto-start is off"));
+    }
+
+    [Fact]
+    public async Task At_most_one_primary_button_per_area_apart_from_the_view_switch()
+    {
+        var rig = await Rig.CreateAsync();
+        _ = await rig.AddAsync(Kit.Task("a", Today));
+
+        UiPage page = await rig.PageAsync();
+
+        UiButton[] primary = [.. Kit.Descendants(page).OfType<UiButton>().Where(b => b.Variant == UiButtonVariant.Primary)];
+        Assert.Equal([CalendarIds.ViewPrefix + "month", CalendarIds.PlanSession], primary.Select(b => b.Id));
     }
 
     [Fact]
@@ -575,10 +830,14 @@ public class CalendarPageTests
         UiPage week = await rig.PageAsync();
         await rig.Click(rig.Page, CalendarIds.ViewPrefix + "agenda");
         UiPage agenda = await rig.PageAsync();
+        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        await rig.Click(rig.Page, CalendarIds.RepeatPrefix + "weekly");
+        UiPage planning = await rig.PageAsync();
 
         Assert.NotEmpty(month.Children);
         Assert.NotEmpty(week.Children);
         Assert.NotEmpty(agenda.Children);
+        Assert.NotEmpty(planning.Children);
     }
 
     [Fact]
