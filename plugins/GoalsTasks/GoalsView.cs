@@ -22,6 +22,15 @@ public sealed record GoalsView
     /// <summary>Done tasks per day for the last 7 days, oldest first (the last value is today).</summary>
     public IReadOnlyList<int> History { get; init; } = [];
 
+    /// <summary>Done tasks of the last 7 days (today included).</summary>
+    public int DoneWeek => History.Sum();
+
+    /// <summary>Days in a row with the goal reached, ending today (or yesterday while today's goal is still open).</summary>
+    public int Streak { get; init; }
+
+    /// <summary>Whether the streak reached the retention limit and may be longer.</summary>
+    public bool StreakCapped => Streak >= GoalsLimits.RetentionDays;
+
     /// <summary>Open tasks of today.</summary>
     public int Open => Tasks.Count - Done;
 
@@ -36,19 +45,33 @@ public static class GoalsAggregator
     public static GoalsView Build(IReadOnlyList<DayRecord> days, int today, int defaultGoal)
     {
         int[] history = new int[GoalsLimits.RetentionDays];
+        HashSet<int> reachedDays = [];
         DayRecord? current = null;
         foreach (DayRecord day in days)
         {
             int age = today - day.Day;
             if (age is >= 0 and < GoalsLimits.RetentionDays)
             {
-                history[GoalsLimits.RetentionDays - 1 - age] += day.Tasks.Count(t => t.Done);
+                int done = day.Tasks.Count(t => t.Done);
+                history[GoalsLimits.RetentionDays - 1 - age] += done;
+                if (done >= (day.Goal > 0 ? day.Goal : defaultGoal))
+                {
+                    reachedDays.Add(day.Day);
+                }
             }
 
             if (age == 0)
             {
                 current = day;
             }
+        }
+
+        int streak = 0;
+        int cursor = reachedDays.Contains(today) ? today : today - 1;
+        while (reachedDays.Contains(cursor))
+        {
+            streak++;
+            cursor--;
         }
 
         TaskItem[] tasks = current is null ? [] : [.. current.Tasks.Select(t => new TaskItem { Id = t.Id, Text = t.Text, Done = t.Done })];
@@ -59,6 +82,7 @@ public static class GoalsAggregator
             Tasks = tasks,
             Done = tasks.Count(t => t.Done),
             History = history,
+            Streak = streak,
         };
     }
 }

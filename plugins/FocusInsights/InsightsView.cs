@@ -299,6 +299,20 @@ public static class InsightsFormat
         ? string.Create(CultureInfo.InvariantCulture, $"{minutes / 60} h {minutes % 60:00} min")
         : string.Create(CultureInfo.InvariantCulture, $"{minutes} min");
 
+    /// <summary>Short form for stat tiles that never needs more than six characters: "45 min", "3 h", "13.1 h".</summary>
+    public static string Compact(int minutes)
+    {
+        if (minutes < 60)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{minutes} min");
+        }
+
+        double hours = Math.Round(minutes / 60.0, 1, MidpointRounding.AwayFromZero);
+        return hours % 1 == 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{hours:0} h")
+            : string.Create(CultureInfo.InvariantCulture, $"{hours:0.0} h");
+    }
+
     /// <summary>Like <see cref="Minutes"/> but for seconds; anything under a minute reads "&lt;1 min".</summary>
     public static string Duration(int seconds) => seconds is > 0 and < 60 ? "<1 min" : Minutes(seconds / 60);
 

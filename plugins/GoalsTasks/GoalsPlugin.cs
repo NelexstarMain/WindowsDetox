@@ -115,7 +115,7 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
         return ValueTask.FromResult(new UiPage(
             "Goals & Tasks",
             "Pick a few focus tasks for today and tick them off.",
-            [GoalCard(view), TasksCard(view), HistoryCard(view)]));
+            [Tiles(view), TasksCard(view), HistoryCard(view)]));
     }
 
     /// <inheritdoc/>
@@ -149,20 +149,22 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
         }
     }
 
-    private static UiCard GoalCard(GoalsView v)
-    {
-        UiTone tone = v.GoalReached ? UiTone.Success : UiTone.Accent;
-        return new UiCard(
-            [
-                Ui.Stat("Today", GoalsFormat.Progress(v.Done, v.Goal), GoalsFormat.Remaining(v.Done, v.Goal), tone, UiIcon.Target),
-                new UiProgress(Math.Min(v.Done, v.Goal), v.Goal, null, tone),
-                Ui.Row(
-                    new UiButton(GoalDownId, "Goal -1", UiButtonVariant.Secondary, IsEnabled: v.Goal > GoalsLimits.MinGoal),
-                    new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Secondary, IsEnabled: v.Goal < GoalsLimits.MaxGoal)),
-            ],
-            "Daily goal",
-            "Focus tasks to finish today");
-    }
+    private static UiNode Tiles(GoalsView v) => Ui.Grid(
+        4,
+        Ui.Stat(
+            "Today",
+            string.Create(CultureInfo.InvariantCulture, $"{v.Done} / {v.Goal}"),
+            GoalsFormat.Remaining(v.Done, v.Goal),
+            v.GoalReached ? UiTone.Success : UiTone.Accent,
+            UiIcon.Target),
+        Ui.Stat("Done this week", v.DoneWeek.ToString(CultureInfo.InvariantCulture), "Last 7 days", UiTone.Success, UiIcon.Checkmark),
+        Ui.Stat(
+            "Streak",
+            v.Streak.ToString(CultureInfo.InvariantCulture) + (v.StreakCapped ? "+" : string.Empty),
+            "Days in a row",
+            v.Streak > 0 ? UiTone.Success : UiTone.Neutral,
+            UiIcon.Flame),
+        Ui.Stat("Open tasks", v.Open.ToString(CultureInfo.InvariantCulture), "Today", UiTone.Neutral, UiIcon.Clock));
 
     private static UiCard TasksCard(GoalsView v)
     {
@@ -191,6 +193,10 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
             body.Add(Ui.Button(ClearButtonId, "Clear completed", UiButtonVariant.Secondary, UiIcon.Checkmark));
         }
 
+        body.Add(Ui.Row(
+            Ui.Text($"Goal for today: {GoalsFormat.Count(v.Goal, "task")}", UiTextStyle.Caption),
+            new UiButton(GoalDownId, "Goal -1", UiButtonVariant.Subtle, IsEnabled: v.Goal > GoalsLimits.MinGoal),
+            new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Subtle, IsEnabled: v.Goal < GoalsLimits.MaxGoal)));
         return new UiCard(body, "Today's tasks", v.Tasks.Count == 0 ? null : $"{v.Open} open, {v.Done} done");
     }
 
@@ -202,7 +208,7 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
                 null,
                 "done")
             : Ui.Text("Completed tasks show up here.", UiTextStyle.Caption);
-        return new UiCard([body], "Last 7 days", "Tasks completed per day");
+        return new UiCard([body], "Completed per day", "Last 7 days");
     }
 }
 

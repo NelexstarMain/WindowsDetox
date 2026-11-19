@@ -74,7 +74,7 @@ public static class InsightsLayout
 
     private static UiNode Tiles(InsightsView v) => Ui.Grid(
         4,
-        Ui.Stat("Focus time", InsightsFormat.Minutes(v.FocusSeconds7d / 60), "Last 7 days", UiTone.Accent, UiIcon.Clock),
+        Ui.Stat("Focus time", InsightsFormat.Compact(v.FocusSeconds7d / 60), "Last 7 days", UiTone.Accent, UiIcon.Clock),
         Ui.Stat("Sessions completed", v.Completed7d.ToString(System.Globalization.CultureInfo.InvariantCulture), "Last 7 days", UiTone.Success, UiIcon.Checkmark),
         Ui.Stat("Blocked attempts", v.Blocked7d.ToString(System.Globalization.CultureInfo.InvariantCulture), "Last 7 days", UiTone.Neutral, UiIcon.Shield),
         Ui.Stat(

@@ -760,6 +760,7 @@ public sealed class InsightsTests
         Assert.Equal(new UiButton("insights-example-hide", "Hide example", UiButtonVariant.Secondary), Single<UiButton>(page));
         Assert.Empty(Descendants(page).OfType<UiGlyph>());
         Assert.Equal(4, Descendants(page).OfType<UiGrid>().First().Children.Count);
+        Assert.All(Descendants(page).OfType<UiGrid>().First().Children.Cast<UiStatTile>(), t => Assert.True(t.Value.Length <= 7, t.Value));
         Assert.Equal(14, Assert.Single(Single<UiLineChart>(page).Series).Points.Count);
         Assert.NotEmpty(Single<UiBarChart>(page).Points);
         Assert.NotEmpty(Single<UiDonutChart>(page).Slices);
@@ -873,6 +874,20 @@ public sealed class InsightsTests
     [InlineData(192, "3 h 12 min")]
     public void Minutes_are_formatted_for_people(int minutes, string expected) =>
         Assert.Equal(expected, InsightsFormat.Minutes(minutes));
+
+    [Theory]
+    [InlineData(0, "0 min")]
+    [InlineData(59, "59 min")]
+    [InlineData(60, "1 h")]
+    [InlineData(192, "3.2 h")]
+    [InlineData(785, "13.1 h")]
+    [InlineData(720, "12 h")]
+    [InlineData(1445, "24.1 h")]
+    public void Compact_durations_fit_a_stat_tile(int minutes, string expected)
+    {
+        Assert.Equal(expected, InsightsFormat.Compact(minutes));
+        Assert.True(expected.Length <= 6);
+    }
 
     [Theory]
     [InlineData(0, "0 min")]

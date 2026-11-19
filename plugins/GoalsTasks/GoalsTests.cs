@@ -89,6 +89,8 @@ public sealed class GoalsTests
     private static T Single<T>(UiNode root)
         where T : UiNode => Descendants(root).OfType<T>().Single();
 
+    private static UiStatTile[] Tiles(UiPage page) => [.. Assert.IsType<UiGrid>(page.Children[0]).Children.Cast<UiStatTile>()];
+
     private static UiButton Button(UiNode root, string id) => Descendants(root).OfType<UiButton>().Single(b => b.Id == id);
 
     private static bool HasText(UiNode root, string text) => Descendants(root).OfType<UiText>().Any(t => t.Text == text);
@@ -471,7 +473,7 @@ public sealed class GoalsTests
     // ---- page -----------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task The_empty_page_has_a_title_a_goal_card_and_an_add_form_but_no_duplicate_header()
+    public async Task The_empty_page_has_a_title_four_tiles_a_tasks_card_and_no_duplicate_header()
     {
         FakePluginContext ctx = await StartAsync();
 
@@ -482,11 +484,14 @@ public sealed class GoalsTests
         Assert.False(string.IsNullOrWhiteSpace(page.Subtitle));
         Assert.Empty(Descendants(page).OfType<UiGlyph>());
         Assert.DoesNotContain(Descendants(page).OfType<UiText>(), t => t.Text == "Goals & Tasks");
-        UiCard goal = Descendants(page).OfType<UiCard>().First();
-        Assert.Equal("Daily goal", goal.Title);
-        UiStatTile stat = Single<UiStatTile>(page);
-        Assert.Equal(("Today", "0 / 3 tasks", "3 to go"), (stat.Label, stat.Value, stat.Caption));
-        Assert.Equal(new UiProgress(0, 3, null, UiTone.Accent), Single<UiProgress>(page));
+        Assert.Equal(["Today's tasks", "Completed per day"], page.Children.OfType<UiCard>().Select(c => c.Title));
+        Assert.Equal(4, Assert.IsType<UiGrid>(page.Children[0]).Columns);
+        Assert.Equal(
+            [("Today", "0 / 3", "3 to go"), ("Done this week", "0", "Last 7 days"), ("Streak", "0", "Days in a row"), ("Open tasks", "0", "Today")],
+            Tiles(page).Select(t => (t.Label, t.Value, t.Caption)));
+        Assert.All(Tiles(page), t => Assert.True(t.Value.Length <= 6));
+        Assert.Empty(Descendants(page).OfType<UiProgress>());
+        Assert.Empty(page.Children.OfType<UiCard>().SelectMany(c => c.Children).OfType<UiStatTile>());
         UiTextField field = Assert.IsType<UiTextField>(Assert.Single(Single<UiForm>(page).Fields));
         Assert.Equal((GoalsPage.AddFieldId, GoalsLimits.MaxTaskLength), (field.Id, field.MaxLength));
         Assert.Equal("Add", Single<UiForm>(page).SubmitLabel);
@@ -515,8 +520,7 @@ public sealed class GoalsTests
         Assert.Equal(["goals-del-1", "goals-del-2"], Descendants(page).OfType<UiButton>().Where(b => b.Id.StartsWith("goals-del-", StringComparison.Ordinal)).Select(b => b.Id));
         Assert.Equal("Clear completed", Button(page, GoalsPage.ClearButtonId).Label);
         Assert.Equal("1 open, 1 done", Descendants(page).OfType<UiCard>().Single(c => c.Title == "Today's tasks").Subtitle);
-        Assert.Equal("1 / 3 tasks", Single<UiStatTile>(page).Value);
-        Assert.Equal(1, Single<UiProgress>(page).Value);
+        Assert.Equal(["1 / 3", "1", "0", "1"], Tiles(page).Select(t => t.Value));
     }
 
     [Fact]
@@ -534,9 +538,10 @@ public sealed class GoalsTests
 
         UiPage rendered = await RenderPageAsync(ctx);
 
-        UiStatTile stat = Single<UiStatTile>(rendered);
-        Assert.Equal(("3 / 1 tasks", "Goal reached", UiTone.Success), (stat.Value, stat.Caption, stat.Tone));
-        Assert.Equal(new UiProgress(1, 1, null, UiTone.Success), Single<UiProgress>(rendered));
+        UiStatTile stat = Tiles(rendered)[0];
+        Assert.Equal(("3 / 1", "Goal reached", UiTone.Success), (stat.Value, stat.Caption, stat.Tone));
+        UiStatTile streak = Tiles(rendered)[2];
+        Assert.Equal(("1", UiTone.Success), (streak.Value, streak.Tone));
     }
 
     [Fact]
@@ -621,7 +626,7 @@ public sealed class GoalsTests
 
         await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalUpId), CancellationToken.None);
 
-        Assert.Equal("0 / 4 tasks", Single<UiStatTile>(await RenderPageAsync(ctx)).Value);
+        Assert.Equal("0 / 4", Tiles(await RenderPageAsync(ctx))[0].Value);
 
         for (int i = 0; i < 30; i++)
         {
@@ -629,7 +634,7 @@ public sealed class GoalsTests
         }
 
         UiPage top = await RenderPageAsync(ctx);
-        Assert.Equal("0 / 20 tasks", Single<UiStatTile>(top).Value);
+        Assert.Equal("0 / 20", Tiles(top)[0].Value);
         Assert.False(Button(top, GoalsPage.GoalUpId).IsEnabled);
         Assert.True(Button(top, GoalsPage.GoalDownId).IsEnabled);
 
@@ -639,7 +644,7 @@ public sealed class GoalsTests
         }
 
         UiPage bottom = await RenderPageAsync(ctx);
-        Assert.Equal("0 / 1 tasks", Single<UiStatTile>(bottom).Value);
+        Assert.Equal("0 / 1", Tiles(bottom)[0].Value);
         Assert.False(Button(bottom, GoalsPage.GoalDownId).IsEnabled);
     }
 
@@ -680,12 +685,73 @@ public sealed class GoalsTests
         await ctx.SendActionAsync(page, UiAction.Toggle("goals-done-2", true), CancellationToken.None);
         await ctx.SendActionAsync(page, UiAction.Toggle("goals-done-3", true), CancellationToken.None);
 
-        UiBarChart chart = Single<UiBarChart>(await RenderPageAsync(ctx));
+        UiPage rendered = await RenderPageAsync(ctx);
+        UiBarChart chart = Single<UiBarChart>(rendered);
 
         Assert.Equal(
             [new UiDataPoint("Sat", 0), new UiDataPoint("Sun", 0), new UiDataPoint("Mon", 0), new UiDataPoint("Tue", 0), new UiDataPoint("Wed", 0), new UiDataPoint("Thu", 1), new UiDataPoint("Today", 2)],
             chart.Points);
         Assert.Equal("done", chart.ValueSuffix);
+        Assert.Equal("Completed per day", Descendants(rendered).OfType<UiCard>().Single(c => c.Children.Contains(chart)).Title);
+        Assert.Equal("3", Tiles(rendered)[1].Value);
+    }
+
+    [Fact]
+    public async Task The_goal_buttons_sit_in_the_tasks_card()
+    {
+        FakePluginContext ctx = await StartAsync();
+
+        UiPage page = await RenderPageAsync(ctx);
+
+        UiCard tasks = page.Children.OfType<UiCard>().First();
+        Assert.Equal([GoalsPage.GoalDownId, GoalsPage.GoalUpId], Descendants(tasks).OfType<UiButton>().Where(b => b.Id.StartsWith("goals-goal-", StringComparison.Ordinal)).Select(b => b.Id));
+        Assert.True(HasText(tasks, "Goal for today: 3 tasks"));
+    }
+
+    [Fact]
+    public async Task The_streak_counts_days_in_a_row_with_the_goal_reached()
+    {
+        FakePluginContext ctx = await StartAsync();
+        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);   // goal 1 today
+        await AddViaPageAsync(ctx, "a");
+        await ctx.SendActionAsync(page, UiAction.Toggle("goals-done-1", true), CancellationToken.None);
+        Assert.Equal("1", Tiles(await RenderPageAsync(ctx))[2].Value);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(1));   // the default goal of 3 applies, yesterday's own goal 1 was reached
+        Assert.Equal("1", Tiles(await RenderPageAsync(ctx))[2].Value);   // today still open: streak ends yesterday
+
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+        await AddViaPageAsync(ctx, "b");
+        await ctx.SendActionAsync(page, UiAction.Toggle("goals-done-2", true), CancellationToken.None);
+        Assert.Equal("2", Tiles(await RenderPageAsync(ctx))[2].Value);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(2));   // a day without reaching the goal breaks the streak
+        Assert.Equal("0", Tiles(await RenderPageAsync(ctx))[2].Value);
+    }
+
+    [Fact]
+    public async Task The_streak_is_capped_at_the_retention_window()
+    {
+        FakePluginContext ctx = await StartAsync();
+        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
+        for (int day = 0; day < 9; day++)
+        {
+            await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+            await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+            await AddViaPageAsync(ctx, $"t{day}");
+            await ctx.SendActionAsync(page, UiAction.Toggle($"goals-done-{day + 1}", true), CancellationToken.None);
+            ctx.FakeTime.Advance(TimeSpan.FromDays(1));
+        }
+
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+        await ctx.SendActionAsync(page, UiAction.Click(GoalsPage.GoalDownId), CancellationToken.None);
+        await AddViaPageAsync(ctx, "last");
+        await ctx.SendActionAsync(page, UiAction.Toggle("goals-done-10", true), CancellationToken.None);
+
+        Assert.Equal("7+", Tiles(await RenderPageAsync(ctx))[2].Value);
     }
 
     // ---- widget ---------------------------------------------------------------------------------------------------
@@ -779,7 +845,7 @@ public sealed class GoalsTests
 
         Assert.True(HasText(await RenderSettingsAsync(ctx), "Default daily goal: 5 tasks"));
         Assert.Equal("5", await ctx.Storage.ReadAsync("default-goal", CancellationToken.None));
-        Assert.Equal("0 / 5 tasks", Single<UiStatTile>(await RenderPageAsync(ctx)).Value);
+        Assert.Equal("0 / 5", Tiles(await RenderPageAsync(ctx))[0].Value);
 
         await ctx.SendActionAsync(settings, UiAction.Click(GoalsSettings.DefaultDownId), CancellationToken.None);
 

@@ -13,7 +13,7 @@ Every change is written immediately. Days follow the local calendar date of the 
 
 ## What it shows
 
-* Page "Goals" (title "Goals & Tasks"): a "Daily goal" card with "done / goal tasks", a progress bar and `Goal -1` / `Goal +1` buttons; the "Today's tasks" card with an add form, one toggle per task (done tasks read "Done"), a remove button per task and "Clear completed"; a bar chart of completed tasks for the last 7 days.
+* Page "Goals" (title "Goals & Tasks"), built like the Insights page: four stat tiles (Today `done / goal` with "N to go" or "Goal reached", Done this week, Streak = days in a row with the goal reached, Open tasks); the "Today's tasks" card with an add form, one toggle per task (done tasks read "Done"), a remove button per task, "Clear completed" and small `Goal -1` / `Goal +1` buttons; the "Completed per day" bar chart for the last 7 days.
 * Dashboard widget (two rows): today's progress and the next 3 open tasks, which can be ticked off right there; tapping anywhere else opens this page. With no tasks it says "Add tasks on the Goals page".
 * Settings: the default daily goal and "Reset today" (asks for a second click) which removes today's tasks and today's own goal.
 

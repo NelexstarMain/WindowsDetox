@@ -27,6 +27,7 @@ public sealed class PluginStarterTemplateTests
         ".claude/skills/windowsdetox-plugin-icon/SKILL.md",
         ".claude/skills/windowsdetox-plugin-icon/preview_icon.py",
         ".claude/skills/windowsdetox-plugin-page/SKILL.md",
+        ".claude/skills/windowsdetox-plugin-page/example-page.png",
         ".claude/skills/windowsdetox-widget/SKILL.md",
     ];
 
