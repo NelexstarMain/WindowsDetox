@@ -132,11 +132,11 @@ body[data-release="latest"] .when-ci{display:none}
 #safe::before{right:-14%;bottom:-10%}
 #faq::before{left:-16%;bottom:-6%}
 #features::after,#safe::after{content:"";position:absolute;z-index:-1;pointer-events:none;width:clamp(260px,32vw,460px);aspect-ratio:1;
-  background:url(assets/bg-logo-big.svg) center/contain no-repeat;opacity:.022;animation:sec-float 26s ease-in-out infinite alternate}
+  background:url(assets/bg-logo-big.svg) center/contain no-repeat;animation:sec-pulse 7s ease-in-out infinite alternate}
 #features::after{left:-6%;bottom:2%}
 #safe::after{right:-11%;top:-4%;animation-delay:-9s}
 @keyframes sec-glow{to{transform:translate3d(6%,-5%,0) scale(1.08)}}
-@keyframes sec-float{to{transform:translate3d(0,-28px,0) rotate(-4deg)}}
+@keyframes sec-pulse{from{transform:scale(1);filter:brightness(1)}to{transform:scale(1.03);filter:brightness(1.6)}}
 @media (prefers-reduced-motion:reduce){.section::before{opacity:1;transform:none;transition:none}.section.lit::before,#features::after,#safe::after{animation:none}}
 .sec-head{margin-bottom:clamp(40px,5vw,64px)}
 .sec-head h2{max-width:20ch;font-size:clamp(2rem,1.35rem + 2.4vw,3.25rem);font-weight:350;line-height:1.08;letter-spacing:-.03em}
