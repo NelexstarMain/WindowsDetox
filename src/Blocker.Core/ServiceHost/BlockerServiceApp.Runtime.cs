@@ -2,6 +2,7 @@ using System.IO.Abstractions;
 using System.Text.Json;
 using Blocker.Contracts;
 using Blocker.Core.Orchestration;
+using Blocker.Core.Plugins;
 using Blocker.Core.Ports;
 using Blocker.Core.Security;
 using Blocker.Core.Supervision;
@@ -165,6 +166,7 @@ public sealed partial class BlockerServiceApp
             string name = fs.Path.GetFileName(path);
             if (offered.Contains(name))
             {
+                await UpgradeBundledPluginAsync(path, name, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -206,6 +208,50 @@ public sealed partial class BlockerServiceApp
         }
     }
 
+    /// <summary>
+    /// A bundled package that was offered before is not offered again, so a fixed or extended bundled plugin would never reach an existing
+    /// install. When the plugin is still installed and enabled and the shipped package has a higher version, install it over the old one
+    /// (through the same pipeline, so evaluation, lock votes and "no session" apply). A removed or disabled plugin is left alone.
+    /// </summary>
+    private async Task UpgradeBundledPluginAsync(string path, string name, CancellationToken cancellationToken)
+    {
+        IFileSystem fs = _ports.FileSystem;
+        byte[] package = await fs.File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+        for (int attempt = 1; attempt <= BundledAttempts; attempt++)
+        {
+            try
+            {
+                using var stream = new MemoryStream(package, writable: false);
+                PluginPackageReadResult read = await PluginPackageReader.ReadAsync(stream, cancellationToken).ConfigureAwait(false);
+                if (read.Package?.Manifest is not { } manifest
+                    || await _handlers.ResolvePluginAsync(manifest.Id.Value, cancellationToken).ConfigureAwait(false) is not { } installed
+                    || !Version.TryParse(installed.Version, out Version? have)
+                    || have >= manifest.Version)
+                {
+                    return;
+                }
+
+                while (Coordinator.IsSessionActive)
+                {
+                    await Task.Delay(BundledRetryDelay, _ports.Time, cancellationToken).ConfigureAwait(false);
+                }
+
+                InstallPluginResponse result = await _handlers.InstallBundledAsync(package, cancellationToken).ConfigureAwait(false);
+                LogBundledUpgrade(_logger, name, have.ToString(), manifest.Version.ToString(), result.Success, string.Join(" | ", result.Errors));
+                if (result.Success)
+                {
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && attempt < BundledAttempts)
+            {
+                LogBundledPluginRetry(_logger, ex, name, attempt);
+            }
+
+            await Task.Delay(BundledRetryDelay, _ports.Time, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task ScanOnceAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<InstalledApp> apps = await _ports.AppScanner.ScanAsync(cancellationToken).ConfigureAwait(false);
@@ -235,6 +281,9 @@ public sealed partial class BlockerServiceApp
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Bundled plugin {Package}: installed={Success} {Errors}")]
     private static partial void LogBundledPlugin(ILogger logger, string package, bool success, string errors);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Bundled plugin {Package}: upgrade {From} to {To}: installed={Success} {Errors}")]
+    private static partial void LogBundledUpgrade(ILogger logger, string package, string from, string to, bool success, string errors);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Installing bundled plugin {Package} failed (attempt {Attempt}); retrying.")]
     private static partial void LogBundledPluginRetry(ILogger logger, Exception exception, string package, int attempt);

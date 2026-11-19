@@ -255,7 +255,7 @@ internal sealed partial class ServiceIpcHandlers
         }
 
         PluginInfoDto info = await GetInfoAsync(id, cancellationToken).ConfigureAwait(false);
-        return new PluginGrant(info.Name, info.Capabilities.ToHashSet(StringComparer.Ordinal));
+        return new PluginGrant(info.Name, info.Capabilities.ToHashSet(StringComparer.Ordinal), info.Version);
     }
 
     private async ValueTask<PluginInfoDto> GetInfoAsync(PluginId id, CancellationToken cancellationToken)

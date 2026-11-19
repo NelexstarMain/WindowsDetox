@@ -11,7 +11,8 @@ namespace Blocker.Core.ServiceHost;
 /// <summary>An installed, enabled plugin and what its manifest grants.</summary>
 /// <param name="Name">Display name from the manifest.</param>
 /// <param name="Capabilities">Manifest capability names.</param>
-internal sealed record PluginGrant(string Name, IReadOnlySet<string> Capabilities);
+/// <param name="Version">Installed version text.</param>
+internal sealed record PluginGrant(string Name, IReadOnlySet<string> Capabilities, string Version = "");
 
 /// <summary>Everything <see cref="PluginHostRequestHandlers"/> needs from the service.</summary>
 /// <param name="ResolvePluginAsync">Finds an installed and enabled plugin by id; <see langword="null"/> otherwise.</param>
