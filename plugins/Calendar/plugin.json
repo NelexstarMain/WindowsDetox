@@ -6,7 +6,7 @@
   "description": "Your own calendar on this PC: plan focus sessions and tasks, repeat them, and let planned sessions start by themselves. Nothing leaves this device.",
   "sdkVersion": "1.0",
   "entryType": "CalendarPlanner.CalendarPlugin",
-  "icon": "M12.32 23.62 A46 46 0 1 0 45.99 4.17 L46.69 12.14 A38 38 0 1 1 18.87 28.2 Z M26 38 H74 V78 H26 Z M38 54 V66 H62 V54 Z M36 22 H44 V30 H36 Z M56 22 H64 V30 H56 Z",
+  "icon": "M87.68 23.62 A46 46 0 1 1 54.01 4.17 L53.31 12.14 A38 38 0 1 0 81.13 28.2 Z M32 29 H35 V18 H44 V29 H56 V18 H65 V29 H68 A7 7 0 0 1 75 36 V69 A7 7 0 0 1 68 76 H32 A7 7 0 0 1 25 69 V36 A7 7 0 0 1 32 29 Z M34 44 H66 V67 H34 Z M52 52 H59 V59 H52 Z",
   "capabilities": [
     "ui.page",
     "ui.dashboard",
