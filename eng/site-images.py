@@ -131,11 +131,18 @@ save(Image.open(shot("03-allowlist")).convert("RGB").crop((215, 1, 999, 659)), "
 save(Image.open(shot("04-session-setup")).convert("RGB").crop((215, 1, 999, 659)), "step-setup.webp")
 
 # Plugin pages: the page title and the first cards only, so the text stays large when the picture is shown near full size.
-save(Image.open(shot("09-insights")).convert("RGB").crop((255, 100, 968, 388)), "plugin-insights.webp")
+# Only the row of stat tiles, cut identically from both pages so the two pictures line up.
+def tiles(path, box):
+    """Crops a page to its row of stat tiles (8 px around them) and scales it to a common width, so both pictures line up."""
+    im = Image.open(path).convert("RGB").crop(box)
+    return im.resize((686, round(im.height * 686 / im.width)), Image.LANCZOS)
+
+
+save(tiles(shot("09-insights"), (273, 240, 950, 380)), "plugin-insights.webp")
 goals, goals_new = pick("18-goals-in-use", "16-goals")
 if goals_new:
     # 18 is scrolled to its task list: keep the page area from the daily goal card down.
-    save(Image.open(goals).convert("RGB").crop((255, 108, 968, 300)), "plugin-goals.webp")
+    save(tiles(goals, (267, 178, 955, 302)), "plugin-goals.webp")
 else:
     save(Image.open(goals).convert("RGB").crop((255, 95, 968, 397)), "plugin-goals.webp")
 

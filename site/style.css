@@ -210,11 +210,13 @@ body[data-release="latest"] .when-ci{display:none}
 /* ---------- Plugins: one row each, the picture large enough to read ---------- */
 .plug{display:grid;gap:28px;align-items:center}
 .plug + .plug{margin-top:clamp(56px,7vw,96px)}
-.plug .window{max-width:713px}
+.plug .window{max-width:686px}
+.plug-icon{width:44px;height:44px;fill:var(--sage);opacity:.9}
 .plug h3{font-size:1.5rem;font-weight:500;letter-spacing:-.015em;line-height:1.25}
 .plug p{margin-top:10px;max-width:30ch;color:var(--text-2)}
 @media (min-width:900px){
-  .plug{grid-template-columns:minmax(0,1fr) minmax(0,713px);column-gap:clamp(48px,6vw,96px)}
+  .plug{grid-template-columns:44px minmax(0,1fr) minmax(0,686px);column-gap:clamp(24px,3vw,40px)}
+  .plug .plug-icon{align-self:center}
   .plug .window{justify-self:end;width:100%}
 }
 .build{margin-top:clamp(48px,6vw,80px);display:flex;flex-wrap:wrap;gap:12px 32px;max-width:var(--wrap);color:var(--text-2)}
