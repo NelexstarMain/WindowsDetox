@@ -232,4 +232,93 @@ public class UiTreeValidatorTests
     [Fact]
     public void ValidateNavigation_Null_ReportsError() =>
         Assert.Equal(["Navigation item is null."], UiTreeValidator.ValidateNavigation(null).Errors);
+
+    private static readonly string[] Weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    private static List<UiMonthCell> Cells(int count, string prefix = "d") =>
+        [.. Enumerable.Range(0, count).Select(i => new UiMonthCell(prefix + i, (i % 28) + 1))];
+
+    [Fact]
+    public void Validate_MonthGrid_IsValidAndSurvivesJson()
+    {
+        UiMonthGrid grid = Ui.MonthGrid(
+            Weekdays,
+            [new UiMonthCell("d0", 31, IsOutside: true), new UiMonthCell("d1", 1, 2, IsToday: true, IsSelected: true, Tone: UiTone.Success, Description: "Sunday, 2 entries"), .. Cells(40, "x")],
+            "November 2026",
+            "p",
+            "n",
+            isCompact: true);
+
+        Assert.Empty(UiTreeValidator.Validate(In(Ui.Card(grid))).Errors);
+
+        UiNode back = UiJson.Deserialize(UiJson.Serialize(grid));
+
+        UiMonthGrid round = Assert.IsType<UiMonthGrid>(back);
+        Assert.Equal(grid.Title, round.Title);
+        Assert.Equal(grid.PreviousId, round.PreviousId);
+        Assert.Equal(grid.NextId, round.NextId);
+        Assert.True(round.IsCompact);
+        Assert.Equal(grid.Cells, round.Cells);
+        Assert.Equal(grid.WeekdayLabels, round.WeekdayLabels);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(6)]
+    [InlineData(8)]
+    [InlineData(49)]
+    public void Validate_MonthGridWithWrongCellCount_ReportsError(int count) =>
+        AssertSingleError(In(Ui.MonthGrid(Weekdays, Cells(count))), "UiMonthGrid.Cells must contain 1-6 weeks (7 cells per week).");
+
+    [Fact]
+    public void Validate_MonthGridWithWrongWeekdayCount_ReportsError() =>
+        AssertSingleError(In(Ui.MonthGrid(Weekdays[..6], Cells(7))), "UiMonthGrid.WeekdayLabels must contain exactly 7 labels.");
+
+    [Fact]
+    public void Validate_MonthGridWithEmptyWeekdayLabel_ReportsError() =>
+        AssertSingleError(In(Ui.MonthGrid([.. Weekdays.Take(6), " "], Cells(7))), "UiMonthGrid.WeekdayLabels is required.");
+
+    [Theory]
+    [InlineData("p", null)]
+    [InlineData(null, "n")]
+    public void Validate_MonthGridWithOnlyOneNavigationId_ReportsError(string? previous, string? next) =>
+        AssertSingleError(In(Ui.MonthGrid(Weekdays, Cells(7), "T", previous, next)), "UiMonthGrid.PreviousId and NextId must be set together.");
+
+    [Fact]
+    public void Validate_MonthGridIdsAreUniqueAcrossTheTree() =>
+        AssertSingleError(In(Ui.Button("d0", "Go"), Ui.MonthGrid(Weekdays, Cells(7))), "Element id 'd0' is used more than once.");
+
+    [Fact]
+    public void Validate_MonthGridNavigationIdsShareTheNamespace() =>
+        AssertSingleError(In(Ui.MonthGrid(Weekdays, Cells(7), "T", "d0", "n")), "Element id 'd0' is used more than once.");
+
+    [Theory]
+    [InlineData(0, 0, "UiMonthCell.Day must be between 1 and 31.")]
+    [InlineData(32, 0, "UiMonthCell.Day must be between 1 and 31.")]
+    [InlineData(5, -1, "UiMonthCell.Markers must be between 0 and 99.")]
+    [InlineData(5, 100, "UiMonthCell.Markers must be between 0 and 99.")]
+    public void Validate_MonthCellOutOfRange_ReportsError(int day, int markers, string expected)
+    {
+        List<UiMonthCell> cells = Cells(7);
+        cells[3] = new UiMonthCell("bad", day, markers);
+
+        AssertSingleError(In(Ui.MonthGrid(Weekdays, cells)), expected);
+    }
+
+    [Fact]
+    public void Validate_MonthCellWithBadIdOrTone_ReportsErrors()
+    {
+        List<UiMonthCell> cells = Cells(7);
+        cells[0] = new UiMonthCell("1bad", 1, Tone: (UiTone)99);
+
+        UiValidationResult result = UiTreeValidator.Validate(In(Ui.MonthGrid(Weekdays, cells)));
+
+        Assert.Equal(2, result.Errors.Count);
+        Assert.Contains(result.Errors, e => e.StartsWith("Element id '1bad' is invalid", StringComparison.Ordinal));
+        Assert.Contains("UiMonthCell.Tone has an undefined value.", result.Errors);
+    }
+
+    [Fact]
+    public void Validate_MonthGridCellsCountTowardsTheNodeBudget() =>
+        AssertSingleError(In(Ui.MonthGrid(Weekdays, Cells(14))), "Tree exceeds the maximum of 10 nodes.", new UiLimits(MaxDepth: 16, MaxNodes: 10, MaxTextLength: 2000, MaxItems: 500));
 }

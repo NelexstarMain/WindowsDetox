@@ -68,6 +68,7 @@ internal static class WidgetSpans
         UiDonutChart => 160,
         UiHeatmap => 150,
         UiTable table => 30 * (table.Rows.Count + 1),
+        UiMonthGrid month => (string.IsNullOrEmpty(month.Title) ? 0 : month.IsCompact ? 38 : 50) + (month.IsCompact ? 18 : 24) + (month.Cells.Count / 7 * (month.IsCompact ? 32 : 50)),
         UiGlyph glyph => glyph.Size,
         UiForm form => (60 * form.Fields.Count) + 40,
         _ => 40,

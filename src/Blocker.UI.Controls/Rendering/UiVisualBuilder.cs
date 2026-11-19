@@ -10,6 +10,7 @@ using NumberBox = Wpf.Ui.Controls.NumberBox;
 using NumberBoxSpinButtonPlacementMode = Wpf.Ui.Controls.NumberBoxSpinButtonPlacementMode;
 using NumberBoxValidationMode = Wpf.Ui.Controls.NumberBoxValidationMode;
 using SymbolIcon = Wpf.Ui.Controls.SymbolIcon;
+using SymbolRegular = Wpf.Ui.Controls.SymbolRegular;
 using ToggleSwitch = Wpf.Ui.Controls.ToggleSwitch;
 using WpfUiTextBox = Wpf.Ui.Controls.TextBox;
 
@@ -58,6 +59,7 @@ internal sealed class UiVisualBuilder
         UiLineChart chart => BuildLineChart(chart),
         UiDonutChart donut => BuildDonutChart(donut),
         UiHeatmap heatmap => BuildHeatmap(heatmap),
+        UiMonthGrid month => BuildMonthGrid(month),
         UiGlyph glyph => BuildGlyph(glyph),
         UiTable table => BuildTable(table),
         UiButton button => BuildButton(button),
@@ -582,6 +584,163 @@ internal sealed class UiVisualBuilder
     {
         brush.Freeze();
         return brush;
+    }
+
+    private FrameworkElement BuildMonthGrid(UiMonthGrid month)
+    {
+        bool compact = month.IsCompact;
+        var root = new StackPanel();
+        if (month.Title is not null)
+        {
+            root.Children.Add(BuildMonthHeader(month, compact));
+        }
+
+        // The weekday header cells and the day cells live in one grid of seven equal columns, so they always line up.
+        var grid = new Grid();
+        grid.Margin = new Thickness(0, month.Title is null ? 0 : compact ? 4 : 12, 0, 0);
+        for (int c = 0; c < 7; c++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int c = 0; c < 7; c++)
+        {
+            TextBlock label = Caption(month.WeekdayLabels[c]);
+            label.FontSize = compact ? 10 : 11;
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.Margin = new Thickness(0, 0, 0, compact ? 2 : 6);
+            Grid.SetColumn(label, c);
+            grid.Children.Add(label);
+        }
+
+        for (int i = 0; i < month.Cells.Count; i++)
+        {
+            int row = (i / 7) + 1;
+            if (grid.RowDefinitions.Count <= row)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+
+            Button cell = BuildMonthCell(month.Cells[i], compact);
+            Grid.SetRow(cell, row);
+            Grid.SetColumn(cell, i % 7);
+            grid.Children.Add(cell);
+        }
+
+        root.Children.Add(grid);
+        AutomationProperties.SetName(root, month.Title ?? "Month");
+        return root;
+    }
+
+    private FrameworkElement BuildMonthHeader(UiMonthGrid month, bool compact)
+    {
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        TextBlock title = Styled(new TextBlock { Text = month.Title, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis }, "Blocker.Text.CardTitle");
+        header.Children.Add(title);
+        if (month.PreviousId is { } previous && month.NextId is { } next)
+        {
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Button back = MonthNavButton(SymbolRegular.ChevronLeft24, "Previous month", previous, compact);
+            Button forward = MonthNavButton(SymbolRegular.ChevronRight24, "Next month", next, compact);
+            Grid.SetColumn(back, 1);
+            Grid.SetColumn(forward, 2);
+            header.Children.Add(back);
+            header.Children.Add(forward);
+        }
+
+        return header;
+    }
+
+    private Button MonthNavButton(SymbolRegular symbol, string name, string id, bool compact)
+    {
+        double size = compact ? 28 : 32;
+        var button = new Button
+        {
+            Width = size,
+            Height = size,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            Margin = new Thickness(2, 0, 0, 0),
+            Content = new SymbolIcon { Symbol = symbol, FontSize = compact ? 14 : 16 },
+        };
+        button.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Subtle");
+        AutomationProperties.SetName(button, name);
+        AutomationProperties.SetAutomationId(button, id);
+        button.Click += (_, _) => _raise(UiAction.Click(id));
+        return button;
+    }
+
+    private Button BuildMonthCell(UiMonthCell cell, bool compact)
+    {
+        double height = compact ? 30 : 46;
+        double badge = compact ? 22 : 28;
+        var button = new Button
+        {
+            Height = height,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            Margin = new Thickness(compact ? 1 : 2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            FontWeight = FontWeights.Normal,
+            FontSize = compact ? 12 : 13,
+        };
+        button.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Subtle");
+        if (cell.IsSelected)
+        {
+            button.SetResourceReference(Control.BackgroundProperty, "Blocker.Bg.Raised");
+            button.SetResourceReference(Control.BorderBrushProperty, "Blocker.Border.Strong");
+        }
+
+        var layout = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
+        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var number = new TextBlock
+        {
+            Text = cell.Day.ToString(CultureInfo.InvariantCulture),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontWeight = cell.IsToday ? FontWeights.SemiBold : FontWeights.Normal,
+        };
+        number.SetResourceReference(TextBlock.ForegroundProperty, cell.IsToday ? "Blocker.Text.OnAccent" : cell.IsOutside ? "Blocker.Text.Muted" : "Blocker.Text.Primary");
+        FrameworkElement face = number;
+        if (cell.IsToday)
+        {
+            var circle = new Border { Width = badge, Height = badge, CornerRadius = new CornerRadius(badge / 2), Child = number, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            circle.SetResourceReference(Border.BackgroundProperty, "Blocker.Accent");
+            face = circle;
+        }
+
+        layout.Children.Add(face);
+
+        var dots = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Height = compact ? 5 : 7, Margin = new Thickness(0, 0, 0, compact ? 2 : 4) };
+        double dot = compact ? 3 : 4;
+        for (int i = 0; i < Math.Min(cell.Markers, 3); i++)
+        {
+            var mark = new Ellipse { Width = dot, Height = dot, Margin = new Thickness(i == 0 ? 0 : 2, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            mark.SetResourceReference(Shape.FillProperty, cell.Tone == UiTone.Accent ? "Blocker.Accent.Bar" : ToneMap.FillKey(cell.Tone));
+            mark.Opacity = cell.IsOutside ? 0.45 : 1;
+            dots.Children.Add(mark);
+        }
+
+        Grid.SetRow(dots, 1);
+        layout.Children.Add(dots);
+        button.Content = layout;
+
+        string name = cell.Description ?? cell.Day.ToString(CultureInfo.InvariantCulture);
+        AutomationProperties.SetName(button, name);
+        AutomationProperties.SetAutomationId(button, cell.Id);
+        if (cell.Description is not null)
+        {
+            button.ToolTip = cell.Description;
+        }
+
+        string id = cell.Id;
+        button.Click += (_, _) => _raise(UiAction.Click(id));
+        return button;
     }
 
     private static FrameworkElement BuildGlyph(UiGlyph glyph)

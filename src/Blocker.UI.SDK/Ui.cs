@@ -119,4 +119,20 @@ public static class Ui
     /// <param name="fields">Fields.</param>
     /// <returns>The form.</returns>
     public static UiForm Form(string id, string submitLabel, params UiFormField[] fields) => new(id, fields, submitLabel);
+
+    /// <summary>Creates a month grid.</summary>
+    /// <param name="weekdayLabels">Seven column headings.</param>
+    /// <param name="cells">Day cells, row by row (a multiple of seven).</param>
+    /// <param name="title">Optional month title.</param>
+    /// <param name="previousId">Optional id of the previous button (with <paramref name="nextId"/>).</param>
+    /// <param name="nextId">Optional id of the next button (with <paramref name="previousId"/>).</param>
+    /// <param name="isCompact">Small cells for widgets.</param>
+    /// <returns>The month grid.</returns>
+    public static UiMonthGrid MonthGrid(
+        IReadOnlyList<string> weekdayLabels,
+        IReadOnlyList<UiMonthCell> cells,
+        string? title = null,
+        string? previousId = null,
+        string? nextId = null,
+        bool isCompact = false) => new(weekdayLabels, cells, title, previousId, nextId, isCompact);
 }

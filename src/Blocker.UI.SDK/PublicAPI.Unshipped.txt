@@ -216,6 +216,43 @@ Blocker.UI.Sdk.UiLineChart.Title.init -> void
 Blocker.UI.Sdk.UiLineChart.UiLineChart(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSeries!>! Series, string? Title = null, string? ValueSuffix = null) -> void
 Blocker.UI.Sdk.UiLineChart.ValueSuffix.get -> string?
 Blocker.UI.Sdk.UiLineChart.ValueSuffix.init -> void
+Blocker.UI.Sdk.UiMonthCell
+Blocker.UI.Sdk.UiMonthCell.<Clone>$() -> Blocker.UI.Sdk.UiMonthCell!
+Blocker.UI.Sdk.UiMonthCell.Day.get -> int
+Blocker.UI.Sdk.UiMonthCell.Day.init -> void
+Blocker.UI.Sdk.UiMonthCell.Deconstruct(out string! Id, out int Day, out int Markers, out bool IsToday, out bool IsSelected, out bool IsOutside, out Blocker.UI.Sdk.UiTone Tone, out string? Description) -> void
+Blocker.UI.Sdk.UiMonthCell.Description.get -> string?
+Blocker.UI.Sdk.UiMonthCell.Description.init -> void
+Blocker.UI.Sdk.UiMonthCell.Equals(Blocker.UI.Sdk.UiMonthCell? other) -> bool
+Blocker.UI.Sdk.UiMonthCell.Id.get -> string!
+Blocker.UI.Sdk.UiMonthCell.Id.init -> void
+Blocker.UI.Sdk.UiMonthCell.IsOutside.get -> bool
+Blocker.UI.Sdk.UiMonthCell.IsOutside.init -> void
+Blocker.UI.Sdk.UiMonthCell.IsSelected.get -> bool
+Blocker.UI.Sdk.UiMonthCell.IsSelected.init -> void
+Blocker.UI.Sdk.UiMonthCell.IsToday.get -> bool
+Blocker.UI.Sdk.UiMonthCell.IsToday.init -> void
+Blocker.UI.Sdk.UiMonthCell.Markers.get -> int
+Blocker.UI.Sdk.UiMonthCell.Markers.init -> void
+Blocker.UI.Sdk.UiMonthCell.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiMonthCell.Tone.init -> void
+Blocker.UI.Sdk.UiMonthCell.UiMonthCell(string! Id, int Day, int Markers = 0, bool IsToday = false, bool IsSelected = false, bool IsOutside = false, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent, string? Description = null) -> void
+Blocker.UI.Sdk.UiMonthGrid
+Blocker.UI.Sdk.UiMonthGrid.Cells.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiMonthCell!>!
+Blocker.UI.Sdk.UiMonthGrid.Cells.init -> void
+Blocker.UI.Sdk.UiMonthGrid.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! WeekdayLabels, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiMonthCell!>! Cells, out string? Title, out string? PreviousId, out string? NextId, out bool IsCompact) -> void
+Blocker.UI.Sdk.UiMonthGrid.Equals(Blocker.UI.Sdk.UiMonthGrid? other) -> bool
+Blocker.UI.Sdk.UiMonthGrid.IsCompact.get -> bool
+Blocker.UI.Sdk.UiMonthGrid.IsCompact.init -> void
+Blocker.UI.Sdk.UiMonthGrid.NextId.get -> string?
+Blocker.UI.Sdk.UiMonthGrid.NextId.init -> void
+Blocker.UI.Sdk.UiMonthGrid.PreviousId.get -> string?
+Blocker.UI.Sdk.UiMonthGrid.PreviousId.init -> void
+Blocker.UI.Sdk.UiMonthGrid.Title.get -> string?
+Blocker.UI.Sdk.UiMonthGrid.Title.init -> void
+Blocker.UI.Sdk.UiMonthGrid.UiMonthGrid(System.Collections.Generic.IReadOnlyList<string!>! WeekdayLabels, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiMonthCell!>! Cells, string? Title = null, string? PreviousId = null, string? NextId = null, bool IsCompact = false) -> void
+Blocker.UI.Sdk.UiMonthGrid.WeekdayLabels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.UI.Sdk.UiMonthGrid.WeekdayLabels.init -> void
 Blocker.UI.Sdk.UiNavigationItem
 Blocker.UI.Sdk.UiNavigationItem.<Clone>$() -> Blocker.UI.Sdk.UiNavigationItem!
 Blocker.UI.Sdk.UiNavigationItem.Deconstruct(out string! Title, out Blocker.UI.Sdk.UiIcon Icon) -> void
@@ -462,6 +499,13 @@ override Blocker.UI.Sdk.UiLineChart.<Clone>$() -> Blocker.UI.Sdk.UiLineChart!
 override Blocker.UI.Sdk.UiLineChart.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiLineChart.GetHashCode() -> int
 override Blocker.UI.Sdk.UiLineChart.ToString() -> string!
+override Blocker.UI.Sdk.UiMonthCell.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiMonthCell.GetHashCode() -> int
+override Blocker.UI.Sdk.UiMonthCell.ToString() -> string!
+override Blocker.UI.Sdk.UiMonthGrid.<Clone>$() -> Blocker.UI.Sdk.UiMonthGrid!
+override Blocker.UI.Sdk.UiMonthGrid.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiMonthGrid.GetHashCode() -> int
+override Blocker.UI.Sdk.UiMonthGrid.ToString() -> string!
 override Blocker.UI.Sdk.UiNavigationItem.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiNavigationItem.GetHashCode() -> int
 override Blocker.UI.Sdk.UiNavigationItem.ToString() -> string!
@@ -536,6 +580,7 @@ override sealed Blocker.UI.Sdk.UiGlyph.Equals(Blocker.UI.Sdk.UiNode? other) -> b
 override sealed Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiHeatmap.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiLineChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiMonthGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiProgress.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
@@ -556,6 +601,7 @@ static Blocker.UI.Sdk.Ui.DonutChart(string! title, params Blocker.UI.Sdk.UiDataP
 static Blocker.UI.Sdk.Ui.Form(string! id, string! submitLabel, params Blocker.UI.Sdk.UiFormField![]! fields) -> Blocker.UI.Sdk.UiForm!
 static Blocker.UI.Sdk.Ui.Glyph(string! pathData, double size = 32) -> Blocker.UI.Sdk.UiGlyph!
 static Blocker.UI.Sdk.Ui.Grid(int columns, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiGrid!
+static Blocker.UI.Sdk.Ui.MonthGrid(System.Collections.Generic.IReadOnlyList<string!>! weekdayLabels, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiMonthCell!>! cells, string? title = null, string? previousId = null, string? nextId = null, bool isCompact = false) -> Blocker.UI.Sdk.UiMonthGrid!
 static Blocker.UI.Sdk.Ui.Page(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
 static Blocker.UI.Sdk.Ui.Page(string! title, string! subtitle, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiPage!
 static Blocker.UI.Sdk.Ui.Point(string! label, double value) -> Blocker.UI.Sdk.UiDataPoint!
@@ -598,6 +644,10 @@ static Blocker.UI.Sdk.UiLimits.operator !=(Blocker.UI.Sdk.UiLimits? left, Blocke
 static Blocker.UI.Sdk.UiLimits.operator ==(Blocker.UI.Sdk.UiLimits? left, Blocker.UI.Sdk.UiLimits? right) -> bool
 static Blocker.UI.Sdk.UiLineChart.operator !=(Blocker.UI.Sdk.UiLineChart? left, Blocker.UI.Sdk.UiLineChart? right) -> bool
 static Blocker.UI.Sdk.UiLineChart.operator ==(Blocker.UI.Sdk.UiLineChart? left, Blocker.UI.Sdk.UiLineChart? right) -> bool
+static Blocker.UI.Sdk.UiMonthCell.operator !=(Blocker.UI.Sdk.UiMonthCell? left, Blocker.UI.Sdk.UiMonthCell? right) -> bool
+static Blocker.UI.Sdk.UiMonthCell.operator ==(Blocker.UI.Sdk.UiMonthCell? left, Blocker.UI.Sdk.UiMonthCell? right) -> bool
+static Blocker.UI.Sdk.UiMonthGrid.operator !=(Blocker.UI.Sdk.UiMonthGrid? left, Blocker.UI.Sdk.UiMonthGrid? right) -> bool
+static Blocker.UI.Sdk.UiMonthGrid.operator ==(Blocker.UI.Sdk.UiMonthGrid? left, Blocker.UI.Sdk.UiMonthGrid? right) -> bool
 static Blocker.UI.Sdk.UiNavigationItem.operator !=(Blocker.UI.Sdk.UiNavigationItem? left, Blocker.UI.Sdk.UiNavigationItem? right) -> bool
 static Blocker.UI.Sdk.UiNavigationItem.operator ==(Blocker.UI.Sdk.UiNavigationItem? left, Blocker.UI.Sdk.UiNavigationItem? right) -> bool
 static Blocker.UI.Sdk.UiNode.operator !=(Blocker.UI.Sdk.UiNode? left, Blocker.UI.Sdk.UiNode? right) -> bool

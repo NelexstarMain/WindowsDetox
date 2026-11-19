@@ -34,6 +34,8 @@ public static partial class UiTreeValidator
     private const int MaxColumns = 12;
     private const int MaxGridColumns = 6;
     private const int MaxNavigationTitle = 32;
+    private const int MonthGridColumns = 7;
+    private const int MaxMonthMarkers = 99;
 
     /// <summary>Checks SVG path data as accepted for <see cref="UiGlyph"/> and plugin icons: 1-4096 characters of path commands, numbers, spaces and commas.</summary>
     /// <param name="pathData">Path data.</param>
@@ -229,6 +231,9 @@ public static partial class UiTreeValidator
                 case UiHeatmap heatmap:
                     Heatmap(heatmap);
                     break;
+                case UiMonthGrid month:
+                    MonthGrid(month);
+                    break;
                 case UiGlyph glyph:
                     if (!IsValidPathData(glyph.PathData))
                     {
@@ -327,6 +332,65 @@ public static partial class UiTreeValidator
             if (heatmap.Values.Any(row => row.Any(v => !double.IsFinite(v) || v < 0)))
             {
                 Errors.Add("UiHeatmap.Values must be finite and non-negative.");
+            }
+        }
+
+        private void MonthGrid(UiMonthGrid month)
+        {
+            OptionalText(month.Title, "UiMonthGrid.Title");
+            if (month.WeekdayLabels is null || month.WeekdayLabels.Count != MonthGridColumns)
+            {
+                Errors.Add($"UiMonthGrid.WeekdayLabels must contain exactly {MonthGridColumns} labels.");
+                return;
+            }
+
+            foreach (string label in month.WeekdayLabels)
+            {
+                RequiredText(label, "UiMonthGrid.WeekdayLabels");
+            }
+
+            if ((month.PreviousId is null) != (month.NextId is null))
+            {
+                Errors.Add("UiMonthGrid.PreviousId and NextId must be set together.");
+            }
+            else if (month.PreviousId is not null)
+            {
+                Id(month.PreviousId);
+                Id(month.NextId);
+            }
+
+            if (month.Cells is null || month.Cells.Count is 0 or > MonthGridColumns * 6 || month.Cells.Count % MonthGridColumns != 0)
+            {
+                Errors.Add($"UiMonthGrid.Cells must contain 1-6 weeks ({MonthGridColumns} cells per week).");
+                return;
+            }
+
+            if (!Count(month.Cells.Count))
+            {
+                return;
+            }
+
+            foreach (UiMonthCell cell in month.Cells)
+            {
+                if (cell is null)
+                {
+                    Errors.Add("UiMonthGrid.Cells contains null.");
+                    continue;
+                }
+
+                Id(cell.Id);
+                if (cell.Day is < 1 or > 31)
+                {
+                    Errors.Add("UiMonthCell.Day must be between 1 and 31.");
+                }
+
+                if (cell.Markers is < 0 or > MaxMonthMarkers)
+                {
+                    Errors.Add($"UiMonthCell.Markers must be between 0 and {MaxMonthMarkers}.");
+                }
+
+                Defined(cell.Tone, "UiMonthCell.Tone");
+                OptionalText(cell.Description, "UiMonthCell.Description");
             }
         }
 

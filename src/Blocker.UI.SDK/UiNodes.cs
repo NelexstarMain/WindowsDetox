@@ -20,6 +20,7 @@ namespace Blocker.UI.Sdk;
 [JsonDerivedType(typeof(UiLineChart), "lineChart")]
 [JsonDerivedType(typeof(UiDonutChart), "donutChart")]
 [JsonDerivedType(typeof(UiHeatmap), "heatmap")]
+[JsonDerivedType(typeof(UiMonthGrid), "monthGrid")]
 [JsonDerivedType(typeof(UiGlyph), "glyph")]
 [JsonDerivedType(typeof(UiTable), "table")]
 [JsonDerivedType(typeof(UiButton), "button")]
@@ -116,6 +117,44 @@ public sealed record UiHeatmap(
     IReadOnlyList<IReadOnlyList<double>> Values,
     string? Title = null,
     string? ValueSuffix = null) : UiNode;
+
+/// <summary>One day cell of a <see cref="UiMonthGrid"/>. Clicking it is delivered as <see cref="UiActionKind.Click"/> with <paramref name="Id"/>.</summary>
+/// <param name="Id">Element id, unique within the tree.</param>
+/// <param name="Day">Day of the month shown in the cell, 1-31.</param>
+/// <param name="Markers">Number of entries on that day (0-99); the host draws up to three dots.</param>
+/// <param name="IsToday">Whether the cell is today (drawn as a filled circle behind the number).</param>
+/// <param name="IsSelected">Whether the cell is the selected day (drawn with a raised, outlined background).</param>
+/// <param name="IsOutside">Whether the day belongs to the previous or next month (drawn dimmed).</param>
+/// <param name="Tone">Colour role of the marker dots.</param>
+/// <param name="Description">Optional text for the tooltip and screen readers, for example <c>"Thursday 19 November, 2 entries"</c>.</param>
+public sealed record UiMonthCell(
+    string Id,
+    int Day,
+    int Markers = 0,
+    bool IsToday = false,
+    bool IsSelected = false,
+    bool IsOutside = false,
+    UiTone Tone = UiTone.Accent,
+    string? Description = null);
+
+/// <summary>
+/// A month as a grid of seven equal columns: a weekday header row and one row per week, all in the same grid so the header
+/// lines up with the days. The host draws the cells (today, selected, markers, dimmed days) and an optional header with the month
+/// title and previous/next buttons.
+/// </summary>
+/// <param name="WeekdayLabels">Exactly seven column headings, first column first.</param>
+/// <param name="Cells">Day cells, row by row: a multiple of seven, at most 42.</param>
+/// <param name="Title">Optional month title shown above the grid.</param>
+/// <param name="PreviousId">Optional id of the host-drawn "previous" button next to the title; set together with <paramref name="NextId"/>.</param>
+/// <param name="NextId">Optional id of the host-drawn "next" button next to the title; set together with <paramref name="PreviousId"/>.</param>
+/// <param name="IsCompact">Draw small cells, for dashboard widgets.</param>
+public sealed record UiMonthGrid(
+    IReadOnlyList<string> WeekdayLabels,
+    IReadOnlyList<UiMonthCell> Cells,
+    string? Title = null,
+    string? PreviousId = null,
+    string? NextId = null,
+    bool IsCompact = false) : UiNode;
 
 /// <summary>
 /// A plugin's own vector logo, drawn in a host colour. <paramref name="PathData"/> uses SVG/WPF path syntax limited to
