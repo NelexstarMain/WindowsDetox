@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windows Detox: Focus, enforced.</title>
+<meta name="description" content="Windows Detox is a distraction blocker for Windows 10 and 11. Allow the apps and sites you need, start a session, and everything else stays blocked until the timer ends.">
+<meta name="theme-color" content="#0B0C0F">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://nelexstarmain.github.io/WindowsDetox/">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Windows Detox">
+<meta property="og:title" content="Windows Detox: Focus, enforced.">
+<meta property="og:description" content="Allow the apps and sites you need. Start a session that can't be cut short. Everything else stays blocked until the timer ends.">
+<meta property="og:url" content="https://nelexstarmain.github.io/WindowsDetox/">
+<meta property="og:image" content="https://nelexstarmain.github.io/WindowsDetox/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Windows Detox logo, the headline Focus, enforced., and the app's session screen.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Windows Detox: Focus, enforced.">
+<meta name="twitter:description" content="A distraction blocker for Windows 10 and 11. Sessions can't be cut short.">
+<meta name="twitter:image" content="https://nelexstarmain.github.io/WindowsDetox/assets/og.png">
+<link rel="preload" href="assets/fonts/hanken-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add("js")</script>
+</head>
+
+<!--
+  DOWNLOAD LINK: change the one data-download value below to switch every Download button.
+  Today there is no GitHub Release, so it points at the CI builds (artifact "WindowsDetox-Setup").
+  When a release exists, set:  data-download="https://github.com/NelexstarMain/WindowsDetox/releases/latest"
+  and data-release="latest"  (this hides the "download the artifact from CI" notes).
+-->
+<body data-download="https://github.com/NelexstarMain/WindowsDetox/actions/workflows/ci.yml?query=branch%3Aclaude%2Fanti-distraction-windows-app-irhha1" data-release="ci">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="logo" viewBox="60 60 880 880"><g class="mark"><path d="M 552.13 60.03 C 547.74 60.32, 543.72 61.96, 540.98 65.50 C 538.61 68.57, 537.68 72.47, 536.50 76.09 C 534.49 82.19, 532.50 88.30, 530.52 94.41 C 523.79 115.18, 517.17 135.99, 510.68 156.83 C 499.35 193.22, 488.39 229.71, 477.81 266.32 C 474.36 278.24, 470.95 290.18, 467.58 302.13 C 465.84 308.31, 464.03 314.48, 462.39 320.69 C 460.43 328.04, 459.52 336.30, 463.61 343.14 C 467.20 349.15, 473.79 352.39, 480.33 354.18 C 485.68 355.65, 491.20 356.63, 496.62 357.83 C 507.07 360.13, 517.52 362.47, 527.96 364.84 C 545.08 368.72, 562.14 372.83, 579.26 376.72 C 595.96 380.51, 612.71 384.09, 629.41 387.88 C 685.77 400.70, 741.93 414.40, 797.86 428.97 C 828.52 436.96, 859.11 445.21, 889.63 453.72 C 899.11 456.36, 908.59 459.03, 918.06 461.73 C 920.95 462.55, 923.83 463.37, 926.71 464.19 C 928.74 464.77, 930.83 465.52, 932.97 465.52 C 935.22 465.53, 937.21 464.88, 938.53 462.96 C 940.25 460.48, 940.00 457.08, 940.00 454.23 C 940.04 395.57, 940.00 336.92, 940.00 278.26 C 940.00 254.72, 940.00 231.17, 940.00 207.62 C 940.00 185.41, 940.18 162.94, 935.48 141.12 C 931.33 121.83, 923.02 103.32, 908.70 89.44 C 894.39 75.57, 875.63 67.80, 856.30 63.98 C 834.83 59.75, 812.81 60.00, 791.03 60.00 C 767.05 60.00, 743.08 60.00, 719.10 60.00 C 681.85 60.00, 644.60 60.00, 607.36 60.00 C 595.37 60.00, 583.38 60.00, 571.39 60.00 C 567.11 60.00, 562.83 60.00, 558.55 60.00 C 556.42 60.00, 554.25 59.89, 552.13 60.03 Z"/>
+<path d="M 939.97 552.13 C 939.68 547.74, 938.04 543.72, 934.50 540.98 C 931.43 538.61, 927.53 537.68, 923.91 536.50 C 917.81 534.49, 911.70 532.50, 905.59 530.52 C 884.82 523.79, 864.01 517.17, 843.17 510.68 C 806.78 499.35, 770.29 488.39, 733.68 477.81 C 721.76 474.36, 709.82 470.95, 697.87 467.58 C 691.69 465.84, 685.52 464.03, 679.31 462.39 C 671.96 460.43, 663.70 459.52, 656.86 463.61 C 650.85 467.20, 647.61 473.79, 645.82 480.33 C 644.35 485.68, 643.37 491.20, 642.17 496.62 C 639.87 507.07, 637.53 517.52, 635.16 527.96 C 631.28 545.08, 627.17 562.14, 623.28 579.26 C 619.49 595.96, 615.91 612.71, 612.12 629.41 C 599.30 685.77, 585.60 741.93, 571.03 797.86 C 563.04 828.52, 554.79 859.11, 546.28 889.63 C 543.64 899.11, 540.97 908.59, 538.27 918.06 C 537.45 920.95, 536.63 923.83, 535.81 926.71 C 535.23 928.74, 534.48 930.83, 534.48 932.97 C 534.47 935.22, 535.12 937.21, 537.04 938.53 C 539.52 940.25, 542.92 940.00, 545.77 940.00 C 604.43 940.04, 663.08 940.00, 721.74 940.00 C 745.28 940.00, 768.83 940.00, 792.38 940.00 C 814.59 940.00, 837.06 940.18, 858.88 935.48 C 878.17 931.33, 896.68 923.02, 910.56 908.70 C 924.43 894.39, 932.20 875.63, 936.02 856.30 C 940.25 834.83, 940.00 812.81, 940.00 791.03 C 940.00 767.05, 940.00 743.08, 940.00 719.10 C 940.00 681.85, 940.00 644.60, 940.00 607.36 C 940.00 595.37, 940.00 583.38, 940.00 571.39 C 940.00 567.11, 940.00 562.83, 940.00 558.55 C 940.00 556.42, 940.11 554.25, 939.97 552.13 Z"/>
+<path d="M 447.87 939.97 C 452.26 939.68, 456.28 938.04, 459.02 934.50 C 461.39 931.43, 462.32 927.53, 463.50 923.91 C 465.51 917.81, 467.50 911.70, 469.48 905.59 C 476.21 884.82, 482.83 864.01, 489.32 843.17 C 500.65 806.78, 511.61 770.29, 522.19 733.68 C 525.64 721.76, 529.05 709.82, 532.42 697.87 C 534.16 691.69, 535.97 685.52, 537.61 679.31 C 539.57 671.96, 540.48 663.70, 536.39 656.86 C 532.80 650.85, 526.21 647.61, 519.67 645.82 C 514.32 644.35, 508.80 643.37, 503.38 642.17 C 492.93 639.87, 482.48 637.53, 472.04 635.16 C 454.92 631.28, 437.86 627.17, 420.74 623.28 C 404.04 619.49, 387.29 615.91, 370.59 612.12 C 314.23 599.30, 258.07 585.60, 202.14 571.03 C 171.48 563.04, 140.89 554.79, 110.37 546.28 C 100.89 543.64, 91.41 540.97, 81.94 538.27 C 79.05 537.45, 76.17 536.63, 73.29 535.81 C 71.26 535.23, 69.17 534.48, 67.03 534.48 C 64.78 534.47, 62.79 535.12, 61.47 537.04 C 59.75 539.52, 60.00 542.92, 60.00 545.77 C 59.96 604.43, 60.00 663.08, 60.00 721.74 C 60.00 745.28, 60.00 768.83, 60.00 792.38 C 60.00 814.59, 59.82 837.06, 64.52 858.88 C 68.67 878.17, 76.98 896.68, 91.30 910.56 C 105.61 924.43, 124.37 932.20, 143.70 936.02 C 165.17 940.25, 187.19 940.00, 208.97 940.00 C 232.95 940.00, 256.92 940.00, 280.90 940.00 C 318.15 940.00, 355.40 940.00, 392.64 940.00 C 404.63 940.00, 416.62 940.00, 428.61 940.00 C 432.89 940.00, 437.17 940.00, 441.45 940.00 C 443.58 940.00, 445.75 940.11, 447.87 939.97 Z"/>
+<path d="M 60.03 447.87 C 60.32 452.26, 61.96 456.28, 65.50 459.02 C 68.57 461.39, 72.47 462.32, 76.09 463.50 C 82.19 465.51, 88.30 467.50, 94.41 469.48 C 115.18 476.21, 135.99 482.83, 156.83 489.32 C 193.22 500.65, 229.71 511.61, 266.32 522.19 C 278.24 525.64, 290.18 529.05, 302.13 532.42 C 308.31 534.16, 314.48 535.97, 320.69 537.61 C 328.04 539.57, 336.30 540.48, 343.14 536.39 C 349.15 532.80, 352.39 526.21, 354.18 519.67 C 355.65 514.32, 356.63 508.80, 357.83 503.38 C 360.13 492.93, 362.47 482.48, 364.84 472.04 C 368.72 454.92, 372.83 437.86, 376.72 420.74 C 380.51 404.04, 384.09 387.29, 387.88 370.59 C 400.70 314.23, 414.40 258.07, 428.97 202.14 C 436.96 171.48, 445.21 140.89, 453.72 110.37 C 456.36 100.89, 459.03 91.41, 461.73 81.94 C 462.55 79.05, 463.37 76.17, 464.19 73.29 C 464.77 71.26, 465.52 69.17, 465.52 67.03 C 465.53 64.78, 464.88 62.79, 462.96 61.47 C 460.48 59.75, 457.08 60.00, 454.23 60.00 C 395.57 59.96, 336.92 60.00, 278.26 60.00 C 254.72 60.00, 231.17 60.00, 207.62 60.00 C 185.41 60.00, 162.94 59.82, 141.12 64.52 C 121.83 68.67, 103.32 76.98, 89.44 91.30 C 75.57 105.61, 67.80 124.37, 63.98 143.70 C 59.75 165.17, 60.00 187.19, 60.00 208.97 C 60.00 232.95, 60.00 256.92, 60.00 280.90 C 60.00 318.15, 60.00 355.40, 60.00 392.64 C 60.00 404.63, 60.00 416.62, 60.00 428.61 C 60.00 432.89, 60.00 437.17, 60.00 441.45 C 60.00 443.58, 59.89 445.75, 60.03 447.87 Z"/></g></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Windows Detox, back to top">
+      <svg aria-hidden="true"><use href="#logo"/></svg>
+      Windows Detox
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#widgets">Widgets</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#safe">Safety</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-gh" href="https://github.com/NelexstarMain/WindowsDetox" aria-label="Windows Detox on GitHub">
+        <svg aria-hidden="true"><use href="#i-github"/></svg><span>GitHub</span>
+      </a>
+      <a class="btn btn--primary btn--sm" href="#download" data-dl>Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ================= Hero ================= -->
+<section class="hero" id="top">
+  <svg class="hero-mark" viewBox="60 60 880 880" aria-hidden="true"><use href="#logo"/></svg>
+  <div class="wrap">
+    <p class="badge rise" style="--i:0"><svg aria-hidden="true"><use href="#logo"/></svg>A distraction blocker for Windows 10 and 11</p>
+    <h1 class="rise" style="--i:1">Focus, enforced.</h1>
+    <p class="sub rise" style="--i:2">Pick the apps and websites you still need, then start a session. Everything else stays blocked until the timer ends.</p>
+    <div class="cta-row rise" style="--i:3">
+      <a class="btn btn--primary" href="#download" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
+      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
+    </div>
+    <p class="dl-note when-ci rise" style="--i:4">No release yet. Download the <code>WindowsDetox-Setup</code> artifact from the latest successful build (GitHub sign-in required).</p>
+
+    <div class="showcase rise-shot">
+      <figure class="window window--lg" style="margin:0">
+        <img src="assets/img/session.webp" width="998" height="658" alt="The Windows Detox session screen: a dark window with a sidebar (Session, Allowlist, Session setup, Goals, Insights, Plugins), a countdown that has not started, Start session and Allowlist buttons, and two dashboard widgets, Goals and Tasks and Focus Insights.">
+      </figure>
+      <figure class="float window window--md" style="margin:0">
+        <img src="assets/img/blocked.webp" width="558" height="418" alt="The block screen: the app notepad is blocked right now, not on your allowlist, with an emergency exit button showing 0 passes left." loading="eager">
+        <figcaption>An app off the allowlist, mid-session</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= How it works ================= -->
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Decide once. Then it holds.</h2>
+      <p>You make the choices up front, while you're calm. The session keeps them when you're not.</p>
+    </div>
+
+    <div class="steps tabs" data-tabs>
+      <div class="tab-list" role="tablist" aria-label="How a session works" aria-orientation="vertical">
+        <button class="tab" role="tab" id="step-1" aria-controls="step-panel-1" aria-selected="true">
+          <span class="tab-title"><span class="tab-n">1</span>Choose what stays</span>
+          <span class="tab-desc">Build an allowlist of apps and websites. Type <code class="inl">example.com</code> for one site or <code class="inl">*.example.com</code> to include its subdomains. Everything else is blocked.</span>
+        </button>
+        <button class="tab" role="tab" id="step-2" aria-controls="step-panel-2" aria-selected="false" tabindex="-1">
+          <span class="tab-title"><span class="tab-n">2</span>Start a session that can't be cut short</span>
+          <span class="tab-desc">Pick one hour, two hours, five hours, a day, two days, or a custom length. Once it starts, you can't shorten or cancel it from the app.</span>
+        </button>
+        <button class="tab" role="tab" id="step-3" aria-controls="step-panel-3" aria-selected="false" tabindex="-1">
+          <span class="tab-title"><span class="tab-n">3</span>Keep a few emergency passes</span>
+          <span class="tab-desc">Choose how many passes you get per day and how many minutes each lasts. A pass pauses blocking briefly. When it ends, apps that aren't allowed close again.</span>
+        </button>
+      </div>
+      <div class="stage">
+        <div class="panel" id="step-panel-1" role="tabpanel" aria-labelledby="step-1">
+          <figure class="window window--md" style="margin:0"><img src="assets/img/allowlist.webp" width="998" height="658" alt="The Allowlist page with an Apps column that scans installed apps and a Domains column with a field for example.com or *.example.com."></figure>
+        </div>
+        <div class="panel" id="step-panel-2" role="tabpanel" aria-labelledby="step-2">
+          <figure class="window window--md" style="margin:0"><img src="assets/img/setup.webp" width="998" height="658" alt="The Session setup page with duration choices (1 hour, 2 hours, 5 hours, 1 day, 2 days, Custom), emergency pass settings of 2 passes a day for 10 minutes each, and a summary with a Start session button." loading="lazy"></figure>
+        </div>
+        <div class="panel panel--center" id="step-panel-3" role="tabpanel" aria-labelledby="step-3">
+          <figure class="window window--md" style="margin:0"><img src="assets/img/blocked.webp" width="558" height="418" alt="The block screen for a blocked app, with a Use emergency exit button that shows how many passes are left, and a Close button." loading="lazy"></figure>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Features ================= -->
+<section class="section section--base" id="features">
+  <div class="wrap">
+    <div class="sec-head sec-head--row">
+      <h2>Built so the easy way out isn't there.</h2>
+      <p>Windows Detox is aimed at the impulse to bypass it. Each of these exists to make that impulse take longer than it lasts.</p>
+    </div>
+
+    <div class="bento">
+      <article class="cell cell--a">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Sessions that can't be cut short</h3>
+        <p>The clock runs in a Windows service, not in the window you can close. It counts elapsed time itself and anchors it to network time, so setting the Windows clock back doesn't help.</p>
+        <div class="clock" aria-hidden="true"><span>——</span><span class="sep">:</span><span>——</span><span class="sep">:</span><span>——</span></div>
+        <div class="clock-bar" aria-hidden="true"><i></i></div>
+      </article>
+
+      <article class="cell cell--b">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg></div>
+        <h3>Apps and websites</h3>
+        <p>Apps off your allowlist are closed and replaced with a block screen. Edge, Chrome and Firefox are routed through a local filter, with DNS over HTTPS and QUIC switched off so sites can't slip around it.</p>
+        <div class="chips" aria-hidden="true"><span class="chip">example.com</span><span class="chip">*.example.com</span><span class="chip chip--off"><s>DoH</s></span><span class="chip chip--off"><s>QUIC</s></span></div>
+      </article>
+
+      <article class="cell cell--c">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg></div>
+        <h3>Emergency passes</h3>
+        <p>Set passes per day and minutes per pass, and choose whether unused ones carry over. A warning arrives 60 seconds before a pass ends.</p>
+      </article>
+
+      <article class="cell cell--d">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3"/></svg></div>
+        <h3>A break-glass code</h3>
+        <p>Each session generates a one-time recovery code and shows it once. Only a salted hash is stored. Entering it ends the session and rolls everything back.</p>
+      </article>
+
+      <article class="cell cell--e">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg></div>
+        <h3>No traces left behind</h3>
+        <p>Every change is journaled before it's applied, then undone in reverse when the session ends, at boot after expiry, or on uninstall. Your hosts file is never edited.</p>
+      </article>
+
+      <article class="cell cell--f">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.2 7 10 4-1.8 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Hard to tamper with</h3>
+        <p>Two services supervise each other and restart within a second if one is stopped. Task Manager, Registry Editor and Command Prompt are blocked during a session.</p>
+      </article>
+
+      <article class="cell cell--g">
+        <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13v7M13 16.5h7"/></svg></div>
+        <h3>Plugins that can only tighten</h3>
+        <p>Plugins are compiled and run in a separate low-privilege process. They can add pages, widgets and settings, or add blocking. They can't allow anything you've blocked, and a plugin that fails counts as no opinion.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Widgets ================= -->
+<section class="section" id="widgets">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>A session screen that's yours.</h2>
+      <p>Widgets sit under the timer. Add the ones you want, arrange them, and tap one to open the page behind it.</p>
+    </div>
+
+    <div class="strip tabs" data-tabs>
+      <div class="tab-list" role="tablist" aria-label="Widget board" aria-orientation="horizontal">
+        <button class="tab" role="tab" id="wid-1" aria-controls="wid-panel-1" aria-selected="true">
+          <span class="tab-title">Add from the picker</span>
+          <span class="tab-desc">Open the picker, choose a widget, and it lands on the board.</span>
+        </button>
+        <button class="tab" role="tab" id="wid-2" aria-controls="wid-panel-2" aria-selected="false" tabindex="-1">
+          <span class="tab-title">Drag to rearrange</span>
+          <span class="tab-desc">In edit mode, drag a widget to a new place on the board.</span>
+        </button>
+        <button class="tab" role="tab" id="wid-3" aria-controls="wid-panel-3" aria-selected="false" tabindex="-1">
+          <span class="tab-title">Resize from the corner</span>
+          <span class="tab-desc">Give a widget more room, or take it away when you don't need it.</span>
+        </button>
+      </div>
+      <div class="stage">
+        <div class="panel" id="wid-panel-1" role="tabpanel" aria-labelledby="wid-1">
+          <figure class="window window--lg" style="margin:0"><picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/img/picker-still.webp"><img src="assets/img/picker.gif" width="500" height="330" alt="Screen recording: the widget picker slides in from the right and a Goals and Tasks widget is added to the session screen."></picture></figure>
+        </div>
+        <div class="panel" id="wid-panel-2" role="tabpanel" aria-labelledby="wid-2">
+          <figure class="window window--lg" style="margin:0"><picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/img/drag-still.webp"><img src="assets/img/drag.gif" width="500" height="330" alt="Screen recording: in edit mode, the Focus Insights widget is dragged to the other side of the Goals and Tasks widget." loading="lazy"></picture></figure>
+        </div>
+        <div class="panel" id="wid-panel-3" role="tabpanel" aria-labelledby="wid-3">
+          <figure class="window window--lg" style="margin:0"><picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/img/resize-still.webp"><img src="assets/img/resize.gif" width="500" height="330" alt="Screen recording: in edit mode, a widget is resized by dragging its corner until it fills the board." loading="lazy"></picture></figure>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Plugins ================= -->
+<section class="section section--base" id="plugins">
+  <div class="wrap">
+    <div class="sec-head sec-head--row">
+      <h2>Two plugins in the box. Room for yours.</h2>
+      <p>The core app keeps no statistics, on purpose. Focus Insights and Goals &amp; Tasks ship with the installer as ordinary plugins, so you can switch them off, or write your own.</p>
+    </div>
+
+    <div class="plug-grid">
+      <article class="plug">
+        <figure class="window window--md" style="margin:0"><img src="assets/img/insights.webp" width="998" height="658" alt="The Focus Insights page showing example data: focus time, sessions completed, blocked attempts, a current streak, and a line chart of focus minutes per day."></figure>
+        <h3>Focus Insights</h3>
+        <p>Records your sessions and blocked attempts, then shows focus time, streaks, the apps you reach for most, and when distractions happen.</p>
+        <p class="meta">Data stays on this device. No network access. Shown here with the built-in example data.</p>
+      </article>
+      <article class="plug">
+        <figure class="window window--md" style="margin:0"><img src="assets/img/goals.webp" width="998" height="658" alt="The Goals and Tasks page with a daily goal of 0 of 3 tasks, goal minus and plus buttons, and a form to add today's tasks."></figure>
+        <h3>Goals &amp; Tasks</h3>
+        <p>Pick a few focus tasks for the day before you start a session. Tick them off from the dashboard widget and watch a 7-day history build.</p>
+        <p class="meta">Data stays on this device. No network access, and it never sees your sessions.</p>
+      </article>
+    </div>
+
+    <div class="build">
+      <div>
+        <h3>Build your own, with or without an AI agent.</h3>
+        <p>The Plugins page hands you a starter template: a working plugin, its tests, and written rules for the plugin SDK. If you use an AI coding agent, point it at <code class="inl">AGENT_INSTRUCTIONS.md</code>. The template also carries plugin-authoring skills in <code class="inl">.claude/skills</code>.</p>
+        <ol class="pipe" aria-label="What happens when you upload a plugin">
+          <li><b>Validate ZIP</b></li>
+          <li><b>Compile</b></li>
+          <li><b>Check API use</b></li>
+          <li><b>Run its tests</b></li>
+          <li><b>Install</b></li>
+        </ol>
+        <p style="margin-top:16px;font-size:.9375rem">A plugin that fails any step isn't installed. Plugins can't be installed or removed during a session.</p>
+      </div>
+      <figure class="codebox" style="margin:0">
+        <div class="codebox-bar"><svg aria-hidden="true"><use href="#i-file"/></svg>plugin.json</div>
+<pre><code><span class="p">{</span>
+  <span class="k">"id"</span><span class="p">:</span> <span class="s">"com.windowsdetox.insights"</span><span class="p">,</span>
+  <span class="k">"name"</span><span class="p">:</span> <span class="s">"Focus Insights"</span><span class="p">,</span>
+  <span class="k">"version"</span><span class="p">:</span> <span class="s">"1.0.0"</span><span class="p">,</span>
+  <span class="k">"sdkVersion"</span><span class="p">:</span> <span class="s">"1.0"</span><span class="p">,</span>
+  <span class="k">"entryType"</span><span class="p">:</span> <span class="s">"FocusInsights.InsightsPlugin"</span><span class="p">,</span>
+  <span class="k">"capabilities"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="s">"events.session"</span><span class="p">,</span>
+    <span class="s">"events.process"</span><span class="p">,</span>
+    <span class="s">"ui.page"</span><span class="p">,</span>
+    <span class="s">"ui.dashboard"</span><span class="p">,</span>
+    <span class="s">"ui.settings"</span>
+  <span class="p">]</span>
+<span class="p">}</span></code></pre>
+        <figcaption class="codebox-note">Focus Insights' manifest, trimmed. A plugin lists the capabilities it needs, and the host checks that its code uses nothing else.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Safety ================= -->
+<section class="section" id="safe">
+  <div class="wrap safety">
+    <div class="sec-head">
+      <h2>Built to be safe. Honest about its limits.</h2>
+      <p>An app that locks your own PC has to be easy to get out of when something is wrong with the app. Here is how it undoes itself, and what it can't do.</p>
+      <div class="safety-links">
+        <a class="btn btn--ghost btn--sm" href="https://github.com/NelexstarMain/WindowsDetox/blob/claude/anti-distraction-windows-app-irhha1/docs/VM_TESTING.md">Test it in a VM</a>
+        <a class="btn btn--ghost btn--sm" href="https://github.com/NelexstarMain/WindowsDetox/blob/claude/anti-distraction-windows-app-irhha1/docs/ARCHITECTURE.md">Read the architecture notes</a>
+      </div>
+    </div>
+
+    <div class="facts">
+      <div class="fact">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>
+        <h3>Every change is written down before it's made</h3>
+        <p>A rollback journal records the original state first, then the change. If the service is damaged, a sweep removes everything the app created, because each artifact carries an ownership marker. If the service stops, the network filters disappear with it and browsing returns to normal.</p>
+      </div>
+      <div class="fact">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+        <h3>Try it in a virtual machine first</h3>
+        <p>The VM guide sets up a disposable Windows machine with a snapshot, an administrator account and a standard account, and lists every way out, from a developer abort to reverting the snapshot.</p>
+      </div>
+      <div class="fact fact--warn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>
+        <h3>An administrator can always win</h3>
+        <p>Safe Mode, boot media, or taking ownership of files will get around any blocker that has no signed kernel driver. Windows Detox stops impulsive bypass, not a determined administrator. Use a standard account day to day and keep the admin one for installing and recovery.</p>
+      </div>
+      <div class="fact fact--warn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 20h18.4z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>
+        <h3>The installer isn't code-signed</h3>
+        <p>Windows SmartScreen may warn you. Choose <kbd>More info</kbd>, then <kbd>Run anyway</kbd>. The installer asks for administrator rights, because it registers two services.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section class="section section--base" id="faq">
+  <div class="wrap faq-wrap">
+    <div class="sec-head"><h2>Questions, answered plainly.</h2></div>
+    <div class="faq">
+      <details>
+        <summary>Can I end a session early?</summary>
+        <div class="ans"><p>Not from the app: there's no cancel button and the timer can't be shortened. Two things end it early. Emergency passes pause blocking for a few minutes without ending anything. The break-glass code, shown once when the session starts, ends the session with a full rollback. Write it down.</p></div>
+      </details>
+      <details>
+        <summary>Which browsers does it filter?</summary>
+        <div class="ans"><p>Edge, Chrome and Firefox. The app sets browser policies that send traffic through a local filter, turns off DNS over HTTPS and QUIC, and blocks direct browser connections while a session runs. The policies are removed when it ends.</p></div>
+      </details>
+      <details>
+        <summary>What happens if the app or a service crashes?</summary>
+        <div class="ans"><p>Two services watch each other, and each restarts the other within a second. If the main service goes away entirely, the network filters it created disappear with it and browsing falls back to normal.</p></div>
+      </details>
+      <details>
+        <summary>Does it collect my data?</summary>
+        <div class="ans"><p>The core app keeps no usage statistics. The Focus Insights plugin records sessions and blocked attempts, but only on your device, and you can turn off recording of app names or clear everything. The bundled plugins have no network access. The app does check the time online so a session can't be shortened by changing the clock.</p></div>
+      </details>
+      <details>
+        <summary>How do I remove it?</summary>
+        <div class="ans"><p>Uninstall from <strong>Settings, Apps, Installed apps</strong>, or run <code>Blocker.Setup.exe --uninstall</code> from the install folder. Uninstalling undoes every change the app made. It's refused while a session is running, so deleting files can never shorten one.</p></div>
+      </details>
+      <details>
+        <summary>Is it ready for my main PC?</summary>
+        <div class="ans"><p>It's young software and has no GitHub Release yet. Try it in a virtual machine first, keep your break-glass code, and start with a short session and a small allowlist.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Final CTA ================= -->
+<section class="final" id="download">
+  <div class="wrap">
+    <svg class="mark-lg" viewBox="60 60 880 880" aria-label="Windows Detox logo" role="img"><use href="#logo"/></svg>
+    <h2>Make the next hour count.</h2>
+    <p class="sub">Windows 10 and 11. One installer, two services, and a way out if you need it.</p>
+    <div class="cta-row">
+      <a class="btn btn--primary" id="download-link" href="#download" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
+      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
+    </div>
+    <p class="dl-note when-ci">There's no release yet. Download the <strong>WindowsDetox-Setup</strong> artifact from the latest successful build (GitHub sign-in required), or <a href="https://github.com/NelexstarMain/WindowsDetox#build">build it yourself</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div>
+      <a class="brand" href="#top"><svg aria-hidden="true"><use href="#logo"/></svg>Windows Detox</a>
+      <p class="tag">A distraction blocker for Windows 10 and 11.</p>
+    </div>
+    <nav aria-label="Project">
+      <h4>Project</h4>
+      <ul>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox">GitHub repository</a></li>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox/blob/claude/anti-distraction-windows-app-irhha1/docs/ARCHITECTURE.md">Architecture and security decisions</a></li>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox/blob/claude/anti-distraction-windows-app-irhha1/docs/VM_TESTING.md">Testing in a VM</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Plugins">
+      <h4>Plugins</h4>
+      <ul>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox/tree/claude/anti-distraction-windows-app-irhha1/plugins/FocusInsights">Focus Insights</a></li>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox/tree/claude/anti-distraction-windows-app-irhha1/plugins/GoalsTasks">Goals &amp; Tasks</a></li>
+        <li><a href="https://github.com/NelexstarMain/WindowsDetox/tree/claude/anti-distraction-windows-app-irhha1/templates/PluginStarter">Plugin starter template</a></li>
+      </ul>
+    </nav>
+    <p class="legal">Windows is a trademark of the Microsoft group of companies. Windows Detox is an independent project and is not affiliated with or endorsed by Microsoft. This site sets no cookies and loads no third-party scripts.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Download buttons: one source of truth is <body data-download="...">
+  var url = document.body.getAttribute("data-download");
+  if (url) document.querySelectorAll("[data-dl]").forEach(function (a) { a.href = url; });
+
+  // Accessible tab switcher (steps and widgets)
+  document.querySelectorAll("[data-tabs]").forEach(function (root) {
+    var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+    var panels = tabs.map(function (t) { return document.getElementById(t.getAttribute("aria-controls")); });
+    function select(i, focus) {
+      tabs.forEach(function (t, k) {
+        var on = k === i;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        panels[k].hidden = !on;
+      });
+      if (focus) tabs[i].focus();
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { select(i); });
+      t.addEventListener("keydown", function (e) {
+        var n = tabs.length, k = null;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") k = (i + 1) % n;
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") k = (i - 1 + n) % n;
+        else if (e.key === "Home") k = 0;
+        else if (e.key === "End") k = n - 1;
+        if (k !== null) { e.preventDefault(); select(k, true); }
+      });
+    });
+    select(0);
+  });
+})();
+</script>
+</body>
+</html>

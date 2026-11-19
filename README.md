@@ -4,6 +4,8 @@ Distraction blocker for Windows 10/11. You choose an allowlist of apps and websi
 until the timer reaches zero, everything else is blocked, and the session cannot be shortened or cancelled.
 Emergency passes (X minutes, Y per day) pause blocking briefly.
 
+Website: <https://nelexstarmain.github.io/WindowsDetox/>
+
 ## Install
 1. Download `WindowsDetox-Setup.exe`, from the **WindowsDetox-Setup** artifact of the latest CI run on GitHub
    Actions, or build it yourself (below).
