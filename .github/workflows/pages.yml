@@ -22,6 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Cache busting: every asset URL carries ?v=dev in the source; stamp it with the commit so browsers never mix an old
+      # stylesheet or image with a new page.
+      - name: Stamp asset versions
+        run: sed -i "s/?v=dev/?v=${GITHUB_SHA::8}/g" site/index.html site/style.css
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

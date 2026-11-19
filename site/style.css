@@ -33,7 +33,7 @@ html{overflow-x:clip}
 /* Background: the logo, tiny and nearly invisible, on alternate cells of a checkerboard (scrolls with the page),
    faded out towards the edges, over two soft olive glows that stay put. */
 body{position:relative;isolation:isolate}
-body::before{content:"";position:fixed;inset:-176px;z-index:-1;pointer-events:none;background:url(assets/bg-logos.svg) 0 0/176px 176px repeat;opacity:.04;
+body::before{content:"";position:fixed;inset:-176px;z-index:-1;pointer-events:none;background:url(assets/bg-logos.svg?v=dev) 0 0/176px 176px repeat;opacity:.04;
   -webkit-mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);mask-image:linear-gradient(90deg,transparent 4%,#000 22%,#000 78%,transparent 96%);
   animation:bg-drift 90s linear infinite;will-change:transform}
 body::after{content:"";position:fixed;inset:-12%;z-index:-2;pointer-events:none;
@@ -132,7 +132,7 @@ body[data-release="latest"] .when-ci{display:none}
 #safe::before{right:-14%;bottom:-10%}
 #faq::before{left:-16%;bottom:-6%}
 #features::after,#safe::after{content:"";position:absolute;z-index:-1;pointer-events:none;width:clamp(260px,32vw,460px);aspect-ratio:1;
-  background:url(assets/bg-logo-big.svg) center/contain no-repeat;animation:sec-pulse 7s ease-in-out infinite alternate}
+  background:url(assets/bg-logo-big.svg?v=dev) center/contain no-repeat;animation:sec-pulse 7s ease-in-out infinite alternate}
 #features::after{left:-6%;bottom:2%}
 #safe::after{right:-11%;top:-4%;animation-delay:-9s}
 @keyframes sec-glow{to{transform:translate3d(6%,-5%,0) scale(1.08)}}
@@ -262,3 +262,10 @@ body[data-release="latest"] .when-ci{display:none}
 @media (max-width:899px){
   .tab{padding:14px 0 14px 20px}
 }
+
+/* Large monitors: the layout is designed at 1440 px; above that the whole page scales up in steps instead of leaving a narrow
+   column in a sea of empty space. Capped so the product screenshots (about 1000 px wide) are never blown up much. */
+@media (min-width:1680px){body{zoom:1.12}}
+@media (min-width:1920px){body{zoom:1.25}}
+@media (min-width:2240px){body{zoom:1.35}}
+@media (min-width:2560px){body{zoom:1.45}}
