@@ -328,6 +328,17 @@
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
   var hasIO = "IntersectionObserver" in window;
 
+  // Section backdrops: light each section's glow once it scrolls into view.
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".section"));
+  if (hasIO) {
+    var sio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("lit"); sio.unobserve(e.target); } });
+    }, { rootMargin: "0px 0px -20% 0px" });
+    sections.forEach(function (el) { sio.observe(el); });
+  } else {
+    sections.forEach(function (el) { el.classList.add("lit"); });
+  }
+
   // Content fades in once as it scrolls into view (a few pixels, 400 ms). Off under reduced motion.
   var reveals = Array.prototype.slice.call(document.querySelectorAll("[data-reveal]"));
   if (hasIO && !reduce.matches) {
