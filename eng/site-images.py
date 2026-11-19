@@ -59,7 +59,7 @@ save(Image.open(shot("09-insights")).convert("RGB").crop((255, 95, 968, 595)), "
 goals, goals_new = pick("18-goals-in-use", "16-goals")
 if goals_new:
     # 18 is scrolled to its task list: keep the page area, full height.
-    save(Image.open(goals).convert("RGB").crop((215, 1, 999, 659)), "plugin-goals.webp")
+    save(Image.open(goals).convert("RGB").crop((255, 108, 968, 608)), "plugin-goals.webp")
 else:
     save(Image.open(goals).convert("RGB").crop((255, 95, 968, 595)), "plugin-goals.webp")
 
@@ -69,7 +69,7 @@ SCALE = 1.5
 FPS = 12
 CLIPS = {
     # name: (frames to hold at the start, frames to hold at the end, poster frame)
-    "picker": (5, 7, 11),
+    "picker": (5, 7, 13),
     "drag": (2, 9, 7),
     "resize": (4, 9, 12),
 }
@@ -78,6 +78,15 @@ if not shutil.which("ffmpeg"):
     sys.exit("ffmpeg not found: skipped the loops")
 
 size = (int(CROP[2] - CROP[0]) * 3 // 2, int(CROP[3] - CROP[1]) * 3 // 2)
+
+
+def frame(path):
+    """Crops a recorded frame to the board; CROP is in half-size (500 px wide) coordinates, so full-size frames scale it."""
+    im = Image.open(path).convert("RGB")
+    k = im.width / 500
+    return im.crop(tuple(round(v * k) for v in CROP)).resize(size, Image.LANCZOS)
+
+
 for name, (hold_a, hold_b, poster) in CLIPS.items():
     frames = sorted(glob.glob(os.path.join(SHOTS, "anim", name, "*.png")))
     if not frames:
@@ -86,7 +95,7 @@ for name, (hold_a, hold_b, poster) in CLIPS.items():
     with tempfile.TemporaryDirectory() as tmp:
         seq = [frames[0]] * hold_a + frames + [frames[-1]] * hold_b
         for i, f in enumerate(seq):
-            im = Image.open(f).convert("RGB").crop(CROP).resize(size, Image.LANCZOS)
+            im = frame(f)
             im.save(os.path.join(tmp, "%03d.png" % i))
         src = os.path.join(tmp, "%03d.png")
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", src,
@@ -97,7 +106,7 @@ for name, (hold_a, hold_b, poster) in CLIPS.items():
                         "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-pix_fmt", "yuv420p", "-an",
                         os.path.join(OUT, name + ".webm")], check=True)
     pf = frames[min(poster, len(frames)) - 1]
-    save(Image.open(pf).convert("RGB").crop(CROP).resize(size, Image.LANCZOS), name + "-poster.webp", 90)
+    save(frame(pf), name + "-poster.webp", 90)
     for ext in ("mp4", "webm"):
         p = os.path.join(OUT, name + "." + ext)
         print("wrote", name + "." + ext, os.path.getsize(p) // 1024, "KB")
