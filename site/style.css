@@ -25,6 +25,7 @@
   --section:clamp(64px,7.5vw,112px);
   --ease:cubic-bezier(.22,.61,.36,1);
   interpolate-size:allow-keywords;
+  --vh:100svh;
 }
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px}
@@ -155,19 +156,27 @@ body[data-release="latest"] .when-ci{display:none}
 .pane.is-on{opacity:1;visibility:visible;transition:opacity .45s var(--ease)}
 .pane .window{width:100%}
 .pane--center .window{width:min(100%,558px)}
+.flow-meta{display:none}
 @media (min-width:900px) and (prefers-reduced-motion:no-preference){
-  .js .flow{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);column-gap:clamp(48px,6vw,96px);align-items:start}
-  .js .step{position:relative;display:flex;align-items:center;min-height:62svh;padding-left:28px}
+  /* Pinned scrollytelling: the block is ~3 screens tall, its inner frame sticks for that distance (minus the nav). */
+  .js .flow{height:calc(var(--vh) * 2.9)}
+  .js .flow-pin{position:sticky;top:64px;height:calc(var(--vh) - 64px);display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);column-gap:clamp(48px,6vw,96px);align-items:center}
+  .js .flow-meta{display:flex;align-items:center;gap:16px;margin-bottom:28px;font-family:var(--mono);font-size:.8125rem;color:var(--text-3);letter-spacing:.04em}
+  .js .flow-count b{font-weight:500;color:var(--text)}
+  .js .flow-track{position:relative;flex:0 0 120px;height:1px;background:var(--line-strong);overflow:hidden}
+  .js .flow-track i{position:absolute;inset:0;background:var(--sage);transform-origin:left;transform:scaleX(var(--p,0))}
+  .js .flow-steps{display:grid}
+  .js .step{grid-area:1/1;opacity:0;transform:translateY(20px);transition:opacity .4s var(--ease),transform .6s var(--ease);pointer-events:none}
+  .js .step.is-past{transform:translateY(-20px)}
+  .js .step.is-active{opacity:1;transform:none;pointer-events:auto;transition-delay:.08s}
   .js .step + .step{margin-top:0}
-  .js .step::before{content:"";position:absolute;left:0;top:50%;height:96px;margin-top:-48px;width:2px;border-radius:2px;background:var(--line-strong);transition:background-color .3s var(--ease)}
-  .js .step.is-active::before{background:var(--olive-bar)}
-  .js .step-copy h3{color:var(--text-3);transition:color .3s var(--ease)}
-  .js .step-copy p{color:var(--text-3);transition:color .3s var(--ease)}
-  .js .step.is-active .step-copy h3{color:var(--text)}
-  .js .step.is-active .step-copy p{color:var(--text-2)}
   /* the in-step pictures stay for screen readers; the stage shows them instead */
   .js .step-shot{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%)}
-  .js .flow-stage{display:block;position:sticky;top:max(88px,calc(50svh - min(20vw,280px)))}
+  .js .flow-stage{display:block;width:100%;max-height:calc(var(--vh) - 160px);aspect-ratio:784/658;justify-self:end}
+  .js .frame{height:100%;aspect-ratio:784/658;margin-left:auto;max-width:100%}
+  .js .pane{transform:translateY(24px) scale(.985);transition:opacity .45s var(--ease),transform .7s var(--ease),visibility 0s .45s}
+  .js .pane.is-past{transform:translateY(-24px) scale(.985)}
+  .js .pane.is-on{transform:none;transition:opacity .45s var(--ease),transform .7s var(--ease)}
 }
 
 /* ---------- Four plain statements ---------- */
@@ -265,7 +274,7 @@ body[data-release="latest"] .when-ci{display:none}
 
 /* Large monitors: the layout is designed at 1440 px; above that the whole page scales up in steps instead of leaving a narrow
    column in a sea of empty space. Capped so the product screenshots (about 1000 px wide) are never blown up much. */
-@media (min-width:1680px){body{zoom:1.12}}
-@media (min-width:1920px){body{zoom:1.25}}
-@media (min-width:2240px){body{zoom:1.35}}
-@media (min-width:2560px){body{zoom:1.45}}
+@media (min-width:1680px){body{zoom:1.12}:root{--vh:calc(100svh / 1.12)}}
+@media (min-width:1920px){body{zoom:1.25}:root{--vh:calc(100svh / 1.25)}}
+@media (min-width:2240px){body{zoom:1.35}:root{--vh:calc(100svh / 1.35)}}
+@media (min-width:2560px){body{zoom:1.45}:root{--vh:calc(100svh / 1.45)}}
