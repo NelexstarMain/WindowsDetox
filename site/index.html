@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Windows Detox: Focus, enforced.</title>
 <meta name="description" content="Windows Detox is a distraction blocker for Windows 10 and 11. Allow the apps and sites you need, start a session, and everything else stays blocked until the timer ends.">
-<meta name="theme-color" content="#0B0C0F">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#F5F6F1">
+<meta name="color-scheme" content="light">
 <link rel="canonical" href="https://nelexstarmain.github.io/WindowsDetox/">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -64,7 +64,7 @@
       <a class="nav-gh" href="https://github.com/NelexstarMain/WindowsDetox" aria-label="Windows Detox on GitHub">
         <svg aria-hidden="true"><use href="#i-github"/></svg><span>GitHub</span>
       </a>
-      <a class="btn btn--primary btn--sm" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl>Download</a>
+      <a class="btn btn--outline btn--sm" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl>Download</a>
     </div>
   </div>
 </header>
@@ -79,12 +79,14 @@
 <!-- ================= Hero ================= -->
 <section class="hero" id="top">
   <div class="wrap">
+    <span class="badge rise" style="--i:0">Open Source · Windows 10 &amp; 11</span>
     <h1 class="rise" style="--i:0">Focus, enforced.</h1>
     <p class="sub rise" style="--i:1">A distraction blocker for Windows 10 and 11. Allow what you need, and everything else stays blocked until the timer ends.</p>
     <div class="cta-row rise" style="--i:2">
       <a class="btn btn--primary" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
-      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
+      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox"><svg aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
     </div>
+    <p class="hero-meta rise" style="--i:3">Free &amp; open-source · 164 MB installer · No account required</p>
     <div class="showcase rise-shot">
       <div class="window window--hero">
         <img src="assets/img/hero-session.webp?v=dev" width="998" height="658" alt="The Windows Detox session screen during a session: the timer reads 01:24:37 with a progress bar underneath, and a Goals and Tasks widget sits below.">
@@ -294,7 +296,7 @@
     <h2 data-reveal>Start a session you can't talk yourself out of.</h2>
     <div class="cta-row" data-reveal>
       <a class="btn btn--primary" id="download-link" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
-      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
+      <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox"><svg aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
     </div>
     <p class="dl-note" data-reveal>Windows 10 and 11 · 164 MB · Not code-signed yet, so SmartScreen may ask you to confirm. <a href="https://github.com/NelexstarMain/WindowsDetox/releases/tag/latest-build">Release notes and SHA-256</a></p>
   </div>
@@ -359,15 +361,21 @@
     var n = cards.length, queued = false;
     var clamp = function (v, lo, hi) { return Math.min(hi, Math.max(lo, v)); };
     var ease = function (x) { return x * x * (3 - 2 * x); };
+    // span: how far the pin travels while stuck; stick: its sticky top in viewport px (the page may be zoomed).
     function geometry() {
-      var r = flow.getBoundingClientRect(), span = r.height - pin.getBoundingClientRect().height;
-      return { r: r, span: span };
+      var r = flow.getBoundingClientRect(), pr = pin.getBoundingClientRect();
+      var stick = (parseFloat(getComputedStyle(pin).top) || 0) * (pin.currentCSSZoom || 1);
+      return { r: r, span: r.height - pr.height, offset: pr.top - r.top, stick: stick };
+    }
+    function stepY(i) { // scroll position at which step i sits fully at rest
+      var g = geometry();
+      return window.scrollY + g.r.top - g.stick + g.span * (i / (n - 1));
     }
     function update() {
       queued = false;
       if (getComputedStyle(pin).position !== "sticky") { flow.classList.remove("is-live"); return; }
       flow.classList.add("is-live");
-      var g = geometry(), prog = g.span > 0 ? clamp(-g.r.top / g.span, 0, 1) : 0;
+      var g = geometry(), prog = g.span > 0 ? clamp(g.offset / g.span, 0, 1) : 0;
       var t = prog * (n - 1), k = Math.min(n - 2, Math.floor(t)), f = t - k;
       var p = k + ease(clamp((f - .18) / .64, 0, 1));
       cards.forEach(function (c, i) {
@@ -398,11 +406,71 @@
         b.classList.toggle("is-on", Math.round(p) === i);
       });
     }
+    // Snapping: inside the pinned block a gesture never leaves a transition half done. A wheel nudge past a small threshold
+    // (or a stop between steps after touch, keys or the scrollbar) glides to the whole next or previous step. Trackpad
+    // inertia in the same direction is swallowed while the glide runs and briefly after; a clear push the other way
+    // reverses it. Past the last step (down) or the first (up) the wheel is left alone so the page scrolls on.
+    var anim = null, animDir = 0, coolUntil = 0, acc = 0, accAt = 0, touching = false, idle = 0;
+    function live() { return flow.classList.contains("is-live"); }
+    function inside() { var g = geometry(); return g.offset > 1 && g.offset < g.span - 1 || (g.offset <= 1 && g.r.top <= g.stick + 1 && g.r.bottom > window.innerHeight); }
+    function position() { var g = geometry(); return g.span > 0 ? clamp(g.offset / g.span, 0, 1) * (n - 1) : 0; }
+    function glide(i, dir) {
+      var from = window.scrollY, to = stepY(i), d = to - from;
+      if (Math.abs(d) < 2) { animDir = 0; return; }
+      var t0 = performance.now(), dur = clamp(420 + Math.abs(d) * .35, 520, 900);
+      animDir = dir;
+      if (anim) cancelAnimationFrame(anim);
+      (function frame(now) {
+        var k = clamp((now - t0) / dur, 0, 1), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        window.scrollTo({ top: from + d * e, behavior: "instant" });
+        if (k < 1) anim = requestAnimationFrame(frame);
+        else { anim = null; animDir = 0; coolUntil = performance.now() + 260; }
+      })(t0);
+    }
+    function stopGlide() { if (anim) { cancelAnimationFrame(anim); anim = null; animDir = 0; } }
+    window.addEventListener("wheel", function (ev) {
+      if (!live() || ev.ctrlKey) return;
+      var dy = ev.deltaMode === 1 ? ev.deltaY * 16 : ev.deltaY, dir = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+      if (!dir) return;
+      var now = performance.now();
+      if (anim || now < coolUntil) {
+        if (anim && dir !== animDir && Math.abs(dy) > 24) { // clear push the other way: turn around
+          var at = position(); ev.preventDefault();
+          glide(dir > 0 ? Math.ceil(at - .02) : Math.floor(at + .02), dir); return;
+        }
+        if (anim || inside()) { ev.preventDefault(); return; }   // swallow inertia
+      }
+      if (!inside()) return;
+      var p = position(), cur = Math.round(p);
+      if (dir > 0 && p >= n - 1 - .01) return;                  // leave downwards
+      if (dir < 0 && p <= .01) return;                          // leave upwards
+      ev.preventDefault();
+      if (now - accAt > 200) acc = 0;
+      acc += dy; accAt = now;
+      if (Math.abs(acc) < 12) return;                           // small threshold before a step starts
+      acc = 0;
+      var target = dir > 0 ? (Math.abs(p - cur) < .02 ? cur + 1 : Math.ceil(p)) : (Math.abs(p - cur) < .02 ? cur - 1 : Math.floor(p));
+      glide(clamp(target, 0, n - 1), dir);
+    }, { passive: false });
+    window.addEventListener("touchstart", function () { touching = true; stopGlide(); }, { passive: true });
+    window.addEventListener("touchend", function () { touching = false; settleSoon(); }, { passive: true });
+    var lastY = window.scrollY, lastDir = 0;
+    function settleSoon() {
+      clearTimeout(idle);
+      idle = setTimeout(function () {
+        if (touching || anim || !live() || !inside()) return;
+        var p = position(), base = Math.floor(p), f = p - base;
+        if (f < .01 || f > .99) return;
+        var target = lastDir > 0 ? (f > .12 ? base + 1 : base) : (f < .88 ? base : base + 1);
+        glide(clamp(target, 0, n - 1), lastDir);
+      }, 140);
+    }
+    window.addEventListener("scroll", function () {
+      var y = window.scrollY; if (y !== lastY) { lastDir = y > lastY ? 1 : -1; lastY = y; }
+      if (!anim) settleSoon();
+    }, { passive: true });
     tabs.forEach(function (b, i) {
-      b.addEventListener("click", function () {
-        var g = geometry(), top = g.r.top + window.scrollY;
-        window.scrollTo({ top: top + g.span * (i / (n - 1)), behavior: "smooth" });
-      });
+      b.addEventListener("click", function () { glide(i, i > position() ? 1 : -1); });
     });
     function onScroll() { if (!queued) { queued = true; requestAnimationFrame(update); } }
     window.addEventListener("scroll", onScroll, { passive: true });
