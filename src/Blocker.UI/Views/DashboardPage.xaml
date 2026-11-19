@@ -361,7 +361,7 @@
                                     <Button Style="{StaticResource App.WidgetRemoveButton}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0"
                                             Command="{Binding DataContext.Board.RemoveCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                             CommandParameter="{Binding}" ToolTip="Remove widget"
-                                            AutomationProperties.Name="{Binding Title, StringFormat='Remove {0}'}" />
+                                            AutomationProperties.Name="{Binding Contribution.Title, StringFormat='Remove {0}'}" />
                                     <!-- A button only so that it is exposed to UI Automation under its name; the board's pointer handling takes the press. -->
                                     <Button bh:WidgetBoardInteraction.IsResizeHandle="True" Width="30" Height="30" Padding="0" Focusable="False"
                                             HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
