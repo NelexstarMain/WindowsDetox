@@ -57,6 +57,9 @@ public sealed record PluginRuntimeOptions
     /// <summary>Gets the largest total of all trees in one slot response, in bytes (the service accepts 256 KiB frames from the host).</summary>
     public int MaxSlotResponseBytes { get; init; } = 224 * 1024;
 
+    /// <summary>Gets the channel to the service for session starts and toasts; refuses everything by default.</summary>
+    public IPluginHostServiceChannel Services { get; init; } = UnavailablePluginHostServiceChannel.Instance;
+
     /// <summary>Gets the time budget of <see cref="IBlockerPlugin.InitializeAsync"/>.</summary>
     public TimeSpan InitializeBudget => TimeSpan.FromTicks(Breaker.Budget.Ticks * InitializeBudgetFactor);
 }
@@ -584,7 +587,9 @@ public sealed partial class PluginHostRuntime : IAsyncDisposable
         var plugin = new LoadedPlugin(
             info, manifest.Icon, hash, breaker, extensions, ipc, _store.OpenStorage(id, _logger, _options.StorageQuotaBytes), new PluginLoadContext(id.Value), _session, _clock, OnPluginFaulted);
         var context = new PluginHostContext(
-            info, _bus.CreatePluginView(info, breaker), extensions, ipc, plugin.Storage, _session, _clock, new RateLimitedPluginLogger(id, _logger, _clock));
+            info, _bus.CreatePluginView(info, breaker), extensions, ipc, plugin.Storage, _session, _clock, new RateLimitedPluginLogger(id, _logger, _clock),
+            new HostSessionLauncher(info, _options.Services),
+            new HostPluginNotifier(info, _options.Services));
 
         string? error = await InitializeAsync(plugin, manifest, image, context, cancellationToken).ConfigureAwait(false);
         if (error is not null)

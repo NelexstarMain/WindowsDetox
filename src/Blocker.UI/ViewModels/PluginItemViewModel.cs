@@ -40,6 +40,8 @@ internal sealed record CapabilityChip(string Name, string Label, bool IsPrivacyS
         ["ui.settings"] = "Adds a settings section",
         ["ui.blockscreen"] = "Adds to the block screen",
         ["network"] = "Uses the network",
+        ["session.start"] = "Can start sessions",
+        ["notify"] = "Shows notifications",
     };
 
     /// <summary>The manifest name of the privacy-sensitive window-title capability.</summary>

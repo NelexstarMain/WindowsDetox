@@ -62,6 +62,8 @@ README.md              human notes (optional in the ZIP)
 | `ui.settings` | implement `ISettingsSectionPlugin` |
 | `ui.blockscreen` | implement `IBlockScreenPlugin` |
 | `network` | unlocks `System.Net.Http` (and WebSockets, Mail, `WebClient`, `WebRequest`, `Dns`; see BLK031). Nothing else: raw sockets stay denied. Host allow-listed; not available in tests |
+| `session.start` | `context.Sessions.StartAsync(duration, reason)`: starts a session of 15 min to 12 h with the user's saved (non-empty) allowlist and default passes, never while one runs; at most 16 h per day and 2 minutes apart; no break-glass code is returned. Shown prominently at install. Tests: `FakeSessions` |
+| `notify` | `context.Notifier.ShowAsync(text)`: a toast titled with your plugin's name, at most 20 per hour. Tests: `FakeNotifier` |
 
 Using an API without its capability is a compile-time error (**BLK008**, reported at the class declaration or the call) and,
 at runtime, throws `PluginCapabilityException`. BLK008 is raised for: a class implementing an extension interface

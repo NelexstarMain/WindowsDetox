@@ -3,14 +3,17 @@ Blocker.Plugin.Testing.FakePluginContext
 Blocker.Plugin.Testing.FakePluginContext.Events.get -> Blocker.Sdk.Events.IEventBus!
 Blocker.Plugin.Testing.FakePluginContext.Extensions.get -> Blocker.Sdk.Extensions.IExtensionRegistry!
 Blocker.Plugin.Testing.FakePluginContext.FakeLogger.get -> Blocker.Plugin.Testing.RecordingPluginLogger!
+Blocker.Plugin.Testing.FakePluginContext.FakeNotifier.get -> Blocker.Plugin.Testing.FakePluginNotifier!
 Blocker.Plugin.Testing.FakePluginContext.FakePluginContext(string! pluginId = "com.example.test-plugin", params Blocker.Sdk.PluginCapability[]! capabilities) -> void
 Blocker.Plugin.Testing.FakePluginContext.FakeSession.get -> Blocker.Plugin.Testing.FakeSessionInfo!
+Blocker.Plugin.Testing.FakePluginContext.FakeSessions.get -> Blocker.Plugin.Testing.FakeSessionLauncher!
 Blocker.Plugin.Testing.FakePluginContext.FakeStorage.get -> Blocker.Plugin.Testing.InMemoryPluginStorage!
 Blocker.Plugin.Testing.FakePluginContext.FakeTime.get -> Microsoft.Extensions.Time.Testing.FakeTimeProvider!
 Blocker.Plugin.Testing.FakePluginContext.GetExtension<T>() -> T!
 Blocker.Plugin.Testing.FakePluginContext.InvokeIpcAsync(string! method, string! payloadJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 Blocker.Plugin.Testing.FakePluginContext.Ipc.get -> Blocker.Sdk.Ipc.IIpcRegistry!
 Blocker.Plugin.Testing.FakePluginContext.Logger.get -> Blocker.Sdk.Diagnostics.IPluginLogger!
+Blocker.Plugin.Testing.FakePluginContext.Notifier.get -> Blocker.Sdk.Notifications.IPluginNotifier!
 Blocker.Plugin.Testing.FakePluginContext.Plugin.get -> Blocker.Sdk.PluginInfo!
 Blocker.Plugin.Testing.FakePluginContext.PublishAsync<TEvent>(TEvent! e, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Blocker.Plugin.Testing.FakePluginContext.RegisteredExtensions.get -> System.Collections.Generic.IReadOnlyList<Blocker.Sdk.Extensions.IPluginExtension!>!
@@ -19,13 +22,22 @@ Blocker.Plugin.Testing.FakePluginContext.RenderAsync(Blocker.UI.Sdk.IUiContribut
 Blocker.Plugin.Testing.FakePluginContext.RenderRequests.get -> int
 Blocker.Plugin.Testing.FakePluginContext.SendActionAsync(Blocker.UI.Sdk.IUiContribution! contribution, Blocker.UI.Sdk.UiAction! action, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Blocker.Plugin.Testing.FakePluginContext.Session.get -> Blocker.Sdk.Session.ISessionInfo!
+Blocker.Plugin.Testing.FakePluginContext.Sessions.get -> Blocker.Sdk.Sessions.ISessionLauncher!
 Blocker.Plugin.Testing.FakePluginContext.Storage.get -> Blocker.Sdk.Storage.IPluginStorage!
 Blocker.Plugin.Testing.FakePluginContext.TickAsync(System.TimeSpan advance, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Blocker.Plugin.Testing.FakePluginContext.Time.get -> System.TimeProvider!
+Blocker.Plugin.Testing.FakePluginNotifier
+Blocker.Plugin.Testing.FakePluginNotifier.Messages.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Blocker.Plugin.Testing.FakePluginNotifier.ShowAsync(string! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Blocker.Plugin.Testing.FakeSessionInfo
 Blocker.Plugin.Testing.FakeSessionInfo.Current.get -> Blocker.Sdk.Session.SessionSnapshot!
 Blocker.Plugin.Testing.FakeSessionInfo.Current.set -> void
 Blocker.Plugin.Testing.FakeSessionInfo.FakeSessionInfo() -> void
+Blocker.Plugin.Testing.FakeSessionLauncher
+Blocker.Plugin.Testing.FakeSessionLauncher.Calls.get -> System.Collections.Generic.IReadOnlyList<(System.TimeSpan Duration, string! Reason)>!
+Blocker.Plugin.Testing.FakeSessionLauncher.NextResult.get -> Blocker.Sdk.Sessions.SessionStartResult!
+Blocker.Plugin.Testing.FakeSessionLauncher.NextResult.set -> void
+Blocker.Plugin.Testing.FakeSessionLauncher.StartAsync(System.TimeSpan duration, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Blocker.Sdk.Sessions.SessionStartResult!>
 Blocker.Plugin.Testing.InMemoryPluginStorage
 Blocker.Plugin.Testing.InMemoryPluginStorage.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Blocker.Plugin.Testing.InMemoryPluginStorage.InMemoryPluginStorage(long quotaBytes = 1048576) -> void

@@ -24,6 +24,8 @@ public class PluginCapabilitiesTests
     [InlineData(PluginCapability.Tick, "tick")]
     [InlineData(PluginCapability.UiBlockScreen, "ui.blockscreen")]
     [InlineData(PluginCapability.Network, "network")]
+    [InlineData(PluginCapability.SessionStart, "session.start")]
+    [InlineData(PluginCapability.Notify, "notify")]
     public void ToManifestName_KnownCapability_ReturnsExactName(PluginCapability capability, string expected) =>
         Assert.Equal(expected, PluginCapabilities.ToManifestName(capability));
 

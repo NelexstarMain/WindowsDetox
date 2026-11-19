@@ -11,13 +11,26 @@ public static class AgentProtocol
     public const int Version = 1;
 }
 
+/// <summary>What the plugin-host request handlers need from the user-session agent; implemented by <see cref="AgentLink"/>, faked in tests.</summary>
+internal interface IAgentToasts
+{
+    /// <summary>Gets whether an agent is connected.</summary>
+    bool IsConnected { get; }
+
+    /// <summary>Shows a toast; skipped when there is no agent.</summary>
+    /// <param name="notification">The toast.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>A task that completes when the agent answered or the call failed.</returns>
+    ValueTask NotifyAsync(NotificationDto notification, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// The service's view of the user-session agent: the connection of the agent that registered last. The service asks it to close windows
 /// gracefully and to show toasts; without an agent (nobody logged on, agent not started) both are skipped and the caller falls back.
 /// </summary>
 /// <param name="startTimeOf">Returns the creation time of a running process, or <see langword="null"/> when it is gone.</param>
 /// <param name="logger">Logger.</param>
-internal sealed partial class AgentLink(Func<int, long?> startTimeOf, ILogger<AgentLink> logger)
+internal sealed partial class AgentLink(Func<int, long?> startTimeOf, ILogger<AgentLink> logger) : IAgentToasts
 {
     private static readonly TimeSpan CloseWindow = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan CallBudget = TimeSpan.FromSeconds(10);

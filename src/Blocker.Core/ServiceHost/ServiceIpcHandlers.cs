@@ -59,6 +59,8 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
     private const int MaxPackageBytes = 3 * 1024 * 1024;
     private const int MaxScanResponseBytes = 3 * 1024 * 1024;
     private const int MaxPluginPayloadBytes = 64 * 1024;
+    private const int PluginSessionPassesPerDay = 2;
+    private const int PluginSessionPassMinutes = 10;
     private const string TemplateFileName = "WindowsDetox-PluginStarter.zip";
 
     private readonly SemaphoreSlim _scanGate = new(1, 1);
@@ -137,7 +139,36 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
     private ValueTask<SubscribeResponse> SubscribeAsync(IpcRequestContext context, EmptyDto request, CancellationToken cancellationToken) =>
         ValueTask.FromResult(new SubscribeResponse(SessionStatusDto.From(deps.Coordinator.Snapshot)));
 
-    private async ValueTask<StartSessionResponse> StartSessionAsync(IpcRequestContext context, StartSessionRequest request, CancellationToken cancellationToken)
+    private ValueTask<StartSessionResponse> StartSessionAsync(IpcRequestContext context, StartSessionRequest request, CancellationToken cancellationToken) =>
+        StartSessionCoreAsync(request, cancellationToken);
+
+    /// <summary>
+    /// Starts a session on behalf of a plugin that holds <c>session.start</c>: the saved allowlist (which must not be empty, so an automatic
+    /// start never locks everything by accident) and the same pass defaults as the Setup page. The break-glass code is dropped, never returned.
+    /// </summary>
+    /// <param name="minutes">Session length in minutes.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>Whether it started and why not.</returns>
+    internal async ValueTask<(bool Started, string? Error)> StartPluginSessionAsync(int minutes, CancellationToken cancellationToken)
+    {
+        if (deps.Coordinator.IsSessionActive)
+        {
+            return (false, "A session is already running.");
+        }
+
+        AllowlistDto draft = await deps.Draft.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (draft.Apps.Count == 0)
+        {
+            return (false, "The saved allowlist is empty. Allow at least one app on the Allowlist page first.");
+        }
+
+        StartSessionResponse response = await StartSessionCoreAsync(
+            new StartSessionRequest(minutes, PluginSessionPassesPerDay, PluginSessionPassMinutes, false, [], []),
+            cancellationToken).ConfigureAwait(false);
+        return (response.Success, response.Success ? null : response.Errors.FirstOrDefault() ?? "The session was not started.");
+    }
+
+    private async ValueTask<StartSessionResponse> StartSessionCoreAsync(StartSessionRequest request, CancellationToken cancellationToken)
     {
         Require(request.Apps);
         Require(request.Domains);

@@ -148,6 +148,19 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             loggers.CreateLogger<ServiceIpcHandlers>());
         _registrations.AddRange(handlers.RegisterAll(Server));
         _handlers = handlers;
+        if (_pluginServer is not null && _supervisor is { } supervisor)
+        {
+            // The capabilities that reach beyond the plugin host's sandbox (starting sessions, toasts).
+            var hostRequests = new PluginHostRequestHandlers(
+                new PluginHostRequestDependencies(
+                    handlers.ResolvePluginAsync,
+                    agent,
+                    handlers.StartPluginSessionAsync,
+                    ports.Time),
+                loggers.CreateLogger<PluginHostRequestHandlers>());
+            _registrations.AddRange(hostRequests.RegisterAll(_pluginServer, supervisor.IsCurrentHost));
+        }
+
         _notifications = new NotificationPump(agent, Server, loggers.CreateLogger<NotificationPump>());
         Coordinator.Notification += OnNotification;
     }

@@ -160,8 +160,10 @@ Blocker.Sdk.IPluginContext.Events.get -> Blocker.Sdk.Events.IEventBus!
 Blocker.Sdk.IPluginContext.Extensions.get -> Blocker.Sdk.Extensions.IExtensionRegistry!
 Blocker.Sdk.IPluginContext.Ipc.get -> Blocker.Sdk.Ipc.IIpcRegistry!
 Blocker.Sdk.IPluginContext.Logger.get -> Blocker.Sdk.Diagnostics.IPluginLogger!
+Blocker.Sdk.IPluginContext.Notifier.get -> Blocker.Sdk.Notifications.IPluginNotifier!
 Blocker.Sdk.IPluginContext.Plugin.get -> Blocker.Sdk.PluginInfo!
 Blocker.Sdk.IPluginContext.Session.get -> Blocker.Sdk.Session.ISessionInfo!
+Blocker.Sdk.IPluginContext.Sessions.get -> Blocker.Sdk.Sessions.ISessionLauncher!
 Blocker.Sdk.IPluginContext.Storage.get -> Blocker.Sdk.Storage.IPluginStorage!
 Blocker.Sdk.IPluginContext.Time.get -> System.TimeProvider!
 Blocker.Sdk.Ipc.IIpcRegistry
@@ -200,6 +202,9 @@ Blocker.Sdk.Model.WindowDescriptor.ProcessId.init -> void
 Blocker.Sdk.Model.WindowDescriptor.Title.get -> string?
 Blocker.Sdk.Model.WindowDescriptor.Title.init -> void
 Blocker.Sdk.Model.WindowDescriptor.WindowDescriptor(int ProcessId, string! ImageName, string! ExecutablePath, string? PackageFamilyName, string? Title) -> void
+Blocker.Sdk.Notifications.IPluginNotifier
+Blocker.Sdk.Notifications.IPluginNotifier.ShowAsync(string! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Blocker.Sdk.Notifications.PluginNotifierLimits
 Blocker.Sdk.PluginCapabilities
 Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.CustomEvents = 5 -> Blocker.Sdk.PluginCapability
@@ -207,9 +212,11 @@ Blocker.Sdk.PluginCapability.IdleEvents = 4 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.Ipc = 10 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.LockPolicy = 9 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.Network = 15 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.Notify = 17 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.ProcessEvents = 1 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.ProcessInterception = 6 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.SessionEvents = 0 -> Blocker.Sdk.PluginCapability
+Blocker.Sdk.PluginCapability.SessionStart = 16 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.Tick = 8 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.UiBlockScreen = 14 -> Blocker.Sdk.PluginCapability
 Blocker.Sdk.PluginCapability.UiDashboardWidget = 12 -> Blocker.Sdk.PluginCapability
@@ -268,6 +275,18 @@ Blocker.Sdk.Session.SessionSnapshot.Remaining.init -> void
 Blocker.Sdk.Session.SessionSnapshot.SessionId.get -> System.Guid?
 Blocker.Sdk.Session.SessionSnapshot.SessionId.init -> void
 Blocker.Sdk.Session.SessionSnapshot.SessionSnapshot(Blocker.Sdk.Session.SessionPhase Phase, System.Guid? SessionId, System.TimeSpan? Remaining, System.TimeSpan? EmergencyPassRemaining, int EmergencyPassesLeftToday, int EmergencyPassesPerDay, System.TimeSpan EmergencyPassDuration) -> void
+Blocker.Sdk.Sessions.ISessionLauncher
+Blocker.Sdk.Sessions.ISessionLauncher.StartAsync(System.TimeSpan duration, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Blocker.Sdk.Sessions.SessionStartResult!>
+Blocker.Sdk.Sessions.SessionLaunchLimits
+Blocker.Sdk.Sessions.SessionStartResult
+Blocker.Sdk.Sessions.SessionStartResult.<Clone>$() -> Blocker.Sdk.Sessions.SessionStartResult!
+Blocker.Sdk.Sessions.SessionStartResult.Deconstruct(out bool Started, out string? Error) -> void
+Blocker.Sdk.Sessions.SessionStartResult.Equals(Blocker.Sdk.Sessions.SessionStartResult? other) -> bool
+Blocker.Sdk.Sessions.SessionStartResult.Error.get -> string?
+Blocker.Sdk.Sessions.SessionStartResult.Error.init -> void
+Blocker.Sdk.Sessions.SessionStartResult.SessionStartResult(bool Started, string? Error) -> void
+Blocker.Sdk.Sessions.SessionStartResult.Started.get -> bool
+Blocker.Sdk.Sessions.SessionStartResult.Started.init -> void
 Blocker.Sdk.Storage.IPluginStorage
 Blocker.Sdk.Storage.IPluginStorage.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Blocker.Sdk.Storage.IPluginStorage.ListKeysAsync(string? prefix = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<string!>!>
@@ -280,6 +299,9 @@ Blocker.Sdk.Storage.PluginStorageExtensions
 Blocker.Sdk.Storage.PluginStorageKey
 const Blocker.Sdk.BlockerSdk.CallbackBudgetMilliseconds = 50 -> int
 const Blocker.Sdk.BlockerSdk.MaxPayloadBytes = 65536 -> int
+const Blocker.Sdk.Notifications.PluginNotifierLimits.MaxMessageLength = 200 -> int
+const Blocker.Sdk.Notifications.PluginNotifierLimits.MaxPerHour = 20 -> int
+const Blocker.Sdk.Sessions.SessionLaunchLimits.MaxReasonLength = 80 -> int
 const Blocker.Sdk.Storage.PluginStorageKey.MaxLength = 128 -> int
 override Blocker.Sdk.Events.ActiveWindowChanged.Equals(object? obj) -> bool
 override Blocker.Sdk.Events.ActiveWindowChanged.GetHashCode() -> int
@@ -324,6 +346,9 @@ override Blocker.Sdk.PluginInfo.ToString() -> string!
 override Blocker.Sdk.Session.SessionSnapshot.Equals(object? obj) -> bool
 override Blocker.Sdk.Session.SessionSnapshot.GetHashCode() -> int
 override Blocker.Sdk.Session.SessionSnapshot.ToString() -> string!
+override Blocker.Sdk.Sessions.SessionStartResult.Equals(object? obj) -> bool
+override Blocker.Sdk.Sessions.SessionStartResult.GetHashCode() -> int
+override Blocker.Sdk.Sessions.SessionStartResult.ToString() -> string!
 static Blocker.Sdk.BlockerSdk.Version.get -> System.Version!
 static Blocker.Sdk.Diagnostics.PluginLoggerExtensions.Error(this Blocker.Sdk.Diagnostics.IPluginLogger! logger, string! message, System.Exception? exception = null) -> void
 static Blocker.Sdk.Diagnostics.PluginLoggerExtensions.Info(this Blocker.Sdk.Diagnostics.IPluginLogger! logger, string! message) -> void
@@ -371,10 +396,14 @@ static Blocker.Sdk.PluginInfo.operator ==(Blocker.Sdk.PluginInfo? left, Blocker.
 static Blocker.Sdk.Session.SessionSnapshot.Idle.get -> Blocker.Sdk.Session.SessionSnapshot!
 static Blocker.Sdk.Session.SessionSnapshot.operator !=(Blocker.Sdk.Session.SessionSnapshot? left, Blocker.Sdk.Session.SessionSnapshot? right) -> bool
 static Blocker.Sdk.Session.SessionSnapshot.operator ==(Blocker.Sdk.Session.SessionSnapshot? left, Blocker.Sdk.Session.SessionSnapshot? right) -> bool
+static Blocker.Sdk.Sessions.SessionStartResult.operator !=(Blocker.Sdk.Sessions.SessionStartResult? left, Blocker.Sdk.Sessions.SessionStartResult? right) -> bool
+static Blocker.Sdk.Sessions.SessionStartResult.operator ==(Blocker.Sdk.Sessions.SessionStartResult? left, Blocker.Sdk.Sessions.SessionStartResult? right) -> bool
 static Blocker.Sdk.Storage.PluginStorageExtensions.ReadJsonAsync<T>(this Blocker.Sdk.Storage.IPluginStorage! storage, string! key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T?>
 static Blocker.Sdk.Storage.PluginStorageExtensions.WriteJsonAsync<T>(this Blocker.Sdk.Storage.IPluginStorage! storage, string! key, T value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 static Blocker.Sdk.Storage.PluginStorageKey.IsValid(string? key) -> bool
 static Blocker.Sdk.Storage.PluginStorageKey.ThrowIfInvalid(string? key) -> void
+static readonly Blocker.Sdk.Sessions.SessionLaunchLimits.MaxDuration -> System.TimeSpan
+static readonly Blocker.Sdk.Sessions.SessionLaunchLimits.MinDuration -> System.TimeSpan
 ~override Blocker.Sdk.Extensions.InterceptDecision.Equals(object obj) -> bool
 ~override Blocker.Sdk.Extensions.InterceptDecision.ToString() -> string
 ~override Blocker.Sdk.Extensions.LockVote.Equals(object obj) -> bool

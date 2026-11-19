@@ -27,6 +27,26 @@ public sealed record PluginFaultedNotification(string PluginId, string Reason);
 /// <param name="ContributionId">Contribution within the plugin.</param>
 public sealed record RenderRequestedNotification(string PluginId, string ContributionId);
 
+/// <summary>Parameters of <see cref="IpcMethods.PluginHostStartSession"/>.</summary>
+/// <param name="PluginId">Calling plugin.</param>
+/// <param name="DurationMinutes">Session length in minutes.</param>
+/// <param name="Reason">Short text for the toast that announces the session.</param>
+public sealed record PluginStartSessionRequest(string PluginId, int DurationMinutes, string Reason);
+
+/// <summary>Result of <see cref="IpcMethods.PluginHostStartSession"/>; the break-glass code is never part of it.</summary>
+/// <param name="Started">Whether the session started.</param>
+/// <param name="Error">Why it did not.</param>
+public sealed record PluginStartSessionResponse(bool Started, string? Error);
+
+/// <summary>Parameters of <see cref="IpcMethods.PluginHostNotify"/>.</summary>
+/// <param name="PluginId">Calling plugin.</param>
+/// <param name="Message">Toast text.</param>
+public sealed record PluginNotifyRequest(string PluginId, string Message);
+
+/// <summary>Result of <see cref="IpcMethods.PluginHostNotify"/>.</summary>
+/// <param name="Shown">Whether the toast was handed to the agent.</param>
+public sealed record PluginNotifyResponse(bool Shown);
+
 /// <summary>State of a plugin inside the host.</summary>
 public enum HostPluginState
 {

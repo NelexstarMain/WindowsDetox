@@ -26,12 +26,13 @@ builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddSingleton(new VerifiedTimeProvider(TimeProvider.System));
 builder.Services.AddSingleton(sp => new PluginStore(sp.GetRequiredService<IFileSystem>(), options.PluginsDirectory, options.DataDirectory));
 builder.Services.AddSingleton(sp => new HostEventBus(sp.GetRequiredService<VerifiedTimeProvider>(), sp.GetRequiredService<ILogger<HostEventBus>>()));
+builder.Services.AddSingleton(sp => new IpcClient(options.PipeName, sp.GetRequiredService<ILogger<IpcClient>>()));
 builder.Services.AddSingleton<PluginHostRuntime>(sp => new PluginHostRuntime(
     sp.GetRequiredService<PluginStore>(),
     sp.GetRequiredService<HostEventBus>(),
     sp.GetRequiredService<VerifiedTimeProvider>(),
-    sp.GetRequiredService<ILogger<PluginHostRuntime>>()));
-builder.Services.AddSingleton(sp => new IpcClient(options.PipeName, sp.GetRequiredService<ILogger<IpcClient>>()));
+    sp.GetRequiredService<ILogger<PluginHostRuntime>>(),
+    new PluginRuntimeOptions { Services = new IpcPluginHostServiceChannel(sp.GetRequiredService<IpcClient>()) }));
 builder.Services.AddSingleton(sp => new PluginHostEndpoint(
     sp.GetRequiredService<IpcClient>(), sp.GetRequiredService<PluginHostRuntime>(), sp.GetRequiredService<ILogger<PluginHostEndpoint>>(), options.Token));
 builder.Services.AddHostedService<PluginHostWorker>();

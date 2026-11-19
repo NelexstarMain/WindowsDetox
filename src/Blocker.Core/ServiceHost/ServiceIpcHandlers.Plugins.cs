@@ -242,6 +242,22 @@ internal sealed partial class ServiceIpcHandlers
         }
     }
 
+    /// <summary>Finds an installed, enabled plugin and what its manifest grants; <see langword="null"/> for anything else.</summary>
+    /// <param name="pluginId">Plugin id as stated by the plugin host.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The grant.</returns>
+    internal async ValueTask<PluginGrant?> ResolvePluginAsync(string pluginId, CancellationToken cancellationToken)
+    {
+        if (!PluginId.TryCreate(pluginId, out PluginId id)
+            || !(await deps.Plugins.ListAsync(cancellationToken).ConfigureAwait(false)).Any(p => p.Id == id && p.Enabled))
+        {
+            return null;
+        }
+
+        PluginInfoDto info = await GetInfoAsync(id, cancellationToken).ConfigureAwait(false);
+        return new PluginGrant(info.Name, info.Capabilities.ToHashSet(StringComparer.Ordinal));
+    }
+
     private async ValueTask<PluginInfoDto> GetInfoAsync(PluginId id, CancellationToken cancellationToken)
     {
         lock (_manifestGate)

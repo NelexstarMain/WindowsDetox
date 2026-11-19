@@ -147,6 +147,11 @@ public sealed partial class PluginHostSupervisor : IAsyncDisposable
         _registrations.Add(server.Register<RenderRequestedNotification, EmptyDto>(IpcMethods.PluginHostRenderRequested, OnRenderRequested));
     }
 
+    /// <summary>Returns whether <paramref name="peer"/> is the connection of the plugin host this supervisor runs plugins in (not a package-evaluation host).</summary>
+    /// <param name="peer">A caller on the plugin-host pipe.</param>
+    /// <returns><see langword="true"/> for the live host.</returns>
+    public bool IsCurrentHost(IpcPeer peer) => Volatile.Read(ref _current)?.Peer == peer;
+
     /// <summary>Raised when the state changes.</summary>
     public event EventHandler<PluginHostState>? StateChanged;
 

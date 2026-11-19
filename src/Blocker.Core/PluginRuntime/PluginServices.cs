@@ -8,6 +8,8 @@ using Blocker.Sdk.Events;
 using Blocker.Sdk.Extensions;
 using Blocker.Sdk.Ipc;
 using Blocker.Sdk.Session;
+using Blocker.Sdk.Notifications;
+using Blocker.Sdk.Sessions;
 using Blocker.Sdk.Storage;
 using Blocker.UI.Sdk;
 using Microsoft.Extensions.Logging;
@@ -23,7 +25,9 @@ internal sealed record PluginHostContext(
     IPluginStorage Storage,
     ISessionInfo Session,
     TimeProvider Time,
-    IPluginLogger Logger) : IPluginContext;
+    IPluginLogger Logger,
+    ISessionLauncher Sessions,
+    IPluginNotifier Notifier) : IPluginContext;
 
 /// <summary>Session snapshot shared by all plugins; replaced as a whole whenever the service reports a change.</summary>
 internal sealed class HostSessionInfo : ISessionInfo

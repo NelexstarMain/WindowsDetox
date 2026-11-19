@@ -87,6 +87,12 @@ public static class IpcMethods
     /// <summary>Plugin host reports that a contribution asked to be rendered again (notification, <see cref="RenderRequestedNotification"/>).</summary>
     public const string PluginHostRenderRequested = "pluginHost.renderRequested";
 
+    /// <summary>Plugin host starts a session for a plugin holding <c>session.start</c> (<see cref="PluginStartSessionRequest"/>). Host to service.</summary>
+    public const string PluginHostStartSession = "pluginHost.startSession";
+
+    /// <summary>Plugin host asks the service to show a toast for a plugin holding <c>notify</c> (<see cref="PluginNotifyRequest"/>). Host to service.</summary>
+    public const string PluginHostNotify = "pluginHost.notify";
+
     /// <summary>Service asks the host to (re)load all enabled plugins (<see cref="LoadPluginsRequest"/>). Service to host.</summary>
     public const string HostLoadPlugins = "host.loadPlugins";
 

@@ -528,6 +528,8 @@ public sealed class ApiPolicyAnalyzerTests
     [InlineData("bus.SubscribeCustom(\"t\", (e, ct) => System.Threading.Tasks.ValueTask.CompletedTask);", "Blocker.Sdk.Events.IEventBus bus", PluginCapability.CustomEvents)]
     [InlineData("bus.PublishCustomAsync(\"name\", \"{}\");", "Blocker.Sdk.Events.IEventBus bus", PluginCapability.CustomEvents)]
     [InlineData("ipc.Register(\"ping\", (json, ct) => System.Threading.Tasks.ValueTask.FromResult(json));", "Blocker.Sdk.Ipc.IIpcRegistry ipc", PluginCapability.Ipc)]
+    [InlineData("sessions.StartAsync(System.TimeSpan.FromHours(1), \"x\");", "Blocker.Sdk.Sessions.ISessionLauncher sessions", PluginCapability.SessionStart)]
+    [InlineData("notifier.ShowAsync(\"x\");", "Blocker.Sdk.Notifications.IPluginNotifier notifier", PluginCapability.Notify)]
     public void Custom_events_and_ipc_calls_without_their_capability_are_reported(string statement, string parameter, PluginCapability capability)
     {
         string source = $$"""

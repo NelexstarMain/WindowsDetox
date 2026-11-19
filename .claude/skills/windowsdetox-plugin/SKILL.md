@@ -33,7 +33,7 @@ Required: `id`, `name`, `version`, `author`, `sdkVersion`, `entryType`, `capabil
 
 ## 3. Capabilities: request only what the code uses
 
-Names (`PluginCapabilities`): `events.session`, `events.process`, `events.window`, `events.window.title` (privacy-sensitive, avoid), `events.idle`, `events.custom`, `intercept.process`, `intercept.window`, `tick`, `lockpolicy`, `ipc`, `ui.page`, `ui.dashboard`, `ui.settings`, `ui.blockscreen`, `network`.
+Names (`PluginCapabilities`): `events.session`, `events.process`, `events.window`, `events.window.title` (privacy-sensitive, avoid), `events.idle`, `events.custom`, `intercept.process`, `intercept.window`, `tick`, `lockpolicy`, `ipc`, `ui.page`, `ui.dashboard`, `ui.settings`, `ui.blockscreen`, `network`, `session.start` (`context.Sessions`), `notify` (`context.Notifier`).
 - Implementing an interface needs its capability (BLK008 at compile time, `PluginCapabilityException` at runtime): `IUiPagePlugin`=`ui.page`, `IDashboardWidgetPlugin`=`ui.dashboard`, `ISettingsSectionPlugin`=`ui.settings`, `IBlockScreenPlugin`=`ui.blockscreen`, `ITickListener`=`tick`, `IProcessInterceptor`=`intercept.process`, `IWindowInterceptor`=`intercept.window`, `ILockPolicyContributor`=`lockpolicy`.
 - `Events.Subscribe<T>`: `SessionStarted/SessionEnded/EmergencyPassStarted/EmergencyPassEnded`=`events.session`, `ProcessBlocked`=`events.process`, `ActiveWindowChanged`=`events.window`, `UserIdleChanged`=`events.idle`. `SubscribeCustom/PublishCustomAsync`=`events.custom`; `Ipc.Register`=`ipc`.
 - Declared-but-unused capabilities are a defect: tests in `BundledPluginTests` assert the exact list.

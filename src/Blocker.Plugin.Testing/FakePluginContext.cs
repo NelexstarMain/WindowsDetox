@@ -5,7 +5,9 @@ using Blocker.Sdk.Diagnostics;
 using Blocker.Sdk.Events;
 using Blocker.Sdk.Extensions;
 using Blocker.Sdk.Ipc;
+using Blocker.Sdk.Notifications;
 using Blocker.Sdk.Session;
+using Blocker.Sdk.Sessions;
 using Blocker.Sdk.Storage;
 using Blocker.UI.Sdk;
 using Microsoft.Extensions.Time.Testing;
@@ -40,6 +42,8 @@ public sealed class FakePluginContext : IPluginContext
         _events = new FakeEventBus(Plugin, FakeTime);
         _extensions = new FakeExtensionRegistry(Plugin, FakeTime);
         _ipc = new FakeIpcRegistry(Plugin);
+        FakeSessions = new FakeSessionLauncher(Plugin);
+        FakeNotifier = new FakePluginNotifier(Plugin);
     }
 
     /// <summary>Gets the controllable clock; starts at 2026-01-01T09:00:00Z.</summary>
@@ -53,6 +57,12 @@ public sealed class FakePluginContext : IPluginContext
 
     /// <summary>Gets the logger that records every entry.</summary>
     public RecordingPluginLogger FakeLogger { get; }
+
+    /// <summary>Gets the recording session launcher.</summary>
+    public FakeSessionLauncher FakeSessions { get; }
+
+    /// <summary>Gets the recording notifier.</summary>
+    public FakePluginNotifier FakeNotifier { get; }
 
     /// <summary>Gets the number of <see cref="IUiSurface.RequestRender"/> calls made by contributions.</summary>
     public int RenderRequests => _surface.Requests;
@@ -86,6 +96,12 @@ public sealed class FakePluginContext : IPluginContext
 
     /// <inheritdoc/>
     public IPluginLogger Logger => FakeLogger;
+
+    /// <inheritdoc/>
+    public ISessionLauncher Sessions => FakeSessions;
+
+    /// <inheritdoc/>
+    public IPluginNotifier Notifier => FakeNotifier;
 
     /// <summary>Returns the single registered extension assignable to <typeparamref name="T"/>.</summary>
     /// <typeparam name="T">Extension type.</typeparam>

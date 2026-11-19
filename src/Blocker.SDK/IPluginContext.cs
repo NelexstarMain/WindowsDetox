@@ -2,7 +2,9 @@ using Blocker.Sdk.Diagnostics;
 using Blocker.Sdk.Events;
 using Blocker.Sdk.Extensions;
 using Blocker.Sdk.Ipc;
+using Blocker.Sdk.Notifications;
 using Blocker.Sdk.Session;
+using Blocker.Sdk.Sessions;
 using Blocker.Sdk.Storage;
 
 namespace Blocker.Sdk;
@@ -39,4 +41,10 @@ public interface IPluginContext
 
     /// <summary>Gets the rate-limited logger for this plugin.</summary>
     IPluginLogger Logger { get; }
+
+    /// <summary>Gets the session launcher (capability <see cref="PluginCapability.SessionStart"/>).</summary>
+    ISessionLauncher Sessions { get; }
+
+    /// <summary>Gets the toast notifier (capability <see cref="PluginCapability.Notify"/>).</summary>
+    IPluginNotifier Notifier { get; }
 }

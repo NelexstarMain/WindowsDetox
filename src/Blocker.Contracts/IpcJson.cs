@@ -94,6 +94,10 @@ public static class IpcJson
 [JsonSerializable(typeof(SessionChangedRequest))]
 [JsonSerializable(typeof(HostEventDto))]
 [JsonSerializable(typeof(SubscribeResponse))]
+[JsonSerializable(typeof(PluginStartSessionRequest))]
+[JsonSerializable(typeof(PluginStartSessionResponse))]
+[JsonSerializable(typeof(PluginNotifyRequest))]
+[JsonSerializable(typeof(PluginNotifyResponse))]
 public sealed partial class IpcJsonContext : JsonSerializerContext
 {
 }

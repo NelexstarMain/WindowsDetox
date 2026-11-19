@@ -75,6 +75,26 @@ public sealed class IpcContractTests
         Assert.False(rule.Allows(IpcCallerRole.Administrator | IpcCallerRole.Agent | IpcCallerRole.User | IpcCallerRole.Stub | IpcCallerRole.PluginHost));
     }
 
+    [Theory]
+    [InlineData(IpcMethods.PluginHostStartSession)]
+    [InlineData(IpcMethods.PluginHostNotify)]
+    public void Plugin_capability_methods_are_callable_by_the_plugin_host_only(string method)
+    {
+        Assert.True(IpcMethodPolicy.TryGet(method, out var rule));
+
+        Assert.Equal(IpcCallerRole.PluginHost, rule.AllowedRoles);
+        Assert.False(rule.Allows(IpcCallerRole.User | IpcCallerRole.Administrator | IpcCallerRole.Agent | IpcCallerRole.Stub));
+        Assert.Equal(IpcLimits.DefaultMaxPayloadBytes, rule.MaxPayloadBytes);
+    }
+
+    [Fact]
+    public void Starting_a_session_from_a_plugin_is_not_allowed_during_a_session()
+    {
+        Assert.True(IpcMethodPolicy.TryGet(IpcMethods.PluginHostStartSession, out var rule));
+
+        Assert.False(rule.AllowedDuringSession);
+    }
+
     [Fact]
     public void Agent_methods_are_not_open_to_ordinary_users()
     {

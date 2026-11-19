@@ -78,6 +78,8 @@ internal static class ApiPolicyRules
         new("Blocker.Sdk.Events.IEventBus", "SubscribeCustom", PluginCapability.CustomEvents),
         new("Blocker.Sdk.Events.IEventBus", "PublishCustomAsync", PluginCapability.CustomEvents),
         new("Blocker.Sdk.Ipc.IIpcRegistry", "Register", PluginCapability.Ipc),
+        new("Blocker.Sdk.Sessions.ISessionLauncher", "StartAsync", PluginCapability.SessionStart),
+        new("Blocker.Sdk.Notifications.IPluginNotifier", "ShowAsync", PluginCapability.Notify),
     ];
 
     private const string Clock = "Use context.Time (TimeProvider); the real clock makes plugins and tests non-deterministic.";

@@ -139,6 +139,8 @@ public static class IpcMethodPolicy
             new(IpcMethods.PluginHostRegister, IpcCallerRole.PluginHost, normal, true),
             new(IpcMethods.PluginHostPluginFaulted, IpcCallerRole.PluginHost, normal, true),
             new(IpcMethods.PluginHostRenderRequested, IpcCallerRole.PluginHost, normal, true),
+            new(IpcMethods.PluginHostStartSession, IpcCallerRole.PluginHost, normal, false),
+            new(IpcMethods.PluginHostNotify, IpcCallerRole.PluginHost, normal, true),
             new(IpcMethods.HostLoadPlugins, serverToClient, normal, true),
             new(IpcMethods.HostEvaluatePackage, serverToClient, IpcLimits.MaxMessageBytes, true),
             new(IpcMethods.HostInterceptProcess, serverToClient, normal, true),

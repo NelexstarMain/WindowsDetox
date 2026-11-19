@@ -56,6 +56,12 @@ public enum PluginCapability
 
     /// <summary><c>network</c>: use outbound HTTP(S). Blocked during a session unless the host is on the web allowlist.</summary>
     Network,
+
+    /// <summary><c>session.start</c>: start a detox session through <see cref="Sessions.ISessionLauncher"/>. Prominent at install: it locks the PC.</summary>
+    SessionStart,
+
+    /// <summary><c>notify</c>: show toasts through <see cref="Notifications.IPluginNotifier"/>.</summary>
+    Notify,
 }
 
 /// <summary>
@@ -81,6 +87,8 @@ public static class PluginCapabilities
         [PluginCapability.UiSettingsSection] = "ui.settings",
         [PluginCapability.UiBlockScreen] = "ui.blockscreen",
         [PluginCapability.Network] = "network",
+        [PluginCapability.SessionStart] = "session.start",
+        [PluginCapability.Notify] = "notify",
     }.ToFrozenDictionary();
 
     private static readonly FrozenDictionary<string, PluginCapability> FromName =
