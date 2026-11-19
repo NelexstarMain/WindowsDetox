@@ -74,9 +74,9 @@ never shorten a session. Use break-glass or `--dev-abort` for that.
 - **Process blocking:** a non-allowlisted app is closed and the block screen (Stub) appears; allowlisted apps and
   their child processes keep running; Task Manager, `regedit` and `cmd` are blocked; critical Windows processes are
   never touched.
-- **Web filtering:** in Edge, Chrome and Firefox, sites not on the allowlist show the block page; DoH and QUIC are
-  off; after the session ends, browsing works normally and `edge://policy` / `chrome://policy` no longer list the
-  WindowsDetox policies.
+- **Web filtering:** in Edge, Chrome, Brave and Firefox, sites not on the allowlist show the block page; DoH and QUIC are
+  off; after the session ends, browsing works normally and `edge://policy` / `chrome://policy` / `brave://policy` no longer list the
+  WindowsDetox policies. In Brave, a private window with Tor and Brave VPN are unavailable during the session.
 - **Tamper resistance:** stopping either service from `services.msc` fails or the service restarts within a
   second; the `C:\ProgramData\WindowsDetox` files cannot be deleted by the standard user.
 - **Emergency pass:** the warning arrives 60 s before the end; disallowed apps close when the pass ends; the pass
