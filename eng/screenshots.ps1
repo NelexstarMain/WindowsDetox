@@ -74,7 +74,7 @@ function Snap([int]$count = 1) {
     if ($wait -gt 0) { Start-Sleep -Milliseconds $wait }
     $script:rec.Next = $script:rec.Clock.ElapsedMilliseconds + 83
     $full = Capture-Window $script:rec.Window
-    $small = New-Object System.Drawing.Bitmap ([int]($full.Width / 2)), ([int]($full.Height / 2))
+    $small = New-Object System.Drawing.Bitmap $full.Width, $full.Height
     $g = [System.Drawing.Graphics]::FromImage($small)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.DrawImage($full, 0, 0, $small.Width, $small.Height)
@@ -132,6 +132,40 @@ function Click-Named($window, [string]$text, [switch]$Anywhere) {
   return $false
 }
 
+
+# Presses a control without relying on where it sits on screen (a button below the fold of a small window): Invoke or Toggle
+# through UI Automation when the control supports it, else a real click.
+function Press-Named($window, [string]$text) {
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $text)
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+    $pattern = $null
+    if ($e.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) { $pattern.Invoke(); return $true }
+    if ($e.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$pattern)) { $pattern.Toggle(); return $true }
+  }
+  return (Click-Named $window $text -Anywhere)
+}
+
+# Types a task into the Goals page's "New task" field with real key presses and presses Add.
+function Add-Task($window, [string]$text) {
+  # The text box itself (the label above it has the same name), else whatever carries the name.
+  $field = $null
+  $edit = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+  foreach ($e in $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $edit)) {
+    if ($e.Current.Name -eq 'New task') { $field = $e; break }
+  }
+  if (-not $field) { $field = Find-Named $window 'New task' }
+  if (-not $field) { Write-Host 'could not find the New task field'; return $false }
+  try { $field.SetFocus() } catch {
+    $r = $field.Current.BoundingRectangle
+    [Native]::Click([int]($r.X + $r.Width / 2), [int]($r.Y + $r.Height / 2))
+  }
+  Start-Sleep -Milliseconds 400
+  [System.Windows.Forms.SendKeys]::SendWait($text)
+  Start-Sleep -Milliseconds 500
+  Press-Named $window 'Add' | Out-Null
+  Start-Sleep -Milliseconds 1200
+  return $true
+}
 
 if ($Phase -eq 'installer') {
   $p = Start-Process $Setup -PassThru
@@ -276,6 +310,26 @@ Record $main 'resize' {
   } else { Write-Host 'resize: no resize handle found' }
 }
 if (Find-Named $main 'Resize widget') { Click-Named $main 'Edit widgets' -Anywhere | Out-Null; Start-Sleep -Seconds 1 }
+
+# --- In-use shots, taken last so nothing above sees the tasks. Goals page: three tasks typed in, the first ticked.
+# Then the Session page, whose Goals and Tasks widget now shows them. (Focus Insights stays at 0 min: no session has run.)
+if (Click-Named $main 'Goals') {
+  Start-Sleep -Seconds 2
+  $tasks = 'Draft chapter 3', 'Reply to supervisor', 'Review pull request'
+  foreach ($t in $tasks) { Add-Task $main $t | Out-Null }
+  Press-Named $main $tasks[0] | Out-Null
+  Start-Sleep -Seconds 1
+  # The window is small: scroll down until the last task is on screen (at most six notches).
+  $f = [Native]::Frame([IntPtr]$main.Current.NativeWindowHandle)
+  for ($k = 0; $k -lt 6; $k++) {
+    $last = Find-Named $main $tasks[2]
+    if ($last -and $last.Current.BoundingRectangle.Bottom -lt ($f.Bottom - 8)) { break }
+    [Native]::Wheel([int](($f.Left + $f.Right) / 2 + 100), [int](($f.Top + $f.Bottom) / 2), 1)
+    Start-Sleep -Milliseconds 500
+  }
+  Shot $main '18-goals-in-use'
+}
+if (Click-Named $main 'Session') { Start-Sleep -Seconds 3; Shot $main '19-session-widgets-in-use' }
 
 Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
