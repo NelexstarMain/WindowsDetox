@@ -30,12 +30,10 @@
 </head>
 
 <!--
-  DOWNLOAD LINK: change the one data-download value below to switch every Download button.
-  Today there is no GitHub Release, so it points at the CI builds (artifact "WindowsDetox-Setup").
-  When a release exists, set:  data-download="https://github.com/NelexstarMain/WindowsDetox/releases/latest"
-  and data-release="latest"  (this hides the "download the artifact from CI" note).
+  DOWNLOAD LINK: the one data-download value below drives every Download button. It points at the installer that CI
+  builds, install-tests and publishes as the "latest-build" GitHub release.
 -->
-<body data-download="https://github.com/NelexstarMain/WindowsDetox/actions/workflows/ci.yml?query=branch%3Aclaude%2Fanti-distraction-windows-app-irhha1" data-release="ci">
+<body data-download="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-release="latest">
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
@@ -66,7 +64,7 @@
       <a class="nav-gh" href="https://github.com/NelexstarMain/WindowsDetox" aria-label="Windows Detox on GitHub">
         <svg aria-hidden="true"><use href="#i-github"/></svg><span>GitHub</span>
       </a>
-      <a class="btn btn--primary btn--sm" href="#download" data-dl>Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl>Download</a>
     </div>
   </div>
 </header>
@@ -84,7 +82,7 @@
     <h1 class="rise" style="--i:0">Focus, enforced.</h1>
     <p class="sub rise" style="--i:1">A distraction blocker for Windows 10 and 11. Allow what you need, and everything else stays blocked until the timer ends.</p>
     <div class="cta-row rise" style="--i:2">
-      <a class="btn btn--primary" href="#download" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
+      <a class="btn btn--primary" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
       <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
     </div>
     <div class="showcase rise-shot">
@@ -297,10 +295,10 @@
   <div class="wrap">
     <h2 data-reveal>Start a session you can't talk yourself out of.</h2>
     <div class="cta-row" data-reveal>
-      <a class="btn btn--primary" id="download-link" href="#download" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
+      <a class="btn btn--primary" id="download-link" href="https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe" data-dl><svg aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
       <a class="btn btn--ghost" href="https://github.com/NelexstarMain/WindowsDetox">View on GitHub</a>
     </div>
-    <p class="dl-note when-ci" data-reveal>No release yet. The installer is the <strong>WindowsDetox-Setup</strong> artifact of the latest CI build (GitHub sign-in required), or <a href="https://github.com/NelexstarMain/WindowsDetox#build">build it yourself</a>.</p>
+    <p class="dl-note" data-reveal>Windows 10 and 11 · 164 MB · Not code-signed yet, so SmartScreen may ask you to confirm. <a href="https://github.com/NelexstarMain/WindowsDetox/releases/tag/latest-build">Release notes and SHA-256</a></p>
   </div>
 </section>
 

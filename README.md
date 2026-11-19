@@ -7,8 +7,9 @@ Emergency passes (X minutes, Y per day) pause blocking briefly.
 Website: <https://nelexstarmain.github.io/WindowsDetox/>
 
 ## Install
-1. Download `WindowsDetox-Setup.exe`, from the **WindowsDetox-Setup** artifact of the latest CI run on GitHub
-   Actions, or build it yourself (below).
+1. Download [`WindowsDetox-Setup.exe`](https://github.com/NelexstarMain/WindowsDetox/releases/download/latest-build/WindowsDetox-Setup.exe)
+   from the [latest-build release](https://github.com/NelexstarMain/WindowsDetox/releases/tag/latest-build) (CI publishes it after the
+   install/uninstall checks pass), or build it yourself (below).
 2. Run it and approve the administrator prompt. It installs to `C:\Program Files\WindowsDetox`, registers two
    services (`WindowsDetoxService` and `WindowsDetoxWatchdog`), and adds a Start-menu shortcut.
 3. Open **Windows Detox** from the Start menu. Build an allowlist, then start a session from **Setup**.

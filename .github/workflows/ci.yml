@@ -124,7 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          sha256sum out/WindowsDetox-Setup.exe | sed 's| out/| |' > out/WindowsDetox-Setup.exe.sha256
+          (cd out && sha256sum WindowsDetox-Setup.exe > WindowsDetox-Setup.exe.sha256)
           notes="Installer built and install/uninstall-tested by CI from ${GITHUB_REF_NAME} at ${GITHUB_SHA::7}. Unsigned: Windows SmartScreen may warn (More info, Run anyway). Try it in a VM first."
           git tag -f latest-build "$GITHUB_SHA"
           git push -f origin refs/tags/latest-build
