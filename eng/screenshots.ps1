@@ -294,6 +294,8 @@ if (Click-Named $main 'Session') {
   }
 }
 if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
+# The Calendar plugin is fully local: its page opens on an empty calendar, so this shot needs no sample data and no network.
+if (Click-Named $main 'Calendar') { Start-Sleep -Seconds 3; Shot $main '20-calendar' }
 
 # --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input at a human pace.
 # Every clip starts on the Session page with the board out of edit mode and scrolled to the top (the page is not tall enough to
