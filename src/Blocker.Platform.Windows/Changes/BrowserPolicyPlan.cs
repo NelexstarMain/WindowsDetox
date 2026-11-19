@@ -11,7 +11,8 @@ internal sealed record BrowserPolicyEntry(string Target, PolicyValue Desired)
 
 /// <summary>
 /// The browser policy set that routes browsers through the local PAC proxy and disables DoH and QUIC.
-/// Chromium family (Chrome, Edge, Brave): <c>ProxySettings</c> (pac_script), <c>DnsOverHttpsMode=off</c>, <c>QuicAllowed=0</c>
+/// Chromium family (Chrome, Edge, Brave): <c>ProxySettings</c> (pac_script), <c>DnsOverHttpsMode=off</c>, <c>QuicAllowed=0</c>;
+/// Brave also gets <c>TorDisabled=1</c> and <c>BraveVPNDisabled=1</c>, since Tor windows and Brave VPN bypass the proxy
 /// (<c>BuiltInDnsClientEnabled</c> is left alone). Firefox uses its registry policy layout: <c>Proxy\{Mode,AutoConfigURL,Locked}</c>,
 /// <c>DNSOverHTTPS\{Enabled,Locked}</c> and, best effort, <c>Preferences\network.http.http3.enable=0</c>: Firefox only honours
 /// preferences on its policy allow-list and ignores others, so the WFP UDP 443 block is the real QUIC enforcement for Firefox.
@@ -24,6 +25,8 @@ internal static class BrowserPolicyPlan
         @"SOFTWARE\Policies\Microsoft\Edge",
         @"SOFTWARE\Policies\BraveSoftware\Brave",
     ];
+
+    private const string BraveRoot = @"SOFTWARE\Policies\BraveSoftware\Brave";
 
     private const string FirefoxRoot = @"SOFTWARE\Policies\Mozilla\Firefox";
 
@@ -44,6 +47,10 @@ internal static class BrowserPolicyPlan
             entries.Add(new($"{root}|DnsOverHttpsMode", PolicyValue.String("off")));
             entries.Add(new($"{root}|QuicAllowed", PolicyValue.DWord(0)));
         }
+
+        // Brave's private windows with Tor and its built-in VPN route around the PAC proxy, so both are switched off.
+        entries.Add(new($"{BraveRoot}|TorDisabled", PolicyValue.DWord(1)));
+        entries.Add(new($"{BraveRoot}|BraveVPNDisabled", PolicyValue.DWord(1)));
 
         entries.Add(new($@"{FirefoxRoot}\Proxy|Mode", PolicyValue.String("autoConfig")));
         entries.Add(new($@"{FirefoxRoot}\Proxy|AutoConfigURL", PolicyValue.String(pacUrl)));

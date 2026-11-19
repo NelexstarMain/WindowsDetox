@@ -21,8 +21,8 @@ public sealed class BrowserPolicyPlanTests
     {
         IReadOnlyDictionary<string, PolicyValue> plan = Plan();
 
-        Assert.Equal(15, plan.Count);
-        Assert.Equal(15, BrowserPolicyPlan.Create(18080).Count); // no duplicate targets
+        Assert.Equal(17, plan.Count);
+        Assert.Equal(17, BrowserPolicyPlan.Create(18080).Count); // no duplicate targets
     }
 
     [Theory]
@@ -43,6 +43,18 @@ public sealed class BrowserPolicyPlanTests
         Assert.Equal(RegistryValueKind.DWord, plan[$"{root}|QuicAllowed"].Kind);
         Assert.Equal(0, plan[$"{root}|QuicAllowed"].Number);
         Assert.DoesNotContain($"{root}|BuiltInDnsClientEnabled", plan.Keys);
+    }
+
+    [Fact]
+    public void Brave_turns_off_tor_windows_and_its_vpn()
+    {
+        IReadOnlyDictionary<string, PolicyValue> plan = Plan();
+        const string root = @"SOFTWARE\Policies\BraveSoftware\Brave";
+
+        Assert.Equal(RegistryValueKind.DWord, plan[$"{root}|TorDisabled"].Kind);
+        Assert.Equal(1, plan[$"{root}|TorDisabled"].Number);
+        Assert.Equal(1, plan[$"{root}|BraveVPNDisabled"].Number);
+        Assert.DoesNotContain(@"SOFTWARE\Policies\Google\Chrome|TorDisabled", plan.Keys);
     }
 
     [Fact]
