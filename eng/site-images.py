@@ -135,7 +135,7 @@ save(Image.open(shot("09-insights")).convert("RGB").crop((255, 100, 968, 388)), 
 goals, goals_new = pick("18-goals-in-use", "16-goals")
 if goals_new:
     # 18 is scrolled to its task list: keep the page area from the daily goal card down.
-    save(Image.open(goals).convert("RGB").crop((255, 108, 968, 410)), "plugin-goals.webp")
+    save(Image.open(goals).convert("RGB").crop((255, 108, 968, 300)), "plugin-goals.webp")
 else:
     save(Image.open(goals).convert("RGB").crop((255, 95, 968, 397)), "plugin-goals.webp")
 
