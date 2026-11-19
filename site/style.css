@@ -32,12 +32,11 @@
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px;overflow-x:clip}
 
-/* Główny, bardzo lekki gradient w ciepłą stronę */
+/* Główny, bardzo lekki gradient z lewej do prawej w lekko cieplejszy ton */
 body{
   margin:0;
   background-color:var(--canvas);
-  background-image:linear-gradient(95deg,#EAECE5 0%,#ECEEE6 50%,#F1EFE2 100%);
-  background-attachment:fixed;
+  background-image:linear-gradient(90deg,#EAECE5 0%,#ECEEE6 50%,#F1EFE2 100%);
   color:var(--text);
   font:400 1.0625rem/1.6 var(--font);
   -webkit-font-smoothing:antialiased;
@@ -47,7 +46,7 @@ body{
   isolation:isolate;
 }
 
-/* Subtelna faktura logo w tle */
+/* Subtelna faktura małych logo w tle */
 body::before{
   content:"";
   position:fixed;
@@ -85,7 +84,7 @@ code,kbd{font-family:var(--mono);font-size:.86em}
 kbd{white-space:nowrap;padding:1px 6px;border-radius:4px;background:var(--raised);color:var(--text)}
 :focus{outline:none}
 :focus-visible{outline:2px solid var(--sage);outline-offset:3px;border-radius:4px}
-::selection{background:var(--olive);color:var(--on-accent)}3
+::selection{background:var(--olive);color:var(--on-accent)}
 
 .wrap{width:100%;max-width:calc(var(--wrap) + var(--gutter)*2);margin-inline:auto;padding-inline:var(--gutter)}
 .skip{position:absolute;left:var(--gutter);top:-80px;z-index:100;background:var(--sage);color:#fff;padding:10px 16px;border-radius:4px;font-weight:600;text-decoration:none}
@@ -300,7 +299,7 @@ body[data-release="latest"] .when-ci{display:none}
 
 /* ---------- Plugins ---------- */
 .plug{display:grid;gap:28px;align-items:center}
-.plug + .plug{margin-top:clamp(56px,7vw,96px)}
+.plug + .plug{margin-top:clamp(40px,5vw,64px)}
 .plug .window{max-width:686px}
 .plug-icon{width:44px;height:44px;fill:var(--olive)}
 .plug h3{font-size:1.5rem;font-weight:500;letter-spacing:-.015em;line-height:1.25}
@@ -310,7 +309,7 @@ body[data-release="latest"] .when-ci{display:none}
   .plug .plug-icon{align-self:center}
   .plug .window{justify-self:end;width:100%}
 }
-.build{margin-top:clamp(48px,6vw,80px);display:flex;flex-wrap:wrap;gap:12px 32px;max-width:var(--wrap);color:var(--text-2)}
+.build{margin-top:clamp(36px,4.5vw,56px);display:flex;flex-wrap:wrap;gap:12px 32px;max-width:var(--wrap);color:var(--text-2)}
 .build a{color:var(--text);text-decoration:underline;text-decoration-color:rgba(20,22,18,.3);text-underline-offset:5px;text-decoration-thickness:1px;transition:text-decoration-color .18s var(--ease)}
 .build a:hover{text-decoration-color:var(--sage)}
 
@@ -335,7 +334,7 @@ body[data-release="latest"] .when-ci{display:none}
 @media (prefers-reduced-motion:reduce){.faq details::details-content{transition:none}.faq summary::after{transition:none}}
 
 /* ---------- Final CTA ---------- */
-.final{position:relative;overflow:hidden;isolation:isolate;text-align:center;padding:clamp(88px,10vw,152px) 0;background:var(--card);border-top:1px solid var(--line)}
+.final{position:relative;overflow:hidden;isolation:isolate;text-align:center;padding:clamp(64px,7.5vw,108px) 0;background:var(--card);border-top:1px solid var(--line)}
 .final::before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(50% 75% at 50% 115%,rgba(95,111,46,.12),transparent 70%)}
 .final h2{font-size:clamp(2.4rem,1.2rem + 4.5vw,4.25rem);font-weight:400;letter-spacing:-.03em;line-height:1.04;max-width:20ch;margin-inline:auto}
 .final .cta-row{margin-top:clamp(32px,4vw,44px)}
