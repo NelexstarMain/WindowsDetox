@@ -1,4 +1,6 @@
 using System.IO.Abstractions.TestingHelpers;
+using System.Security.Cryptography;
+using Blocker.Core.Abstractions;
 using Blocker.Core.Security;
 
 namespace Blocker.Core.Tests.Security;
@@ -80,6 +82,79 @@ public sealed class HmacKeyStoreTests
         byte[] key = new HmacKeyStore(_fs, _protector, KeyPath).GetKey();
 
         Assert.Equal(32, key.Length);
+    }
+
+    [Fact]
+    public void Transient_unprotect_failure_keeps_the_same_key_and_the_file()
+    {
+        byte[] original = new HmacKeyStore(_fs, _protector, KeyPath).GetKey();
+        byte[] fileBefore = _fs.File.ReadAllBytes(KeyPath);
+        var flaky = new FlakyProtector(_protector, failures: 2);
+
+        byte[] loaded = new HmacKeyStore(_fs, flaky, KeyPath).GetKey();
+
+        Assert.Equal(original, loaded);
+        Assert.Equal(fileBefore, _fs.File.ReadAllBytes(KeyPath));
+        Assert.Empty(_fs.Directory.GetFiles(_fs.Path.GetDirectoryName(KeyPath)!, "*.bad"));
+    }
+
+    [Fact]
+    public void Persistent_unprotect_failure_moves_the_old_file_aside_and_creates_a_fresh_key()
+    {
+        byte[] original = new HmacKeyStore(_fs, _protector, KeyPath).GetKey();
+        byte[] fileBefore = _fs.File.ReadAllBytes(KeyPath);
+        var broken = new FlakyProtector(_protector, failures: int.MaxValue);
+
+        byte[] fresh = new HmacKeyStore(_fs, broken, KeyPath).GetKey();
+
+        Assert.NotEqual(original, fresh);
+        string bad = Assert.Single(_fs.Directory.GetFiles(_fs.Path.GetDirectoryName(KeyPath)!, "hmac.key.*.bad"));
+        Assert.Matches(@"hmac\.key\.\d{14}\.bad$", bad);
+        Assert.Equal(fileBefore, _fs.File.ReadAllBytes(bad));
+        Assert.Equal(fresh, _protector.Unprotect(_fs.File.ReadAllBytes(KeyPath)));
+        Assert.Equal(3, broken.Calls);
+    }
+
+    [Fact]
+    public void Wrong_sized_key_file_is_preserved_as_bad()
+    {
+        byte[] wrongSized = _protector.Protect(new byte[16]);
+        _fs.AddFile(KeyPath, new MockFileData(wrongSized));
+
+        _ = new HmacKeyStore(_fs, _protector, KeyPath).GetKey();
+
+        string bad = Assert.Single(_fs.Directory.GetFiles(_fs.Path.GetDirectoryName(KeyPath)!, "hmac.key.*.bad"));
+        Assert.Equal(wrongSized, _fs.File.ReadAllBytes(bad));
+    }
+
+    [Fact]
+    public void Io_and_access_failures_propagate_and_never_regenerate()
+    {
+        byte[] fileBefore = _protector.Protect(new byte[32]);
+        _fs.AddFile(KeyPath, new MockFileData(fileBefore));
+
+        Assert.Throws<IOException>(() => new HmacKeyStore(_fs, new ThrowingProtector(new IOException("locked")), KeyPath).GetKey());
+        Assert.Throws<UnauthorizedAccessException>(() => new HmacKeyStore(_fs, new ThrowingProtector(new UnauthorizedAccessException()), KeyPath).GetKey());
+
+        Assert.Equal(fileBefore, _fs.File.ReadAllBytes(KeyPath));
+        Assert.Empty(_fs.Directory.GetFiles(_fs.Path.GetDirectoryName(KeyPath)!, "*.bad"));
+    }
+
+    private sealed class ThrowingProtector(Exception failure) : ISecretProtector
+    {
+        public byte[] Protect(ReadOnlySpan<byte> plaintext) => throw failure;
+
+        public byte[] Unprotect(ReadOnlySpan<byte> ciphertext) => throw failure;
+    }
+
+    private sealed class FlakyProtector(ISecretProtector inner, int failures) : ISecretProtector
+    {
+        public int Calls { get; private set; }
+
+        public byte[] Protect(ReadOnlySpan<byte> plaintext) => inner.Protect(plaintext);
+
+        public byte[] Unprotect(ReadOnlySpan<byte> ciphertext) =>
+            ++Calls <= failures ? throw new CryptographicException("transient") : inner.Unprotect(ciphertext);
     }
 
     [Fact]

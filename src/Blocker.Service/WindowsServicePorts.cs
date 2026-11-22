@@ -20,6 +20,7 @@ namespace Blocker.Service;
 /// <summary>Builds the Win32 implementations of every port of <see cref="BlockerServiceApp"/>.</summary>
 internal static class WindowsServicePorts
 {
+    private static readonly string[] RestrictedServices = [BlockerServiceNames.Service, BlockerServiceNames.Watchdog];
     private static readonly string[] TimeServers = ["time.windows.com", "time.cloudflare.com", "pool.ntp.org"];
     private static readonly string[] TimeUrls = ["https://www.microsoft.com", "https://www.cloudflare.com"];
 
@@ -91,7 +92,7 @@ internal static class WindowsServicePorts
                 BypassToolImageNames = BypassTools.KnownImageNames,
                 BypassToolHashes = HashBypassBinaries(windows),
                 ProtectedDirectories = paths.ProtectedDirectories,
-                ServiceNames = [BlockerServiceNames.Service, BlockerServiceNames.Watchdog],
+                ServiceNames = RestrictedServices,
             },
             PluginTemplate = static async ct =>
             {
@@ -108,11 +109,14 @@ internal static class WindowsServicePorts
     /// <param name="paths">File locations.</param>
     /// <returns>The handlers.</returns>
     public static IReadOnlyList<IReversibleChangeHandler> CreateChangeHandlers(string installId, BlockerPaths paths) =>
+        CreateChangeHandlers(installId, paths, new ScmServiceSecurity());
+
+    internal static IReadOnlyList<IReversibleChangeHandler> CreateChangeHandlers(string installId, BlockerPaths paths, IServiceSecurity serviceSecurity) =>
     [
         new IfeoChangeHandler(installId, CriticalImageNames()),
         new RegistryPolicyChangeHandler(installId),
         new NtfsDenyWriteChangeHandler(paths.ProtectedDirectories),
-        new ServiceDaclChangeHandler(),
+        new ServiceDaclChangeHandler(serviceSecurity, RestrictedServices.ToDictionary(static name => name, static _ => ServiceSddl.ScmDefaultDacl)),
     ];
 
     private static string[] CriticalImageNames() => [.. CriticalProcesses.KnownImageNames.Select(static n => n + ".exe")];

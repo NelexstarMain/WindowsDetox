@@ -173,7 +173,15 @@ public sealed class RollbackJournal(
     private async ValueTask<List<JournalEntry>?> LoadAsync(CancellationToken cancellationToken)
     {
         JournalDocument? document = await store.ReadJsonAsync(journalPath, JournalJsonContext.Default.JournalDocument, cancellationToken).ConfigureAwait(false);
-        return document?.Entries.OrderBy(e => e.Sequence).ToList();
+        if (document is null)
+        {
+            return null;
+        }
+
+        // A validly sealed but foreign document is as unusable as a damaged one; the callers fall back to the marker sweep.
+        return document.Version != FormatVersion || document.Entries is null
+            ? throw new JsonException($"Unsupported rollback journal document (version {document.Version}).")
+            : document.Entries.OrderBy(e => e.Sequence).ToList();
     }
 
     private async ValueTask<List<JournalEntry>> LoadForApplyAsync(CancellationToken cancellationToken)
