@@ -25,9 +25,13 @@ internal sealed class UiVisualBuilder
     private const double CardContentGap = 12;
     private const double FlatContentGap = 10;
     private const double PageGap = 16;
+    private const double MonthCellChipsHeight = 98;
+    private const double MonthCellNumberRowHeight = 31;
+    private const double MonthCellChipsBottomPadding = 3;
 
     private readonly Action<UiAction> _raise;
     private readonly bool _flat;
+    private readonly TimeGridViewState _timeGridState;
 
     /// <summary>Initializes a new instance of the <see cref="UiVisualBuilder"/> class.</summary>
     /// <param name="raise">Called when the user interacts with a button, toggle or form.</param>
@@ -36,10 +40,12 @@ internal sealed class UiVisualBuilder
     /// border, background, padding or header (title, subtitle and icon are always dropped, the host draws the identity), and stat
     /// tiles render as value and label without a tile.
     /// </param>
-    public UiVisualBuilder(Action<UiAction> raise, bool flat = false)
+    /// <param name="timeGridState">View state that survives re-renders (time grid scroll position); a fresh one when omitted.</param>
+    public UiVisualBuilder(Action<UiAction> raise, bool flat = false, TimeGridViewState? timeGridState = null)
     {
         _raise = raise;
         _flat = flat;
+        _timeGridState = timeGridState ?? new TimeGridViewState();
     }
 
     /// <summary>Builds the visual for <paramref name="node"/>.</summary>
@@ -60,6 +66,7 @@ internal sealed class UiVisualBuilder
         UiDonutChart donut => BuildDonutChart(donut),
         UiHeatmap heatmap => BuildHeatmap(heatmap),
         UiMonthGrid month => BuildMonthGrid(month),
+        UiTimeGrid timeGrid => BuildTimeGrid(timeGrid),
         UiGlyph glyph => BuildGlyph(glyph),
         UiTable table => BuildTable(table),
         UiButton button => BuildButton(button),
@@ -175,6 +182,12 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildCard(UiCard card)
     {
+        StackPanel stack = BuildCardStack(card);
+        return _flat ? stack : Styled(new Border { Child = stack }, "Blocker.CardBorder");
+    }
+
+    private StackPanel BuildCardStack(UiCard card)
+    {
         var stack = new StackPanel();
         bool hasHeader = !_flat && (card.Title is not null || card.Subtitle is not null || card.Icon is not null);
         if (hasHeader)
@@ -195,7 +208,7 @@ internal sealed class UiVisualBuilder
             stack.Children.Add(element);
         }
 
-        return _flat ? stack : Styled(new Border { Child = stack }, "Blocker.CardBorder");
+        return stack;
     }
 
     private static FrameworkElement BuildCardHeader(UiCard card)
@@ -614,6 +627,7 @@ internal sealed class UiVisualBuilder
             grid.Children.Add(label);
         }
 
+        bool tall = !compact && month.Cells.Any(c => c.Chips is { Count: > 0 });
         for (int i = 0; i < month.Cells.Count; i++)
         {
             int row = (i / 7) + 1;
@@ -622,7 +636,7 @@ internal sealed class UiVisualBuilder
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             }
 
-            Button cell = BuildMonthCell(month.Cells[i], compact);
+            Button cell = BuildMonthCell(month.Cells[i], compact, tall);
             Grid.SetRow(cell, row);
             Grid.SetColumn(cell, i % 7);
             grid.Children.Add(cell);
@@ -673,10 +687,11 @@ internal sealed class UiVisualBuilder
         return button;
     }
 
-    private Button BuildMonthCell(UiMonthCell cell, bool compact)
+    private Button BuildMonthCell(UiMonthCell cell, bool compact, bool tall)
     {
-        double height = compact ? 30 : 46;
-        double badge = compact ? 22 : 28;
+        bool chips = !compact && cell.Chips is { Count: > 0 };
+        double height = compact ? 30 : tall ? MonthCellChipsHeight : 46;
+        double badge = compact ? 22 : chips ? 24 : 28;
         var button = new Button
         {
             Height = height,
@@ -694,9 +709,15 @@ internal sealed class UiVisualBuilder
             button.SetResourceReference(Control.BorderBrushProperty, "Blocker.Border.Strong");
         }
 
+        if (tall)
+        {
+            button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            button.VerticalContentAlignment = VerticalAlignment.Stretch;
+        }
+
         var layout = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
-        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        layout.RowDefinitions.Add(new RowDefinition { Height = chips || tall ? GridLength.Auto : new GridLength(1, GridUnitType.Star) });
+        layout.RowDefinitions.Add(new RowDefinition { Height = chips || tall ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
 
         var number = new TextBlock
         {
@@ -714,7 +735,21 @@ internal sealed class UiVisualBuilder
             face = circle;
         }
 
+        if (tall)
+        {
+            face.VerticalAlignment = VerticalAlignment.Top;
+            face.Margin = new Thickness(0, 4, 0, 3);
+        }
+
         layout.Children.Add(face);
+
+        if (chips)
+        {
+            FrameworkElement chipPanel = BuildMonthChips(cell);
+            Grid.SetRow(chipPanel, 1);
+            layout.Children.Add(chipPanel);
+            return FinishMonthCell(button, layout, cell);
+        }
 
         var dots = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Height = compact ? 5 : 7, Margin = new Thickness(0, 0, 0, compact ? 2 : 4) };
         double dot = compact ? 3 : 4;
@@ -726,8 +761,19 @@ internal sealed class UiVisualBuilder
             dots.Children.Add(mark);
         }
 
+        if (tall)
+        {
+            dots.VerticalAlignment = VerticalAlignment.Top;
+            dots.Margin = new Thickness(0);
+        }
+
         Grid.SetRow(dots, 1);
         layout.Children.Add(dots);
+        return FinishMonthCell(button, layout, cell);
+    }
+
+    private Button FinishMonthCell(Button button, Grid layout, UiMonthCell cell)
+    {
         button.Content = layout;
 
         string name = cell.Description ?? cell.Day.ToString(CultureInfo.InvariantCulture);
@@ -742,6 +788,57 @@ internal sealed class UiVisualBuilder
         button.Click += (_, _) => _raise(UiAction.Click(id));
         return button;
     }
+
+    private static FrameworkElement BuildMonthChips(UiMonthCell cell)
+    {
+        IReadOnlyList<string> titles = cell.Chips!;
+        double room = MonthCellChipsHeight - 2 - MonthCellNumberRowHeight - MonthCellChipsBottomPadding;
+        int visible = MonthChipMath.VisibleChips(titles.Count, room);
+        var panel = new StackPanel { Margin = new Thickness(4, 0, 4, MonthCellChipsBottomPadding), Opacity = cell.IsOutside ? 0.45 : 1 };
+        for (int i = 0; i < visible; i++)
+        {
+            var bar = new Border { Width = 3, CornerRadius = new CornerRadius(2, 0, 0, 2) };
+            bar.SetResourceReference(Border.BackgroundProperty, cell.Tone == UiTone.Accent ? "Blocker.Accent.Bar" : ToneMap.FillKey(cell.Tone));
+            DockPanel.SetDock(bar, Dock.Left);
+            var text = new TextBlock
+            {
+                Text = titles[i],
+                FontSize = 11,
+                Margin = new Thickness(5, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            text.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Text.Caption");
+            text.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Primary");
+            var chip = new Border
+            {
+                Height = MonthChipMath.ChipHeight,
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(0, i == 0 ? 0 : MonthChipMath.ChipGap, 0, 0),
+                Child = new DockPanel { Children = { bar, text } },
+            };
+            chip.SetResourceReference(Border.BackgroundProperty, ToneMap.SoftKey(cell.Tone));
+            panel.Children.Add(chip);
+        }
+
+        if (visible < titles.Count)
+        {
+            TextBlock more = Caption("+" + (titles.Count - visible).ToString(CultureInfo.InvariantCulture));
+            more.FontSize = 11;
+            more.Height = MonthChipMath.OverflowHeight;
+            more.Margin = new Thickness(4, MonthChipMath.ChipGap, 0, 0);
+            more.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Muted");
+            panel.Children.Add(more);
+        }
+
+        return panel;
+    }
+
+    private FrameworkElement BuildTimeGrid(UiTimeGrid grid) => new TimeGridElement(grid, _raise, BuildPopoverContent, _timeGridState);
+
+    // A popover is already a floating card, so a card root contributes its header and children without a second border.
+    private FrameworkElement BuildPopoverContent(UiNode node) => node is UiCard card ? BuildCardStack(card) : Build(node, insideCard: true);
 
     private static FrameworkElement BuildGlyph(UiGlyph glyph)
     {
