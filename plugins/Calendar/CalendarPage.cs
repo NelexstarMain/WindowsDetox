@@ -142,18 +142,19 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
         }
     }
 
-    // One compact row: Today and the arrows, the period, the view switch (the current view is the filled one).
+    // One compact row: Today and the arrows, the view switch (the current view is the filled one), then the period. The period is last because
+    // its text length changes with the view and date; anything after it would shift sideways on every navigation.
     private static UiNode Header(CalendarMode mode, string title) => new UiStack(
         [
             Ui.Row(
                 Ui.Button(CalendarIds.Today, "Today", UiButtonVariant.Secondary),
                 Ui.Button(CalendarIds.Prev, "‹", UiButtonVariant.Subtle),
                 Ui.Button(CalendarIds.Next, "›", UiButtonVariant.Subtle)),
-            Ui.Text(title, UiTextStyle.Subtitle),
             Ui.Row(
                 ModeButton(CalendarMode.Day, "Day", mode),
                 ModeButton(CalendarMode.Week, "Week", mode),
                 ModeButton(CalendarMode.Month, "Month", mode)),
+            Ui.Text(title, UiTextStyle.Subtitle),
         ],
         UiOrientation.Horizontal,
         UiGap.Large);
