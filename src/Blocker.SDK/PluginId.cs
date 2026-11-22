@@ -56,6 +56,6 @@ public readonly partial record struct PluginId
     /// <inheritdoc/>
     public override string ToString() => Value ?? string.Empty;
 
-    [GeneratedRegex("^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*){1,4}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*){1,4}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex IdPattern();
 }

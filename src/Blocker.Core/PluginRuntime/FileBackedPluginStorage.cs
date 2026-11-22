@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Abstractions;
 using System.Text.Json;
 using Blocker.Core.Security;
@@ -8,17 +9,22 @@ namespace Blocker.Core.PluginRuntime;
 
 /// <summary>
 /// <see cref="IPluginStorage"/> persisted as one JSON file. Same rules as the testing fake: keys are validated with
-/// <see cref="PluginStorageKey"/> and the quota counts <c>(key length + value length) * 2</c> bytes per entry. Every write
-/// replaces the file atomically (temp file, flush, move) and the in-memory state only changes once the file is durable.
+/// <see cref="PluginStorageKey"/>, values must be well-formed UTF-16 and the quota counts the UTF-8 size of the
+/// JSON-escaped key and value per entry. Every write replaces the file atomically (temp file, flush, move) and the
+/// in-memory state only changes once the file is durable. A file that does not parse is never overwritten: it is renamed
+/// to <c>storage.json.{UTC yyyyMMddHHmmss}.bad</c> (the three newest copies are kept) and the storage starts empty.
 /// </summary>
 public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposable
 {
     /// <summary>Default quota: 1 MiB.</summary>
     public const long DefaultQuotaBytes = 1024 * 1024;
 
+    private const int KeptDamagedCopies = 3;
+
     private readonly IFileSystem _fileSystem;
     private readonly string _path;
     private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Dictionary<string, string>? _items;
     private long _usedBytes;
@@ -28,7 +34,8 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
     /// <param name="path">Path of <c>storage.json</c>.</param>
     /// <param name="logger">Logger for damaged files.</param>
     /// <param name="quotaBytes">Maximum total size of all keys and values, in bytes.</param>
-    public FileBackedPluginStorage(IFileSystem fileSystem, string path, ILogger logger, long quotaBytes = DefaultQuotaBytes)
+    /// <param name="timeProvider">Clock for the names of set-aside damaged files; defaults to the system clock.</param>
+    public FileBackedPluginStorage(IFileSystem fileSystem, string path, ILogger logger, long quotaBytes = DefaultQuotaBytes, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(fileSystem);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -37,6 +44,7 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
         _fileSystem = fileSystem;
         _path = path;
         _logger = logger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         QuotaBytes = quotaBytes;
     }
 
@@ -63,6 +71,7 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
     {
         PluginStorageKey.ThrowIfInvalid(key);
         ArgumentNullException.ThrowIfNull(value);
+        PluginStorageSize.ThrowIfMalformed(value, nameof(value));
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -122,7 +131,7 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
     /// <inheritdoc/>
     public void Dispose() => _gate.Dispose();
 
-    private static long Size(string key, string value) => ((long)key.Length + value.Length) * 2;
+    private static long Size(string key, string value) => PluginStorageSize.Of(key, value);
 
     // Writes the changed map first; only a durable file changes the in-memory state.
     private async ValueTask CommitAsync(Dictionary<string, string> items, string key, string? value, long usedBytes, CancellationToken cancellationToken)
@@ -137,17 +146,23 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
             next[key] = value;
         }
 
+        byte[] json;
         try
         {
-            await AtomicFile.WriteAsync(
-                _fileSystem,
-                _path,
-                JsonSerializer.SerializeToUtf8Bytes(next, PluginRuntimeJsonContext.Default.DictionaryStringString),
-                cancellationToken).ConfigureAwait(false);
+            json = JsonSerializer.SerializeToUtf8Bytes(next, PluginRuntimeJsonContext.Default.DictionaryStringString);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            throw new PluginStorageException("The storage content could not be encoded.", ex);
+        }
+
+        try
+        {
+            await AtomicFile.WriteAsync(_fileSystem, _path, json, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new PluginStorageException("The storage could not be written.");
+            throw new PluginStorageException("The storage could not be written.", ex);
         }
 
         _items = next;
@@ -164,12 +179,22 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
         Dictionary<string, string> items = new(StringComparer.Ordinal);
         if (_fileSystem.File.Exists(_path))
         {
+            byte[] bytes;
             try
             {
-                byte[] bytes = await _fileSystem.File.ReadAllBytesAsync(_path, cancellationToken).ConfigureAwait(false);
+                bytes = await _fileSystem.File.ReadAllBytesAsync(_path, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new PluginStorageException("The storage could not be read.", ex);
+            }
+
+            try
+            {
                 foreach ((string key, string value) in JsonSerializer.Deserialize(bytes, PluginRuntimeJsonContext.Default.DictionaryStringString) ?? [])
                 {
-                    if (PluginStorageKey.IsValid(key) && value is not null)
+                    // A value with an unpaired surrogate (possible via a \ud800 escape) could never be written back.
+                    if (PluginStorageKey.IsValid(key) && value is not null && PluginStorageSize.IsWellFormed(value))
                     {
                         items[key] = value;
                     }
@@ -177,7 +202,7 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
             }
             catch (JsonException ex)
             {
-                LogDamaged(_logger, ex);
+                SetDamagedFileAside(ex);
                 items.Clear();
             }
         }
@@ -187,6 +212,44 @@ public sealed partial class FileBackedPluginStorage : IPluginStorage, IDisposabl
         return items;
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin storage file is damaged; starting empty.")]
-    private static partial void LogDamaged(ILogger logger, Exception exception);
+    // The next write replaces storage.json, so the damaged content has to be moved out of the way first.
+    private void SetDamagedFileAside(JsonException cause)
+    {
+        string copy = string.Create(CultureInfo.InvariantCulture, $"{_path}.{_timeProvider.GetUtcNow():yyyyMMddHHmmss}.bad");
+        try
+        {
+            _fileSystem.File.Move(_path, copy);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new PluginStorageException("The damaged storage file could not be set aside.", ex);
+        }
+
+        LogDamaged(_logger, copy, cause);
+        PruneDamagedCopies();
+    }
+
+    private void PruneDamagedCopies()
+    {
+        string directory = _fileSystem.Path.GetDirectoryName(_path) ?? string.Empty;
+        string pattern = $"{_fileSystem.Path.GetFileName(_path)}.*.bad";
+        try
+        {
+            // The UTC timestamp in the name sorts chronologically.
+            foreach (string old in _fileSystem.Directory.GetFiles(directory, pattern).OrderByDescending(f => f, StringComparer.Ordinal).Skip(KeptDamagedCopies))
+            {
+                _fileSystem.File.Delete(old);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogPruneFailed(_logger, ex);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Plugin storage file is damaged; moved it to {CopyPath} and starting empty.")]
+    private static partial void LogDamaged(ILogger logger, string copyPath, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Old damaged plugin storage copies could not be deleted.")]
+    private static partial void LogPruneFailed(ILogger logger, Exception exception);
 }

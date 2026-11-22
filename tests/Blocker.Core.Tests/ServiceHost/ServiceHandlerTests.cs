@@ -1,3 +1,4 @@
+using System.IO.Abstractions.TestingHelpers;
 using System.Text.Json;
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
@@ -217,6 +218,25 @@ public sealed class ServiceHandlerTests
     }
 
     // ---- plugins ----
+
+    [Fact]
+    public async Task A_failed_plugin_removal_reports_no_host_paths_and_keeps_the_plugin_listed()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient admin = await h.ConnectAsync(Admin);
+        _ = await InstallAsync(admin, Package());
+        string stuck = h.Fs.Path.Combine(h.Paths.PluginDataDirectory, "com.test.sample", "storage.json");
+        h.Fs.AddFile(stuck, new MockFileData("{}") { AllowedFileShare = FileShare.None });
+        h.Fs.File.SetAttributes(stuck, FileAttributes.ReadOnly);
+
+        OperationResponse removed = await admin.InvokeAsync<RemovePluginRequest, OperationResponse>(IpcMethods.PluginsRemove, new RemovePluginRequest("com.test.sample"), Ct);
+
+        Assert.False(removed.Success);
+        string error = Assert.Single(removed.Errors);
+        Assert.DoesNotContain(h.Paths.PluginDataDirectory, error, StringComparison.Ordinal);
+        Assert.DoesNotContain("storage.json", error, StringComparison.Ordinal);
+        Assert.Single((await admin.InvokeAsync<ListPluginsResponse>(IpcMethods.PluginsList, Ct)).Plugins);
+    }
 
     [Fact]
     public async Task A_plugin_is_installed_listed_disabled_and_removed()

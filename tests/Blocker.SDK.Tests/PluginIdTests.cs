@@ -25,6 +25,7 @@ public class PluginIdTests
     [InlineData("com.exämple")]
     [InlineData("com.example_app")]
     [InlineData("com.example app")]
+    [InlineData("com.example\n")]
     public void IsValid_InvalidId_ReturnsFalse(string? value) => Assert.False(PluginId.IsValid(value));
 
     [Fact]

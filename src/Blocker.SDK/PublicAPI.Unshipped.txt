@@ -295,6 +295,7 @@ Blocker.Sdk.Storage.IPluginStorage.ReadAsync(string! key, System.Threading.Cance
 Blocker.Sdk.Storage.IPluginStorage.WriteAsync(string! key, string! value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Blocker.Sdk.Storage.PluginStorageException
 Blocker.Sdk.Storage.PluginStorageException.PluginStorageException(string! message) -> void
+Blocker.Sdk.Storage.PluginStorageException.PluginStorageException(string! message, System.Exception! innerException) -> void
 Blocker.Sdk.Storage.PluginStorageExtensions
 Blocker.Sdk.Storage.PluginStorageKey
 const Blocker.Sdk.BlockerSdk.CallbackBudgetMilliseconds = 50 -> int

@@ -13,5 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Blocker.SDK.Tests" />
+    <InternalsVisibleTo Include="Blocker.Core" />
+    <InternalsVisibleTo Include="Blocker.Plugin.Testing" />
   </ItemGroup>
 </Project>

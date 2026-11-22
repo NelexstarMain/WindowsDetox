@@ -25,6 +25,9 @@ public sealed record StoredPlugin(PluginId Id, bool Enabled);
 /// <param name="dataRoot">Directory holding one data subdirectory per plugin.</param>
 public sealed class PluginStore(IFileSystem fileSystem, string root, string dataRoot)
 {
+    private readonly Lock _storageGate = new();
+    private readonly Dictionary<string, FileBackedPluginStorage> _storages = new(StringComparer.Ordinal);
+
     /// <summary>File name of the installed ZIP.</summary>
     public const string PackageFileName = "package.zip";
 
@@ -89,23 +92,19 @@ public sealed class PluginStore(IFileSystem fileSystem, string root, string data
         return true;
     }
 
-    /// <summary>Deletes a plugin and its data.</summary>
+    /// <summary>
+    /// Deletes a plugin and its data. The data goes first: when a deletion fails the package is still there, so the plugin
+    /// stays listed and the removal can be retried, instead of leaving data that a reinstall of the same id would inherit.
+    /// </summary>
     /// <param name="id">Plugin id.</param>
     /// <returns><see langword="true"/> when something was removed.</returns>
     public bool Remove(PluginId id)
     {
         RequireValid(id);
-        bool removed = false;
-        foreach (string directory in new[] { PluginDirectory(id), DataDirectory(id) })
-        {
-            if (fileSystem.Directory.Exists(directory))
-            {
-                fileSystem.Directory.Delete(directory, recursive: true);
-                removed = true;
-            }
-        }
-
-        return removed;
+        DropStorage(id);
+        bool removedData = DeleteDirectory(DataDirectory(id));
+        bool removedPackage = DeleteDirectory(PluginDirectory(id));
+        return removedData || removedPackage;
     }
 
     /// <summary>Reads the installed ZIP.</summary>
@@ -142,13 +141,30 @@ public sealed class PluginStore(IFileSystem fileSystem, string root, string data
     /// <returns>The path.</returns>
     public string StoragePath(PluginId id) => fileSystem.Path.Combine(DataDirectory(id), StorageFileName);
 
-    /// <summary>Opens the plugin's key/value storage (the file is read on first use).</summary>
+    /// <summary>
+    /// Opens the plugin's key/value storage (the file is read on first use). Every call for one id returns the same
+    /// instance until the plugin is removed, so overlapping plugin loads share the cache, the write gate and the quota.
+    /// The store owns the instance: do not dispose it. <paramref name="logger"/> and <paramref name="quotaBytes"/> of the
+    /// first call win.
+    /// </summary>
     /// <param name="id">Plugin id.</param>
     /// <param name="logger">Logger for damaged files.</param>
     /// <param name="quotaBytes">Quota in bytes.</param>
-    /// <returns>The storage; dispose it when the plugin is unloaded.</returns>
-    public FileBackedPluginStorage OpenStorage(PluginId id, ILogger logger, long quotaBytes = FileBackedPluginStorage.DefaultQuotaBytes) =>
-        new(fileSystem, StoragePath(id), logger, quotaBytes);
+    /// <returns>The storage.</returns>
+    public FileBackedPluginStorage OpenStorage(PluginId id, ILogger logger, long quotaBytes = FileBackedPluginStorage.DefaultQuotaBytes)
+    {
+        string path = StoragePath(id);
+        lock (_storageGate)
+        {
+            if (!_storages.TryGetValue(id.Value, out FileBackedPluginStorage? storage))
+            {
+                storage = new FileBackedPluginStorage(fileSystem, path, logger, quotaBytes);
+                _storages.Add(id.Value, storage);
+            }
+
+            return storage;
+        }
+    }
 
     private static void RequireValid(PluginId id)
     {
@@ -156,6 +172,29 @@ public sealed class PluginStore(IFileSystem fileSystem, string root, string data
         {
             throw new ArgumentException("The plugin id is not initialized.", nameof(id));
         }
+    }
+
+    // The cached instance holds the data in memory; it must not outlive the files it mirrors.
+    private void DropStorage(PluginId id)
+    {
+        FileBackedPluginStorage? storage;
+        lock (_storageGate)
+        {
+            _ = _storages.Remove(id.Value, out storage);
+        }
+
+        storage?.Dispose();
+    }
+
+    private bool DeleteDirectory(string directory)
+    {
+        if (!fileSystem.Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        fileSystem.Directory.Delete(directory, recursive: true);
+        return true;
     }
 
     private string PackagePath(PluginId id) => fileSystem.Path.Combine(PluginDirectory(id), PackageFileName);
