@@ -78,9 +78,9 @@ public abstract class GoalsContribution : IUiContribution
             && int.TryParse(elementId.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out id);
     }
 
-    /// <summary>The "done" toggle of a task; a done task also reads "Done" as secondary text.</summary>
+    /// <summary>The "done" toggle of a task. It has no caption in either state, so ticking a task never changes the height of its row.</summary>
     protected static UiToggle DoneToggle(TaskItem task) =>
-        Ui.Toggle(DoneIdPrefix + task.Id.ToString(CultureInfo.InvariantCulture), task.Text, task.Done, task.Done ? "Done" : null);
+        Ui.Toggle(DoneIdPrefix + task.Id.ToString(CultureInfo.InvariantCulture), task.Text, task.Done);
 }
 
 /// <summary>The Goals page. Requires "ui.page".</summary>

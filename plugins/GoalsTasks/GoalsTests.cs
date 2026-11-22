@@ -536,7 +536,7 @@ public sealed class GoalsTests
         Assert.True(UiTreeValidator.Validate(page).IsValid);
         UiToggle[] toggles = [.. Descendants(page).OfType<UiToggle>()];
         Assert.Equal(
-            [new UiToggle("goals-done-1", "Write report", false), new UiToggle("goals-done-2", "Call mum", true, "Done")],
+            [new UiToggle("goals-done-1", "Write report", false), new UiToggle("goals-done-2", "Call mum", true)],
             toggles);
         Assert.Equal(["goals-del-1", "goals-del-2"], Descendants(page).OfType<UiButton>().Where(b => b.Id.StartsWith("goals-del-", StringComparison.Ordinal)).Select(b => b.Id));
         Assert.Equal("Clear completed", Button(page, GoalsPage.ClearButtonId).Label);
