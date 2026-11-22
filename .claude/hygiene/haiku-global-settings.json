@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "disableAllHooks": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(~/.claude/preferences.md)"
+    ],
+    "deny": [
+      "Bash",
+      "Write",
+      "NotebookEdit",
+      "Agent",
+      "WebFetch",
+      "WebSearch",
+      "AskUserQuestion",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)"
+    ]
+  }
+}

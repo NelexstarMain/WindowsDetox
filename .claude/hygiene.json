@@ -1,0 +1,15 @@
+{
+  "extra_test_commands": [
+    "dotnet test --solution WindowsDetox.slnx",
+    "eng/build-installer.sh"
+  ],
+  "extra_ignored_paths": [
+    "site/**",
+    "docs/**",
+    "eng/*.py",
+    "**/PublicAPI.*.txt",
+    "**/*.png",
+    "**/*.svg"
+  ],
+  "disable_tdd_gate": false
+}
