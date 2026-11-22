@@ -201,6 +201,31 @@ public enum UiIcon
 
     /// <summary>Trophy.</summary>
     Trophy,
+
+    /// <summary>Pencil.</summary>
+    Edit,
+
+    /// <summary>Two stacked sheets.</summary>
+    Copy,
+
+    /// <summary>Bin.</summary>
+    Delete,
+}
+
+/// <summary>How a <see cref="UiFormField"/> is drawn.</summary>
+public enum UiFieldStyle
+{
+    /// <summary>A labelled field.</summary>
+    Standard,
+
+    /// <summary>A large borderless text input with an underline and no visible label; only on <see cref="UiTextField"/>.</summary>
+    Title,
+
+    /// <summary>A short text input; consecutive compact fields share one line, joined by a dash; only on <see cref="UiTextField"/>.</summary>
+    Compact,
+
+    /// <summary>Options as a row of chips instead of a drop-down; only on <see cref="UiSelectField"/> with 2 to 4 options.</summary>
+    Chips,
 }
 
 /// <summary>Kind of user interaction reported in a <see cref="UiAction"/>.</summary>

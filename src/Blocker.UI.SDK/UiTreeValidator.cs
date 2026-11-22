@@ -37,6 +37,7 @@ public static partial class UiTreeValidator
     private const int MonthGridColumns = 7;
     private const int MaxMonthMarkers = 99;
     private const int MaxMonthChips = 4;
+    private const int MaxChipOptions = 4;
     private const int MinutesPerDay = 1440;
 
     /// <summary>Checks SVG path data as accepted for <see cref="UiGlyph"/> and plugin icons: 1-4096 characters of path commands, numbers, spaces and commas.</summary>
@@ -256,11 +257,7 @@ public static partial class UiTreeValidator
                     Table(table);
                     break;
                 case UiButton button:
-                    Id(button.Id);
-                    RequiredText(button.Label, "UiButton.Label");
-                    Defined(button.Variant, "UiButton.Variant");
-                    OptionalIcon(button.Icon, "UiButton.Icon");
-                    OptionalText(button.ShortLabel, "UiButton.ShortLabel");
+                    Button(button);
                     break;
                 case UiToggle toggle:
                     Id(toggle.Id);
@@ -605,10 +602,28 @@ public static partial class UiTreeValidator
             }
         }
 
+        private void Button(UiButton button)
+        {
+            Id(button.Id);
+            RequiredText(button.Label, "UiButton.Label");
+            Defined(button.Variant, "UiButton.Variant");
+            OptionalIcon(button.Icon, "UiButton.Icon");
+            OptionalText(button.ShortLabel, "UiButton.ShortLabel");
+            if (button.IconOnly && button.Icon is null)
+            {
+                Errors.Add("UiButton.IconOnly requires an Icon.");
+            }
+        }
+
         private void Form(UiForm form)
         {
             Id(form.Id);
             RequiredText(form.SubmitLabel, "UiForm.SubmitLabel");
+            if (form.FooterAction is { } footer)
+            {
+                Button(footer);
+            }
+
             if (form.Fields is null || form.Fields.Count is 0 || form.Fields.Count > limits.MaxItems)
             {
                 Errors.Add($"UiForm.Fields must contain 1-{limits.MaxItems} fields.");
@@ -630,6 +645,7 @@ public static partial class UiTreeValidator
 
                 Id(field.Id);
                 RequiredText(field.Label, "UiFormField.Label");
+                FieldStyle(field);
                 switch (field)
                 {
                     case UiTextField text:
@@ -682,10 +698,30 @@ public static partial class UiTreeValidator
                         break;
                     case UiCheckboxField:
                         break;
+                    case UiNoteField note:
+                        RequiredText(note.Text, "UiNoteField.Text");
+                        OptionalText(note.Detail, "UiNoteField.Detail");
+                        OptionalIcon(note.Icon, "UiNoteField.Icon");
+                        break;
                     default:
                         Errors.Add($"Unsupported form field type '{field.GetType().Name}'.");
                         break;
                 }
+            }
+        }
+
+        private void FieldStyle(UiFormField field)
+        {
+            Defined(field.Style, "UiFormField.Style");
+            bool allowed = field.Style switch
+            {
+                UiFieldStyle.Title or UiFieldStyle.Compact => field is UiTextField,
+                UiFieldStyle.Chips => field is UiSelectField { Options.Count: >= 2 and <= MaxChipOptions },
+                _ => true,
+            };
+            if (!allowed)
+            {
+                Errors.Add($"UiFormField.Style '{field.Style}' does not fit {field.GetType().Name} (Title and Compact need a text field, Chips a select with 2-{MaxChipOptions} options).");
             }
         }
 

@@ -329,4 +329,60 @@ public class UiTreeValidatorTests
     [Fact]
     public void Validate_MonthGridCellsCountTowardsTheNodeBudget() =>
         AssertSingleError(In(Ui.MonthGrid(Weekdays, Cells(14))), "Tree exceeds the maximum of 10 nodes.", new UiLimits(MaxDepth: 16, MaxNodes: 10, MaxTextLength: 2000, MaxItems: 500));
+
+    [Fact]
+    public void Validate_FieldStylesOnTheirFieldTypes_AreValid() =>
+        Assert.Empty(UiTreeValidator.Validate(
+            In(Ui.Form(
+                "f",
+                "Save",
+                new UiTextField("t", "T") { Style = UiFieldStyle.Title },
+                new UiTextField("a", "A") { Style = UiFieldStyle.Compact },
+                new UiSelectField("s", "S", [new UiOption("a", "A"), new UiOption("b", "B")]) { Style = UiFieldStyle.Chips },
+                new UiNoteField("n", "Note", "When", "Detail", UiIcon.Clock)))).Errors);
+
+    [Theory]
+    [InlineData(UiFieldStyle.Title)]
+    [InlineData(UiFieldStyle.Compact)]
+    public void Validate_TextStyleOnASelect_Fails(UiFieldStyle style) =>
+        Assert.False(UiTreeValidator.Validate(
+            In(Ui.Form("f", "Save", new UiSelectField("s", "S", [new UiOption("a", "A")]) { Style = style }))).IsValid);
+
+    [Fact]
+    public void Validate_ChipsOnATextField_Fails() =>
+        Assert.False(UiTreeValidator.Validate(In(Ui.Form("f", "Save", new UiTextField("t", "T") { Style = UiFieldStyle.Chips }))).IsValid);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void Validate_ChipsWithTooFewOrTooManyOptions_Fails(int count) =>
+        Assert.False(UiTreeValidator.Validate(
+            In(Ui.Form(
+                "f",
+                "Save",
+                new UiSelectField("s", "S", [.. Enumerable.Range(0, count).Select(i => new UiOption("o" + i, "O" + i))]) { Style = UiFieldStyle.Chips }))).IsValid);
+
+    [Fact]
+    public void Validate_UndefinedFieldStyle_Fails() =>
+        Assert.False(UiTreeValidator.Validate(In(Ui.Form("f", "Save", new UiTextField("t", "T") { Style = (UiFieldStyle)99 }))).IsValid);
+
+    [Fact]
+    public void Validate_NoteWithoutText_Fails() =>
+        AssertSingleError(In(Ui.Form("f", "Save", new UiNoteField("n", "Note", " "))), "UiNoteField.Text is required.");
+
+    [Fact]
+    public void Validate_FormFooterActionIsAButtonWithAUniqueId()
+    {
+        Assert.True(UiTreeValidator.Validate(In(new UiForm("f", [new UiTextField("t", "T")], "Save") { FooterAction = Ui.Button("more", "More") })).IsValid);
+        AssertSingleError(
+            In(new UiForm("f", [new UiTextField("t", "T")], "Save") { FooterAction = Ui.Button("t", "More") }),
+            "Element id 't' is used more than once.");
+    }
+
+    [Fact]
+    public void Validate_IconOnlyButtonNeedsAnIcon()
+    {
+        Assert.True(UiTreeValidator.Validate(In(new UiButton("b", "Edit", Icon: UiIcon.Edit) { IconOnly = true })).IsValid);
+        AssertSingleError(In(new UiButton("b", "Edit") { IconOnly = true }), "UiButton.IconOnly requires an Icon.");
+    }
 }
