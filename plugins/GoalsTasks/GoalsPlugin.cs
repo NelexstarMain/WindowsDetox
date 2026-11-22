@@ -281,11 +281,11 @@ public sealed class GoalsSettings(GoalsStore store) : GoalsContribution(store), 
             ? Ui.Button(ResetButtonId, "Reset today? Click again", UiButtonVariant.Warning, UiIcon.Warning)
             : Ui.Button(ResetButtonId, "Reset today", UiButtonVariant.Secondary, UiIcon.Dismiss);
         return ValueTask.FromResult<UiNode>(Ui.Column(
-            Ui.Text($"Default daily goal: {GoalsFormat.Count(goal, "task")}"),
-            Ui.Text("Used for every day without its own goal; change today's goal on the Goals page.", UiTextStyle.Caption),
             Ui.Row(
-                new UiButton(DefaultDownId, "Default -1", UiButtonVariant.Secondary, IsEnabled: goal > GoalsLimits.MinGoal),
-                new UiButton(DefaultUpId, "Default +1", UiButtonVariant.Secondary, IsEnabled: goal < GoalsLimits.MaxGoal)),
+                Ui.Text($"Default daily goal: {GoalsFormat.Count(goal, "task")}"),
+                new UiButton(DefaultDownId, "Default -1", UiButtonVariant.Secondary, IsEnabled: goal > GoalsLimits.MinGoal, ShortLabel: "\u2212"),
+                new UiButton(DefaultUpId, "Default +1", UiButtonVariant.Secondary, IsEnabled: goal < GoalsLimits.MaxGoal, ShortLabel: "+")),
+            Ui.Text("Used for every day without its own goal; change today's goal on the Goals page.", UiTextStyle.Caption),
             Ui.Text("Reset today removes all of today's tasks and today's own goal.", UiTextStyle.Caption),
             reset));
     }

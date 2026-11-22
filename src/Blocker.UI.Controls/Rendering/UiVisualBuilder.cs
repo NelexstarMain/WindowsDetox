@@ -135,7 +135,7 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildPage(UiPage page)
     {
-        var root = new StackPanel { Margin = new Thickness(28, 24, 28, 32) };
+        var root = new StackPanel();
         root.Children.Add(Styled(new TextBlock { Text = page.Title }, "Blocker.Text.Title"));
         if (!string.IsNullOrWhiteSpace(page.Subtitle))
         {
@@ -350,9 +350,12 @@ internal sealed class UiVisualBuilder
 
         TextBlock value = Styled(new TextBlock { Text = tile.Value, Margin = new Thickness(0, 6, 0, 0) }, "Blocker.Text.Mono");
         value.FontSize = 28;
-        value.FontWeight = FontWeights.SemiBold;
         value.TextTrimming = TextTrimming.CharacterEllipsis;
-        if (tile.Tone != UiTone.Neutral)
+
+        // A word such as "Now" or "None" is a state, not a measurement: it keeps the normal weight and colour.
+        bool numeric = tile.Value.Any(char.IsDigit);
+        value.FontWeight = numeric ? FontWeights.SemiBold : FontWeights.Normal;
+        if (numeric && tile.Tone != UiTone.Neutral)
         {
             value.SetResourceReference(TextBlock.ForegroundProperty, ToneMap.ForegroundKey(tile.Tone));
         }
@@ -630,6 +633,7 @@ internal sealed class UiVisualBuilder
         var legend = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         TextBlock less = Caption("Less");
         less.FontSize = 10;
+        less.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
         less.Margin = new Thickness(0, 0, 6, 0);
         less.VerticalAlignment = VerticalAlignment.Center;
         legend.Children.Add(less);
@@ -642,6 +646,7 @@ internal sealed class UiVisualBuilder
 
         TextBlock more = Caption("More");
         more.FontSize = 10;
+        more.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
         more.Margin = new Thickness(3, 0, 0, 0);
         more.VerticalAlignment = VerticalAlignment.Center;
         legend.Children.Add(more);
@@ -658,7 +663,7 @@ internal sealed class UiVisualBuilder
         var box = new Border { Width = width, Height = height, CornerRadius = new CornerRadius(2) };
         if (intensity <= 0)
         {
-            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x16, 0x18, 0x1F)));
+            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x26, 0x2A, 0x36)));
         }
         else
         {
