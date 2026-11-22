@@ -78,10 +78,10 @@ public static class CalendarPopover
         CalendarEntry entry = occurrence.Entry;
         bool h24 = view.Settings.Use24Hour;
         string when = !occurrence.HasTime
-            ? $"{CalTime.LongDate(occurrence.Day)}, no time set"
+            ? $"{CalTime.LongDate(occurrence.Day)} · no time set"
             : occurrence.Duration == 0
-                ? $"{CalTime.LongDate(occurrence.Day)}, {CalTime.Clock(occurrence.StartMinute, h24)}"
-                : $"{CalTime.LongDate(occurrence.Day)}, {CalTime.Clock(occurrence.StartMinute, h24)}–{CalTime.Clock((occurrence.StartMinute + occurrence.Duration) % 1440, h24)}";
+                ? $"{CalTime.LongDate(occurrence.Day)} · {CalTime.Clock(occurrence.StartMinute, h24)}"
+                : $"{CalTime.LongDate(occurrence.Day)} · {CalTime.Clock(occurrence.StartMinute, h24)} – {CalTime.Clock((occurrence.StartMinute + occurrence.Duration) % 1440, h24)}";
         List<string> notes = [];
         string detail = view.Detail(occurrence);
         notes.Add(entry.Kind == EntryKind.Task ? (detail.Length == 0 ? "Task" : "Task - " + detail) : detail);
@@ -109,18 +109,15 @@ public static class CalendarPopover
         }
 
         bool repeats = entry.Repeat != RepeatKind.Once;
+        UiButton edit = IconButton(CalendarIds.Edit, "Edit", UiIcon.Edit);
+        UiButton duplicate = IconButton(CalendarIds.Duplicate, "Duplicate", UiIcon.Copy);
         if (!repeats)
         {
-            body.Add(Ui.Row(
-                Ui.Button(CalendarIds.Edit, "Edit", UiButtonVariant.Secondary),
-                Ui.Button(CalendarIds.Duplicate, "Duplicate", UiButtonVariant.Subtle),
-                Armed(state, CalendarIds.Delete, "Delete", "Click again to delete")));
+            body.Add(Ui.Row(edit, duplicate, Armed(state, CalendarIds.Delete, "Delete", "Click again to delete", iconOnly: true)));
             return Ui.Column([.. body]);
         }
 
-        body.Add(Ui.Row(
-            Ui.Button(CalendarIds.Edit, "Edit", UiButtonVariant.Secondary),
-            Ui.Button(CalendarIds.Duplicate, "Duplicate", UiButtonVariant.Subtle)));
+        body.Add(Ui.Row(edit, duplicate));
         body.Add(Armed(state, CalendarIds.Delete, "Delete this one", "Click again to delete"));
         body.Add(Armed(state, CalendarIds.DeleteSeries, "Delete series", "Click again to delete all"));
         return Ui.Column([.. body]);
@@ -135,31 +132,18 @@ public static class CalendarPopover
             body.Add(Ui.Text(message.Text, UiTextStyle.Caption, message.IsError ? UiTone.Danger : UiTone.Success));
         }
 
-        // The date and the switch for the extra fields share the top line, so the form below ends with Save alone.
-        body.Add(Ui.Row(
-            Ui.Text(CalTime.LongDate(draft.Day), UiTextStyle.Caption),
-            Ui.Button(CalendarIds.More, state.ShowMore ? "Fewer options" : "More options", UiButtonVariant.Subtle)));
-        // The hint is dropped once the extra fields are open: the card has no room to spare then.
-        if (!editing && !state.ShowMore)
-        {
-            body.Add(Ui.Text(
-                view.Settings.AutoStart
-                    ? "A focus session starts by itself when its time comes, unless another session is running, and cannot be shortened."
-                    : "Auto-start is off in the settings, so planned sessions will not start by themselves.",
-                UiTextStyle.Caption));
-        }
-
         List<UiFormField> fields =
         [
-            new UiTextField(CalendarForm.TitleId, "Title", draft.Title, draft.Kind == EntryKind.Session ? CalendarForm.DefaultSessionTitle : "What is it?", CalendarLimits.MaxTitleLength),
+            new UiTextField(CalendarForm.TitleId, "Title", draft.Title, "Add title", CalendarLimits.MaxTitleLength) { Style = UiFieldStyle.Title },
         ];
         if (!editing)
         {
-            fields.Add(new UiSelectField(CalendarForm.KindId, "Kind", [new("session", "Focus session"), new("task", "Task")], draft.Kind == EntryKind.Task ? "task" : "session"));
+            fields.Add(new UiSelectField(CalendarForm.KindId, "Kind", [new("session", "Focus session"), new("task", "Task")], draft.Kind == EntryKind.Task ? "task" : "session") { Style = UiFieldStyle.Chips });
         }
 
-        fields.Add(new UiTextField(CalendarForm.TimeId, "Start (hh:mm)", draft.Time, "09:00", 8));
-        fields.Add(new UiTextField(CalendarForm.ToId, "End (hh:mm)", draft.To, "10:00", 8));
+        fields.Add(new UiNoteField(CalendarForm.WhenId, "Date and repeat", WhenText(draft), RepeatText(draft.Repeat), UiIcon.Clock));
+        fields.Add(new UiTextField(CalendarForm.TimeId, "Start", draft.Time, "09:00", 8) { Style = UiFieldStyle.Compact });
+        fields.Add(new UiTextField(CalendarForm.ToId, "End", draft.To, "10:00", 8) { Style = UiFieldStyle.Compact });
         fields.Add(new UiSelectField(
             CalendarForm.RepeatId,
             "Repeat",
@@ -175,9 +159,38 @@ public static class CalendarPopover
             fields.AddRange(MoreFields(draft));
         }
 
-        body.Add(Ui.Form(CalendarForm.FormId, "Save", [.. fields]));
+        // The extra-fields switch is the footer link next to Save, so the fields above stay the only part that scrolls.
+        body.Add(new UiForm(CalendarForm.FormId, fields, "Save")
+        {
+            FooterAction = Ui.Button(CalendarIds.More, state.ShowMore ? "Fewer options" : "More options", UiButtonVariant.Subtle),
+        });
+
+        // The hint is dropped once the extra fields are open: the card has no room to spare then.
+        if (!editing && !state.ShowMore)
+        {
+            body.Add(Ui.Text(
+                view.Settings.AutoStart
+                    ? "A focus session starts by itself when its time comes, unless another session is running, and cannot be shortened."
+                    : "Auto-start is off in the settings, so planned sessions will not start by themselves.",
+                UiTextStyle.Caption));
+        }
+
         return Ui.Column([.. body]);
     }
+
+    // "Wednesday 25 November · 13:15 – 15:45": the range of the draft as it was opened, the fields below are the editable truth.
+    private static string WhenText(CalendarDraft draft)
+    {
+        string date = CalTime.LongDate(draft.Day);
+        return draft.Time.Length == 0 ? date : draft.To.Length == 0 ? $"{date} · {draft.Time}" : $"{date} · {draft.Time} – {draft.To}";
+    }
+
+    private static string RepeatText(RepeatKind repeat) => repeat switch
+    {
+        RepeatKind.Daily => "Every day",
+        RepeatKind.Weekly => "Every week",
+        _ => "Does not repeat",
+    };
 
     // Everything the model has beyond title, time and repeat. The repeat fields are always listed: a form cannot react to its own select.
     private static IEnumerable<UiFormField> MoreFields(CalendarDraft draft)
@@ -196,10 +209,12 @@ public static class CalendarPopover
         yield return new UiSelectField(CalendarForm.ColorId, "Colour tag", [.. Enumerable.Range(0, CalendarLimits.ColorCount).Select(i => new UiOption(i.ToString(CultureInfo.InvariantCulture), CalendarView.ColorName(i)))], draft.Color.ToString(CultureInfo.InvariantCulture));
     }
 
-    private static UiButton Armed(CalendarUiState state, string id, string label, string armedLabel) =>
+    private static UiButton IconButton(string id, string label, UiIcon icon) => new(id, label, UiButtonVariant.Subtle, icon) { IconOnly = true };
+
+    private static UiButton Armed(CalendarUiState state, string id, string label, string armedLabel, UiIcon icon = UiIcon.Delete, bool iconOnly = false) =>
         state.IsArmed(id)
             ? Ui.Button(id, armedLabel, UiButtonVariant.Warning, UiIcon.Warning)
-            : Ui.Button(id, label, UiButtonVariant.Subtle);
+            : new UiButton(id, label, UiButtonVariant.Subtle, icon) { IconOnly = iconOnly };
 
     private static UiTone ToneOfOutcome(SessionOutcome? outcome) => outcome switch
     {

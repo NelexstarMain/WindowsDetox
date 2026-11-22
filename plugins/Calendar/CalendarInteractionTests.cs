@@ -24,8 +24,14 @@ public class CalendarCreateTests
         UiForm form = PageTree.Form(popover);
         Assert.Equal((CalendarForm.FormId, "Save"), (form.Id, form.SubmitLabel));
         Assert.Equal(
-            [CalendarForm.TitleId, CalendarForm.KindId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId],
+            [CalendarForm.TitleId, CalendarForm.KindId, CalendarForm.WhenId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId],
             form.Fields.Select(f => f.Id));
+        Assert.Equal(
+            [UiFieldStyle.Title, UiFieldStyle.Chips, UiFieldStyle.Standard, UiFieldStyle.Compact, UiFieldStyle.Compact, UiFieldStyle.Standard],
+            form.Fields.Select(f => f.Style));
+        Assert.Equal("Add title", PageTree.Field<UiTextField>(popover, CalendarForm.TitleId).Placeholder);
+        Assert.Equal(CalendarIds.More, form.FooterAction?.Id);
+        Assert.Equal(new UiNoteField(CalendarForm.WhenId, "Date and repeat", "Friday 2 January · 10:00 – 11:30", "Does not repeat", UiIcon.Clock), PageTree.Field<UiNoteField>(popover, CalendarForm.WhenId));
         Assert.Equal("Focus session", PageTree.Field<UiTextField>(popover, CalendarForm.TitleId).Value);
         UiSelectField kind = PageTree.Field<UiSelectField>(popover, CalendarForm.KindId);
         Assert.Equal(["session", "task"], kind.Options.Select(o => o.Value));
@@ -34,7 +40,6 @@ public class CalendarCreateTests
         UiSelectField repeat = PageTree.Field<UiSelectField>(popover, CalendarForm.RepeatId);
         Assert.Equal(["once", "daily", "weekly"], repeat.Options.Select(o => o.Value));
         Assert.Equal("once", repeat.SelectedValue);
-        Assert.True(Kit.HasText(popover, "Friday 2 January"));
         Assert.Equal([CalendarIds.More], PageTree.ButtonIds(popover));
         Assert.Empty(rig.Store.Entries);
     }
@@ -160,7 +165,7 @@ public class CalendarCreateTests
 
         Assert.Equal(
             [
-                CalendarForm.TitleId, CalendarForm.KindId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId, CalendarForm.DateId, CalendarForm.EveryId,
+                CalendarForm.TitleId, CalendarForm.KindId, CalendarForm.WhenId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId, CalendarForm.DateId, CalendarForm.EveryId,
                 .. Enumerable.Range(0, 7).Select(i => CalendarForm.WeekdayPrefix + i),
                 CalendarForm.EndId, CalendarForm.UntilId, CalendarForm.CountId, CalendarForm.ColorId,
             ],
@@ -171,7 +176,7 @@ public class CalendarCreateTests
 
         await rig.Click(CalendarIds.More);
         UiNode quick = PageTree.Popover(await rig.PageAsync());
-        Assert.Equal(5, PageTree.Form(quick).Fields.Count);
+        Assert.Equal(6, PageTree.Form(quick).Fields.Count);
         Assert.Equal("More options", Kit.Button(quick, CalendarIds.More).Label);
     }
 
@@ -299,8 +304,11 @@ public class CalendarSelectTests
         Assert.Equal([true, false], grid.Events.OrderBy(e => e.StartMinute).Select(e => e.IsSelected));
         Assert.Equal((Rig.BlockId(a, Friday), CalendarIds.Dismiss), (grid.PopoverAnchorId, grid.DismissId));
         UiNode popover = PageTree.Popover(page);
-        Assert.Equal(["Alpha", "Friday 2 January, 09:00–10:00", "Focus session 1 h"], Kit.Descendants(popover).OfType<UiText>().Select(t => t.Text));
+        Assert.Equal(["Alpha", "Friday 2 January · 09:00 – 10:00", "Focus session 1 h"], Kit.Descendants(popover).OfType<UiText>().Select(t => t.Text));
         Assert.Equal([CalendarIds.Edit, CalendarIds.Duplicate, CalendarIds.Delete], PageTree.ButtonIds(popover));
+        Assert.Equal(
+            [(UiIcon.Edit, true), (UiIcon.Copy, true), (UiIcon.Delete, true)],
+            Kit.Descendants(popover).OfType<UiButton>().Select(b => (b.Icon!.Value, b.IconOnly)));
         Assert.Empty(Kit.Descendants(popover).OfType<UiForm>());
         Assert.NotEqual(Rig.BlockId(b, Friday), grid.PopoverAnchorId);
     }
@@ -549,7 +557,7 @@ public class CalendarEditTests
 
         UiNode popover = PageTree.Popover(page);
         Assert.Equal(Rig.BlockId(a, Friday), PageTree.Grid(page).PopoverAnchorId);
-        Assert.Equal([CalendarForm.TitleId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId], PageTree.Form(popover).Fields.Select(f => f.Id));
+        Assert.Equal([CalendarForm.TitleId, CalendarForm.WhenId, CalendarForm.TimeId, CalendarForm.ToId, CalendarForm.RepeatId], PageTree.Form(popover).Fields.Select(f => f.Id));
         Assert.Equal(("Alpha", "09:00", "10:00"), (PageTree.Field<UiTextField>(popover, CalendarForm.TitleId).Value, PageTree.Field<UiTextField>(popover, CalendarForm.TimeId).Value, PageTree.Field<UiTextField>(popover, CalendarForm.ToId).Value));
         Assert.Null(PageTree.Grid(page).PendingDay);
         Assert.Equal([CalendarIds.More], PageTree.ButtonIds(popover));

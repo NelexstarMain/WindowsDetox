@@ -37,7 +37,7 @@ internal sealed class UiVisualBuilder
 
     private readonly Action<UiAction> _raise;
     private readonly bool _flat;
-    private bool _stretchForms;
+    private bool _inPopover;
     private readonly TimeGridViewState _timeGridState;
 
     /// <summary>Initializes a new instance of the <see cref="UiVisualBuilder"/> class.</summary>
@@ -936,15 +936,15 @@ internal sealed class UiVisualBuilder
     // Its forms fill the card width instead of shrinking to their content.
     private FrameworkElement BuildPopoverContent(UiNode node)
     {
-        bool before = _stretchForms;
-        _stretchForms = true;
+        bool before = _inPopover;
+        _inPopover = true;
         try
         {
             return node is UiCard card ? BuildCardStack(card) : Build(node, insideCard: true);
         }
         finally
         {
-            _stretchForms = before;
+            _inPopover = before;
         }
     }
 
@@ -1065,7 +1065,14 @@ internal sealed class UiVisualBuilder
     {
         var button = new Button { IsEnabled = node.IsEnabled, HorizontalAlignment = HorizontalAlignment.Left };
         button.SetResourceReference(FrameworkElement.StyleProperty, ToneMap.ButtonStyleKey(node.Variant));
-        if (node.ShortLabel is { } shortLabel)
+        if (node is { IconOnly: true, Icon: { } onlyIcon })
+        {
+            button.Content = Icon(onlyIcon, 18);
+            button.MinWidth = 36;
+            button.Padding = new Thickness(8, 6, 8, 6);
+            button.ToolTip = node.Label;
+        }
+        else if (node.ShortLabel is { } shortLabel)
         {
             button.Content = shortLabel;
             button.MinWidth = 32;
@@ -1130,13 +1137,25 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildForm(UiForm form)
     {
-        var stack = new StackPanel { MaxWidth = 480, HorizontalAlignment = _stretchForms ? HorizontalAlignment.Stretch : HorizontalAlignment.Left };
+        var stack = new StackPanel { MaxWidth = 480, HorizontalAlignment = _inPopover ? HorizontalAlignment.Stretch : HorizontalAlignment.Left };
         var readers = new List<(string Id, Func<string> Read)>();
         FrameworkElement? inlineControl = null;
 
         WrapPanel? checkboxRow = null;
+        Grid? compactRow = null;
         foreach (UiFormField field in form.Fields)
         {
+            double top = stack.Children.Count == 0 ? 0 : FormFieldGap;
+            if (field is UiNoteField note)
+            {
+                checkboxRow = null;
+                compactRow = null;
+                FrameworkElement noteView = BuildNote(note);
+                noteView.Margin = new Thickness(0, top, 0, 0);
+                stack.Children.Add(noteView);
+                continue;
+            }
+
             (FrameworkElement control, Func<string> read, bool labelled) = BuildField(field);
             AutomationProperties.SetName(control, field.Label);
             AutomationProperties.SetAutomationId(control, field.Id);
@@ -1145,9 +1164,10 @@ internal sealed class UiVisualBuilder
             // Consecutive tick boxes (the repeat weekdays) share one wrapping row instead of a tall column.
             if (field is UiCheckboxField)
             {
+                compactRow = null;
                 if (checkboxRow is null)
                 {
-                    checkboxRow = new WrapPanel { Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : FormFieldGap, 0, 0) };
+                    checkboxRow = new WrapPanel { Margin = new Thickness(0, top, 0, 0) };
                     stack.Children.Add(checkboxRow);
                 }
 
@@ -1159,7 +1179,22 @@ internal sealed class UiVisualBuilder
             }
 
             checkboxRow = null;
-            var group = new StackPanel { Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : FormFieldGap, 0, 0) };
+            if (field.Style == UiFieldStyle.Compact)
+            {
+                if (compactRow is null)
+                {
+                    compactRow = new Grid { Margin = new Thickness(0, top, 0, 0) };
+                    compactRow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    compactRow.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    stack.Children.Add(compactRow);
+                }
+
+                AddCompact(compactRow, field.Label, control);
+                continue;
+            }
+
+            compactRow = null;
+            var group = new StackPanel { Margin = new Thickness(0, top, 0, 0) };
             if (!labelled)
             {
                 TextBlock label = Caption(field.Label);
@@ -1167,7 +1202,7 @@ internal sealed class UiVisualBuilder
                 group.Children.Add(label);
             }
 
-            if (form.Fields.Count == 1 && field is UiTextField or UiNumberField)
+            if (form.Fields.Count == 1 && field is UiTextField or UiNumberField && form.FooterAction is null)
             {
                 inlineControl = control;
             }
@@ -1179,8 +1214,8 @@ internal sealed class UiVisualBuilder
             stack.Children.Add(group);
         }
 
-        var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 || inlineControl is not null ? 0 : 20, 0, 0) };
-        submit.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Primary");
+        var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = _inPopover ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 || inlineControl is not null ? 0 : 20, 0, 0) };
+        submit.SetResourceReference(FrameworkElement.StyleProperty, _inPopover ? "Blocker.Button.PrimaryPill" : "Blocker.Button.Primary");
         AutomationProperties.SetAutomationId(submit, form.Id);
         submit.Tag = FormSubmitTag;
         string formId = form.Id;
@@ -1207,12 +1242,101 @@ internal sealed class UiVisualBuilder
             line.Children.Add(submit);
             ((StackPanel)stack.Children[0]).Children.Add(line);
         }
+        else if (form.FooterAction is { } footerAction)
+        {
+            stack.Children.Add(BuildFooter(footerAction, submit));
+        }
         else
         {
             stack.Children.Add(submit);
         }
 
         return LeftFrame(stack, 480);
+    }
+
+    // The footer is one element, tagged like a lone submit button, so a host can pin it below a scrolling form.
+    // In a floating card the link sits at the left and the submit button at the right; elsewhere both stay at the left.
+    private FrameworkElement BuildFooter(UiButton action, Button submit)
+    {
+        FrameworkElement link = BuildButton(action);
+        link.SetResourceReference(Control.ForegroundProperty, "Blocker.Accent.Text");
+        link.VerticalAlignment = VerticalAlignment.Center;
+        submit.VerticalAlignment = VerticalAlignment.Center;
+        var footer = new Grid { Tag = FormSubmitTag };
+        if (_inPopover)
+        {
+            submit.Margin = new Thickness(0);
+            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(submit, 1);
+        }
+        else
+        {
+            submit.Margin = new Thickness(0);
+            link.Margin = new Thickness(12, 0, 0, 0);
+            footer.Margin = new Thickness(0, 20, 0, 0);
+            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(link, 1);
+        }
+
+        footer.Children.Add(link);
+        footer.Children.Add(submit);
+        return footer;
+    }
+
+    private static FrameworkElement BuildNote(UiNoteField note)
+    {
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        if (note.Icon is { } icon)
+        {
+            SymbolIcon symbol = Icon(icon, 18, "Blocker.Text.Secondary");
+            symbol.Margin = new Thickness(0, 2, 12, 0);
+            symbol.VerticalAlignment = VerticalAlignment.Top;
+            row.Children.Add(symbol);
+        }
+
+        var texts = new StackPanel();
+        Grid.SetColumn(texts, 1);
+        texts.Children.Add(Styled(new TextBlock { Text = note.Text }, "Blocker.Text.Body"));
+        if (!string.IsNullOrEmpty(note.Detail))
+        {
+            TextBlock detail = Caption(note.Detail);
+            detail.Margin = new Thickness(0, 2, 0, 0);
+            detail.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Muted");
+            texts.Children.Add(detail);
+        }
+
+        row.Children.Add(texts);
+        AutomationProperties.SetName(row, note.Label);
+        AutomationProperties.SetAutomationId(row, note.Id);
+        return row;
+    }
+
+    // Compact fields share one line: [label over input] - [label over input]; the dash sits level with the inputs.
+    private static void AddCompact(Grid row, string label, FrameworkElement control)
+    {
+        if (row.ColumnDefinitions.Count > 0)
+        {
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var dash = new TextBlock { Text = "–", Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+            dash.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
+            Grid.SetRow(dash, 1);
+            Grid.SetColumn(dash, row.ColumnDefinitions.Count - 1);
+            row.Children.Add(dash);
+        }
+
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        int column = row.ColumnDefinitions.Count - 1;
+        TextBlock caption = Caption(label);
+        caption.Margin = new Thickness(0, 0, 0, 4);
+        Grid.SetColumn(caption, column);
+        Grid.SetRow(control, 1);
+        Grid.SetColumn(control, column);
+        row.Children.Add(caption);
+        row.Children.Add(control);
     }
 
     // Stops growing at maxWidth but stays at the left edge: a stretched element with a MaxWidth would be centred.
@@ -1229,6 +1353,11 @@ internal sealed class UiVisualBuilder
     {
         switch (field)
         {
+            case UiTextField { Style: UiFieldStyle.Title } title:
+                var titleBox = new TextBox { Text = title.Value, MaxLength = title.MaxLength, Tag = title.Placeholder ?? string.Empty };
+                titleBox.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.TextBox.Title");
+                return (titleBox, () => titleBox.Text, true);
+
             case UiTextField text:
                 var box = new WpfUiTextBox { Text = text.Value, MaxLength = text.MaxLength, PlaceholderText = text.Placeholder ?? string.Empty };
                 return (box, () => box.Text, false);
@@ -1246,6 +1375,9 @@ internal sealed class UiVisualBuilder
                     ValidationMode = NumberBoxValidationMode.InvalidInputOverwritten,
                 };
                 return (numberBox, () => Math.Clamp(numberBox.Value ?? number.Value, number.Minimum, number.Maximum).ToString("R", CultureInfo.InvariantCulture), false);
+
+            case UiSelectField { Style: UiFieldStyle.Chips } chips:
+                return BuildChips(chips);
 
             case UiSelectField select:
                 var combo = new ComboBox
@@ -1265,6 +1397,22 @@ internal sealed class UiVisualBuilder
             default:
                 return (Caption("Unsupported field."), () => string.Empty, true);
         }
+    }
+
+    private static (FrameworkElement Control, Func<string> Read, bool Labelled) BuildChips(UiSelectField select)
+    {
+        string group = "chips-" + select.Id;
+        var panel = new WrapPanel();
+        string selected = select.SelectedValue ?? select.Options[0].Value;
+        foreach (UiOption option in select.Options)
+        {
+            var chip = new RadioButton { Content = option.Label, GroupName = group, Tag = option.Value, IsChecked = option.Value == selected, Margin = new Thickness(0, 0, 8, 0) };
+            chip.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Chip");
+            chip.Checked += (_, _) => selected = option.Value;
+            panel.Children.Add(chip);
+        }
+
+        return (panel, () => selected, true);
     }
 
     private static int DecimalPlaces(double step)

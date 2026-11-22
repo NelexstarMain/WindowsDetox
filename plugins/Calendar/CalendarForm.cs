@@ -116,6 +116,9 @@ public static class CalendarForm
     /// <summary>Id of the colour select.</summary>
     public const string ColorId = "cal-f-color";
 
+    /// <summary>Id of the read-only date and repeat summary line of the quick editor (not a submitted value).</summary>
+    public const string WhenId = "cal-f-when";
+
     /// <summary>Id of the scope select shown when a repeating entry is edited.</summary>
     public const string ScopeId = "cal-f-scope";
 

@@ -70,6 +70,7 @@ public static class Kit
             UiStack stack => stack.Children,
             UiGrid grid => grid.Children,
             UiCard card => card.Children,
+            UiForm form => form.FooterAction is null ? [] : [form.FooterAction],
             UiTimeGrid grid => grid.Popover is null ? [] : [grid.Popover],
             _ => Array.Empty<UiNode>(),
         };
