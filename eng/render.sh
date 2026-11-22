@@ -113,6 +113,8 @@ if ! pgrep -f "Xvfb $display -screen 0 $screen" > /dev/null; then
     restart_wine=1
     sleep 1
   fi
+  # A crashed Xvfb leaves its lock and socket behind, and a new one refuses to start while they exist.
+  if ! pgrep -f "Xvfb $display" > /dev/null; then rm -f "/tmp/.X${display#:}-lock" "/tmp/.X11-unix/X${display#:}"; restart_wine=1; fi
   setsid Xvfb "$display" -screen 0 "$screen" -nolisten tcp > /dev/null 2>&1 &
   for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
 fi
@@ -128,7 +130,7 @@ fi
 
 # 4. Render everything in one process.
 mkdir -p "$out"
-rm -f "$out"/*.png
+rm -rf "$out"/*.png "$out/anim"
 echo "render -> $out"
 start=$(now_ms)
 status=0
@@ -138,6 +140,15 @@ log="$out/render.log"
 clean timeout 600 "$wine_bin" "$(winpath "$harness/Blocker.UI.Render.exe")" --out "$(winpath "$out")" --scenarios "$(winpath "$scenarios")" "${passthrough[@]}" < /dev/null > "$log" 2>&1 || status=$?
 cat "$log"
 render_ms=$(( $(now_ms) - start ))
-count=$(find "$out" -name '*.png' | wc -l)
+count=$(find "$out" -maxdepth 1 -name '*.png' | wc -l)
+
+# 5. Animated shots: a GIF for people and a numbered filmstrip (one image, frames in order) for agents, who see only a GIF's first frame.
+for frames in "$out"/anim/*/; do
+  [ -d "$frames" ] || continue
+  name=$(basename "$frames")
+  convert -delay 30 -loop 0 "$frames"*.png -resize 50% "$out/anim/$name.gif"
+  montage -label '%t' "$frames"*.png -resize 30% -tile 4x -geometry +6+6 -background '#111' -fill '#ccc' "$out/anim/$name-strip.png"
+  echo "animation $name: $(find "$frames" -name '*.png' | wc -l) frames -> anim/$name.gif, anim/$name-strip.png"
+done
 echo "publish ${publish_ms} ms, render process ${render_ms} ms, script total $(( $(now_ms) - total_start )) ms, ${count} images in ${out}"
 [ "$status" = 0 ] && [ "$count" -gt 0 ]

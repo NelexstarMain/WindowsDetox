@@ -8,10 +8,11 @@ namespace Blocker.UI.Render;
 /// <param name="Size">Window size in device-independent pixels; defaults to 1100 x 700.</param>
 /// <param name="Session"><c>idle</c> (default), <c>active</c> or <c>pass</c>.</param>
 /// <param name="Steps">Interactions executed in order.</param>
-internal sealed record Scenario(string Name, string Target, int[]? Size, string? Session, IReadOnlyList<ScenarioStep>? Steps);
+/// <param name="Animate">Also saves a frame before the first step, after every step and during clicks and drags (<c>anim/&lt;name&gt;/NNN.png</c>).</param>
+internal sealed record Scenario(string Name, string Target, int[]? Size, string? Session, IReadOnlyList<ScenarioStep>? Steps, bool Animate = false);
 
 /// <summary>
-/// One interaction. Exactly one of <see cref="Action"/>, <see cref="Click"/>, <see cref="Drag"/> or <see cref="Wait"/> is set.
+/// One interaction. Exactly one of <see cref="Action"/>, <see cref="Click"/>, <see cref="Drag"/>, <see cref="Move"/> or <see cref="Wait"/> is set.
 /// <c>action</c> goes through the view model command of the view that shows the element (the same path as a real click);
 /// <c>click</c> and <c>drag</c> inject real mouse input at window coordinates.
 /// </summary>
@@ -34,6 +35,9 @@ internal sealed record ScenarioStep
 
     /// <summary>Gets the start and end window coordinates of a drag.</summary>
     public double[][]? Drag { get; init; }
+
+    /// <summary>Gets the window coordinates the pointer moves to without pressing (hover).</summary>
+    public double[]? Move { get; init; }
 
     /// <summary>Gets a pause in milliseconds.</summary>
     public int? Wait { get; init; }

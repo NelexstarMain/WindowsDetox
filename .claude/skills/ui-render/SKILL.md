@@ -32,5 +32,8 @@ Edit `tools/Blocker.UI.Render/scenarios.json` (no republish needed):
 - `target`: `main:dashboard|allowlist|setup|plugins|settings` or `plugin:calendar|goals|insights`; `session`: `idle|active|pass`.
 - Steps: `{"action": "<UiAction id>", "args": {form fields}}` (runs the view's command, like a click; `args` makes it a submit,
   `"kind": "toggle", "value": "false"` a toggle), `{"click": [x, y]}`, `{"drag": [[x1, y1], [x2, y2]]}` (real injected mouse
-  input at window coordinates), `{"wait": ms}`. Every shot starts from fresh plugin state.
+  input at window coordinates), `{"move": [x, y]}` (hover without pressing), `{"wait": ms}`. Every shot starts from fresh plugin state.
+- `"animate": true` also saves a frame before the first step, after every step, while a click is held and after every drag
+  move: `anim/<name>/NNN.png`, plus `anim/<name>.gif` (for people) and `anim/<name>-strip.png` (numbered filmstrip; Read it, a GIF
+  shows only its first frame). Use it to catch interaction bugs: jumps, flicker, wrong pending/selected states, lost focus.
 - Seed data lives in `tools/Blocker.UI.Render/PluginSeeds.cs`, canned service answers in `StubServiceConnection.cs`.

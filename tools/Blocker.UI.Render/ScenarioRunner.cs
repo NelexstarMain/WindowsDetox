@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Blocker.UI.Services;
 using Microsoft.Extensions.Time.Testing;
 
@@ -57,9 +58,12 @@ internal sealed class ScenarioRunner
                 await shell.RefreshPluginsAsync();
                 SizeWindow(window, shot.Size);
                 await NavigateAsync(shell, shot.Target);
+                Func<Task>? frame = shot.Animate ? StartFrames(window, shot.Name) : null;
+                await (frame?.Invoke() ?? Task.CompletedTask);
                 foreach (ScenarioStep step in shot.Steps ?? [])
                 {
-                    await ExecuteAsync(window, step);
+                    await ExecuteAsync(window, step, frame);
+                    await (frame?.Invoke() ?? Task.CompletedTask);
                 }
 
                 await Interaction.SettleAsync(window);
@@ -106,7 +110,19 @@ internal sealed class ScenarioRunner
         await Interaction.SettleAsync(shell.Window);
     }
 
-    private static async Task ExecuteAsync(Window window, ScenarioStep step)
+    private Func<Task> StartFrames(Window window, string name)
+    {
+        string directory = Path.Combine(_options.OutputDirectory, "anim", name);
+        Directory.CreateDirectory(directory);
+        int index = 0;
+        return async () =>
+        {
+            await window.Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render);
+            Save(window, Path.Combine(directory, $"{index++:D3}.png"));
+        };
+    }
+
+    private static async Task ExecuteAsync(Window window, ScenarioStep step, Func<Task>? frame)
     {
         if (step.Action is not null)
         {
@@ -114,11 +130,15 @@ internal sealed class ScenarioRunner
         }
         else if (step.Click is { Length: 2 } click)
         {
-            await Interaction.ClickAsync(window, click[0], click[1]);
+            await Interaction.ClickAsync(window, click[0], click[1], frame);
         }
         else if (step.Drag is [{ Length: 2 } from, { Length: 2 } to])
         {
-            await Interaction.DragAsync(window, from, to);
+            await Interaction.DragAsync(window, from, to, frame);
+        }
+        else if (step.Move is { Length: 2 } move)
+        {
+            await Interaction.HoverAsync(window, move[0], move[1]);
         }
         else if (step.Wait is { } wait)
         {
@@ -127,7 +147,7 @@ internal sealed class ScenarioRunner
         }
         else
         {
-            throw new InvalidOperationException("A step needs one of action, click, drag or wait.");
+            throw new InvalidOperationException("A step needs one of action, click, drag, move or wait.");
         }
     }
 

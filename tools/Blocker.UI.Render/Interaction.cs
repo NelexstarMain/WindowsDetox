@@ -66,12 +66,14 @@ internal static partial class Interaction
     /// <param name="window">The shown window.</param>
     /// <param name="x">X in device-independent pixels from the window's top-left corner.</param>
     /// <param name="y">Y in device-independent pixels from the window's top-left corner.</param>
+    /// <param name="frame">Called while the button is held, to capture the pressed state.</param>
     /// <returns>A task that completes when the click was processed.</returns>
-    public static async Task ClickAsync(Window window, double x, double y)
+    public static async Task ClickAsync(Window window, double x, double y, Func<Task>? frame = null)
     {
         await MoveAsync(window, x, y);
         mouse_event(LeftDown, 0, 0, 0, 0);
         await PauseAsync(window);
+        await (frame?.Invoke() ?? Task.CompletedTask);
         mouse_event(LeftUp, 0, 0, 0, 0);
         await PauseAsync(window);
         await SettleAsync(window);
@@ -81,20 +83,34 @@ internal static partial class Interaction
     /// <param name="window">The shown window.</param>
     /// <param name="from">Start in window coordinates.</param>
     /// <param name="to">End in window coordinates.</param>
+    /// <param name="frame">Called after the press and after every intermediate move, to capture the drag as it happens.</param>
     /// <returns>A task that completes when the drag was processed.</returns>
-    public static async Task DragAsync(Window window, double[] from, double[] to)
+    public static async Task DragAsync(Window window, double[] from, double[] to, Func<Task>? frame = null)
     {
         await MoveAsync(window, from[0], from[1]);
         mouse_event(LeftDown, 0, 0, 0, 0);
         await PauseAsync(window);
+        await (frame?.Invoke() ?? Task.CompletedTask);
         const int Steps = 8;
         for (int i = 1; i <= Steps; i++)
         {
             await MoveAsync(window, from[0] + ((to[0] - from[0]) * i / Steps), from[1] + ((to[1] - from[1]) * i / Steps));
+            await (frame?.Invoke() ?? Task.CompletedTask);
         }
 
         mouse_event(LeftUp, 0, 0, 0, 0);
         await PauseAsync(window);
+        await SettleAsync(window);
+    }
+
+    /// <summary>Moves the pointer without pressing, so hover states show.</summary>
+    /// <param name="window">The shown window.</param>
+    /// <param name="x">X in device-independent pixels from the window's top-left corner.</param>
+    /// <param name="y">Y in device-independent pixels from the window's top-left corner.</param>
+    /// <returns>A task that completes when the move was processed.</returns>
+    public static async Task HoverAsync(Window window, double x, double y)
+    {
+        await MoveAsync(window, x, y);
         await SettleAsync(window);
     }
 

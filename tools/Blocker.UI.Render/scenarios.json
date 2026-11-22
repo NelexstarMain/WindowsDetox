@@ -15,6 +15,7 @@
     { "name": "calendar-day", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-col-739943" } ] },
     { "name": "calendar-month", "target": "plugin:calendar", "size": [1280, 1300], "steps": [ { "action": "cal-view-month" } ] },
     { "name": "calendar-create", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "drag": [[700, 700], [700, 800]] }, { "wait": 300 } ] },
+    { "name": "anim-calendar-drag-move", "target": "plugin:calendar", "size": [1280, 1100], "animate": true, "steps": [ { "move": [700, 500] }, { "drag": [[700, 500], [700, 640]] }, { "wait": 300 } ] },
     { "name": "calendar-selected", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" } ] },
     { "name": "calendar-selected-series", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-1-739942-0" } ] },
     { "name": "calendar-multiselect", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" }, { "action": "cal-ev-5-739943-0", "kind": "click", "args": { "extend": "true" } } ] },
