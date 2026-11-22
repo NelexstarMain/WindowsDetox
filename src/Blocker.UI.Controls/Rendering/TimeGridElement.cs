@@ -212,7 +212,9 @@ internal sealed class TimeGridElement : Grid
 
     private Border BuildCard(FrameworkElement content)
     {
-        var card = new Border { Padding = new Thickness(16), Child = content, Effect = CardShadow, Visibility = Visibility.Hidden, ClipToBounds = true };
+        // The card is capped at the control height; a long editor scrolls inside it instead of being cut off.
+        var scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = content };
+        var card = new Border { Padding = new Thickness(16), Child = scroller, Effect = CardShadow, Visibility = Visibility.Hidden, ClipToBounds = true };
         card.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.CardBorder");
         card.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
         card.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Strong");

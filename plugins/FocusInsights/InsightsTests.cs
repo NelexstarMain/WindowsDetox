@@ -805,7 +805,7 @@ public sealed class InsightsTests
 
         Assert.NotNull(await ctx.Storage.ReadAsync("data", CancellationToken.None));   // armed only
         Assert.Equal(before + 1, ctx.RenderRequests);
-        Assert.Equal("Click again to confirm", Single<UiButton>(await ctx.RenderAsync(settings, CancellationToken.None)).Label);
+        Assert.Equal("Clear recorded data? Click again", Single<UiButton>(await ctx.RenderAsync(settings, CancellationToken.None)).Label);
 
         await ctx.SendActionAsync(settings, UiAction.Click(InsightsSettings.ClearButtonId), CancellationToken.None);
 

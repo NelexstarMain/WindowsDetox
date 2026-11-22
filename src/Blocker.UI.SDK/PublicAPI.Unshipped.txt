@@ -49,7 +49,7 @@ Blocker.UI.Sdk.UiBarChart.UiBarChart(System.Collections.Generic.IReadOnlyList<Bl
 Blocker.UI.Sdk.UiBarChart.ValueSuffix.get -> string?
 Blocker.UI.Sdk.UiBarChart.ValueSuffix.init -> void
 Blocker.UI.Sdk.UiButton
-Blocker.UI.Sdk.UiButton.Deconstruct(out string! Id, out string! Label, out Blocker.UI.Sdk.UiButtonVariant Variant, out Blocker.UI.Sdk.UiIcon? Icon, out bool IsEnabled) -> void
+Blocker.UI.Sdk.UiButton.Deconstruct(out string! Id, out string! Label, out Blocker.UI.Sdk.UiButtonVariant Variant, out Blocker.UI.Sdk.UiIcon? Icon, out bool IsEnabled, out string? ShortLabel) -> void
 Blocker.UI.Sdk.UiButton.Equals(Blocker.UI.Sdk.UiButton? other) -> bool
 Blocker.UI.Sdk.UiButton.Icon.get -> Blocker.UI.Sdk.UiIcon?
 Blocker.UI.Sdk.UiButton.Icon.init -> void
@@ -59,7 +59,9 @@ Blocker.UI.Sdk.UiButton.IsEnabled.get -> bool
 Blocker.UI.Sdk.UiButton.IsEnabled.init -> void
 Blocker.UI.Sdk.UiButton.Label.get -> string!
 Blocker.UI.Sdk.UiButton.Label.init -> void
-Blocker.UI.Sdk.UiButton.UiButton(string! Id, string! Label, Blocker.UI.Sdk.UiButtonVariant Variant = Blocker.UI.Sdk.UiButtonVariant.Secondary, Blocker.UI.Sdk.UiIcon? Icon = null, bool IsEnabled = true) -> void
+Blocker.UI.Sdk.UiButton.ShortLabel.get -> string?
+Blocker.UI.Sdk.UiButton.ShortLabel.init -> void
+Blocker.UI.Sdk.UiButton.UiButton(string! Id, string! Label, Blocker.UI.Sdk.UiButtonVariant Variant = Blocker.UI.Sdk.UiButtonVariant.Secondary, Blocker.UI.Sdk.UiIcon? Icon = null, bool IsEnabled = true, string? ShortLabel = null) -> void
 Blocker.UI.Sdk.UiButton.Variant.get -> Blocker.UI.Sdk.UiButtonVariant
 Blocker.UI.Sdk.UiButton.Variant.init -> void
 Blocker.UI.Sdk.UiButtonVariant

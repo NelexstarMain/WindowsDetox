@@ -195,8 +195,8 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
 
         body.Add(Ui.Row(
             Ui.Text($"Goal for today: {GoalsFormat.Count(v.Goal, "task")}", UiTextStyle.Caption),
-            new UiButton(GoalDownId, "Goal -1", UiButtonVariant.Subtle, IsEnabled: v.Goal > GoalsLimits.MinGoal),
-            new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Subtle, IsEnabled: v.Goal < GoalsLimits.MaxGoal)));
+            new UiButton(GoalDownId, "Goal -1", UiButtonVariant.Secondary, IsEnabled: v.Goal > GoalsLimits.MinGoal, ShortLabel: "\u2212"),
+            new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Secondary, IsEnabled: v.Goal < GoalsLimits.MaxGoal, ShortLabel: "+")));
         return new UiCard(body, "Today's tasks", v.Tasks.Count == 0 ? null : $"{v.Open} open, {v.Done} done");
     }
 
@@ -278,7 +278,7 @@ public sealed class GoalsSettings(GoalsStore store) : GoalsContribution(store), 
         Remember(context);
         int goal = Store.DefaultGoal;
         UiButton reset = IsArmed()
-            ? Ui.Button(ResetButtonId, "Click again to confirm", UiButtonVariant.Warning, UiIcon.Warning)
+            ? Ui.Button(ResetButtonId, "Reset today? Click again", UiButtonVariant.Warning, UiIcon.Warning)
             : Ui.Button(ResetButtonId, "Reset today", UiButtonVariant.Secondary, UiIcon.Dismiss);
         return ValueTask.FromResult<UiNode>(Ui.Column(
             Ui.Text($"Default daily goal: {GoalsFormat.Count(goal, "task")}"),
