@@ -29,6 +29,11 @@ def main() -> None:
     args, _ = parser.parse_known_args()
 
     payload = lh.read_stdin_json()
+    # Subagents share the parent's session_id; their edits (often in separate worktrees) are verified by the
+    # subagent itself, so they must not keep re-arming the parent's TDD gate.
+    if payload.get("agent_id"):
+        sys.exit(0)
+
     session_id = str(payload.get("session_id") or "default")
     event_name = str(payload.get("hook_event_name") or "")
     is_failure = args.failure or (event_name == "PostToolUseFailure")

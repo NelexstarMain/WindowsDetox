@@ -147,6 +147,23 @@ class HygieneHooksTest(unittest.TestCase):
         )
         self.assertEqual(res_red.stdout.strip(), "")
 
+    def test_subagent_edits_do_not_dirty_the_parent_session(self) -> None:
+        sid = "parent-session"
+        run_hook("prompt_submit.py", {"session_id": sid, "cwd": str(self.project_dir), "prompt": "Delegate work"}, self.claude_home)
+        run_hook(
+            "post_tool.py",
+            {
+                "session_id": sid,
+                "agent_id": "a123",
+                "cwd": str(self.project_dir),
+                "tool_name": "Edit",
+                "tool_input": {"file_path": str(self.project_dir / "Worker.cs")},
+            },
+            self.claude_home,
+        )
+        res = run_hook("stop_guard.py", {"session_id": sid, "cwd": str(self.project_dir)}, self.claude_home)
+        self.assertEqual(res.stdout.strip(), "")
+
     def test_statusline_caches_context_and_stop_emits_50pct_alert(self) -> None:
         sid = "ctx-session"
         sl_payload = {
