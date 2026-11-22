@@ -648,8 +648,10 @@
 
     <Style TargetType="ScrollBar" BasedOn="{StaticResource Blocker.ScrollBar}" />
 
-    <!-- Scrollbars overlay the content, so nothing shifts when they appear. -->
+    <!-- Scrollbars overlay the content, so nothing shifts when they appear. Not focusable: this template replaces the framework style that
+         makes it so, and a focusable page scroller takes focus on a click in empty space, scrolls itself to its top edge and draws a focus ring. -->
     <Style TargetType="ScrollViewer">
+        <Setter Property="Focusable" Value="False" />
         <Setter Property="PanningMode" Value="VerticalFirst" />
         <Setter Property="Template">
             <Setter.Value>
