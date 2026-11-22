@@ -75,10 +75,10 @@
 
             <!-- Summary and the single primary action. -->
             <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
-            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,48,0,0">
+            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,58,0,0">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="SUMMARY" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.MonoLarge}" Margin="0,16,0,0" Text="{Binding DurationText}" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="34" FontWeight="Light" Margin="0,12,0,0" Text="{Binding DurationText}" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,16" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
                                Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding AppsText}" Margin="0,4,0,0" />

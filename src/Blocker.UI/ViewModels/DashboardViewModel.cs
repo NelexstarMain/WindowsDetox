@@ -137,7 +137,7 @@ internal sealed partial class DashboardViewModel : ServiceViewModel
         IsPassWarning = passRemaining is { } left && left <= PassWarningThreshold;
 
         PassesLeftText = string.Create(CultureInfo.InvariantCulture, $"{snapshot.EmergencyPassesLeftToday} of {snapshot.EmergencyPassesPerDay} left today");
-        PassLengthText = snapshot.EmergencyPassDuration > TimeSpan.Zero ? $"{DurationFormat.Compact(snapshot.EmergencyPassDuration)} each" : string.Empty;
+        PassLengthText = snapshot.EmergencyPassDuration > TimeSpan.Zero ? $"· {DurationFormat.Compact(snapshot.EmergencyPassDuration)} each" : string.Empty;
 
         EmergencyHint = DescribeUnavailability(snapshot);
         CanUseEmergencyPass = EmergencyHint is null;

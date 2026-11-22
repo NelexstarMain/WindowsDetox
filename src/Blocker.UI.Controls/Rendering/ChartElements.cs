@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using Blocker.UI.Sdk;
 
@@ -69,16 +70,30 @@ internal sealed class BarChartElement : ChartElementBase
 
     protected override double PreferredHeight => 200;
 
+    // Left edge of the first slot, remembered by the last render so the tooltip can map the pointer to a bar.
+    private double _plotLeft;
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        double slot = (ActualWidth - _plotLeft) / Math.Max(1, _points.Count);
+        int index = (int)Math.Floor((e.GetPosition(this).X - _plotLeft) / slot);
+        ToolTip = index >= 0 && index < _points.Count
+            ? _points[index].Label + ": " + ChartScale.FormatValue(_points[index].Value, _suffix)
+            : null;
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         double width = ActualWidth;
         double height = ActualHeight;
+        dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, width, height));
         if (_points.Count == 0 || width < 40 || height < 40)
         {
             return;
         }
 
-        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x5C, 0x62, 0x70));
+        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x85, 0x8B, 0x9A));
         Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9A, 0xA0, 0xAE));
         Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xEE, 0xF0, 0xF4));
         Brush accent = ThemeBrush("Blocker.Accent", Color.FromRgb(0x5F, 0x6F, 0x2E));
@@ -92,6 +107,7 @@ internal sealed class BarChartElement : ChartElementBase
 
         double labelWidth = axis.Ticks.Max(t => Text(ChartScale.FormatValue(t), mono, muted).Width);
         double left = labelWidth + PlotGap;
+        _plotLeft = left;
         double top = 18;
         double bottom = height - 22;
         double plotWidth = width - left;
@@ -135,7 +151,8 @@ internal sealed class BarChartElement : ChartElementBase
 
             if (i % labelEvery == 0)
             {
-                FormattedText category = Text(point.Label, ui, secondary, slot * labelEvery);
+                double room = (slot * labelEvery) - 2;
+                FormattedText category = Text(AxisLabels.Fit(point.Label, room, text => Text(text, ui, secondary).Width), ui, secondary, room);
                 dc.DrawText(category, new Point(left + (i * slot) + ((slot - category.Width) / 2), bottom + 6));
             }
         }
@@ -166,7 +183,7 @@ internal sealed class LineChartElement : ChartElementBase
             return;
         }
 
-        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x5C, 0x62, 0x70));
+        Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x85, 0x8B, 0x9A));
         Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9A, 0xA0, 0xAE));
         Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xEE, 0xF0, 0xF4));
         Brush card = ThemeBrush("Blocker.Bg.Card", Color.FromRgb(0x0B, 0x0C, 0x0F));
@@ -270,5 +287,41 @@ internal sealed class LineChartElement : ChartElementBase
                 x += 14 + name.Width + 16;
             }
         }
+    }
+}
+
+/// <summary>Shortens axis labels so the part that identifies them survives.</summary>
+internal static class AxisLabels
+{
+    private const char Ellipsis = '\u2026';
+
+    /// <summary>
+    /// Returns <paramref name="label"/> when it fits <paramref name="maxWidth"/>; otherwise a file name keeps its extension
+    /// ("telegra….exe": stem, ellipsis, extension) and anything else is cut at the end.
+    /// </summary>
+    /// <param name="label">Full label.</param>
+    /// <param name="maxWidth">Available width.</param>
+    /// <param name="measure">Width of a text in the label's font.</param>
+    /// <returns>The label to draw.</returns>
+    public static string Fit(string label, double maxWidth, Func<string, double> measure)
+    {
+        if (measure(label) <= maxWidth)
+        {
+            return label;
+        }
+
+        int dot = label.LastIndexOf('.');
+        string tail = dot > 0 && label.Length - dot is >= 2 and <= 6 ? label[dot..] : string.Empty;
+        string stem = tail.Length == 0 ? label : label[..dot];
+        for (int keep = stem.Length - 1; keep >= 1; keep--)
+        {
+            string candidate = stem[..keep] + Ellipsis + tail;
+            if (measure(candidate) <= maxWidth)
+            {
+                return candidate;
+            }
+        }
+
+        return label;
     }
 }

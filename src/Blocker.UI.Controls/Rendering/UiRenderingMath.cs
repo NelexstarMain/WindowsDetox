@@ -12,7 +12,7 @@ internal static class ToneMap
     public static string ForegroundKey(UiTone tone) => tone switch
     {
         UiTone.Neutral => "Blocker.Text.Primary",
-        UiTone.Accent => "Blocker.Accent",
+        UiTone.Accent => "Blocker.Accent.Text",
         UiTone.Success => "Blocker.Success",
         UiTone.Warning => "Blocker.Warning",
         UiTone.Danger => "Blocker.Danger",
@@ -22,7 +22,12 @@ internal static class ToneMap
     /// <summary>Gets the brush key for a filled bar or mark. Neutral maps to the secondary text colour so it stays calm.</summary>
     /// <param name="tone">The tone.</param>
     /// <returns>A <c>Blocker.*</c> brush key.</returns>
-    public static string FillKey(UiTone tone) => tone == UiTone.Neutral ? "Blocker.Text.Secondary" : ForegroundKey(tone);
+    public static string FillKey(UiTone tone) => tone switch
+    {
+        UiTone.Neutral => "Blocker.Text.Secondary",
+        UiTone.Accent => "Blocker.Accent",
+        _ => ForegroundKey(tone),
+    };
 
     /// <summary>Gets the translucent background brush key for a tone.</summary>
     /// <param name="tone">The tone.</param>

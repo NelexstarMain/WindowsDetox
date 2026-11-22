@@ -17,11 +17,14 @@
     <Color x:Key="Blocker.Border.Strong.Color">#323746</Color>
     <Color x:Key="Blocker.Text.Primary.Color">#EEF0F4</Color>
     <Color x:Key="Blocker.Text.Secondary.Color">#9AA0AE</Color>
-    <Color x:Key="Blocker.Text.Muted.Color">#5C6270</Color>
+    <!-- Muted is still text (captions, axis labels): 4.9:1 on the raised surface, 5.5:1 on cards. -->
+    <Color x:Key="Blocker.Text.Muted.Color">#858B9A</Color>
     <Color x:Key="Blocker.Text.OnAccent.Color">#F4F7EE</Color>
     <Color x:Key="Blocker.Accent.Color">#5F6F2E</Color>
     <Color x:Key="Blocker.Accent.Hover.Color">#6E8036</Color>
     <Color x:Key="Blocker.Accent.Bar.Color">#7C913D</Color>
+    <!-- Accent as text: the brand olive lifted to 7.7:1 on the raised surface and 5.8:1 on Accent.Soft (Accent itself is a fill, 3:1 only). -->
+    <Color x:Key="Blocker.Accent.Text.Color">#98AD4A</Color>
     <Color x:Key="Blocker.Accent.Soft.Color">#252C15</Color>
     <Color x:Key="Blocker.Warning.Color">#F5A524</Color>
     <Color x:Key="Blocker.Warning.Soft.Color">#2EF5A524</Color>
@@ -43,6 +46,7 @@
     <SolidColorBrush x:Key="Blocker.Accent" Color="{StaticResource Blocker.Accent.Color}" />
     <SolidColorBrush x:Key="Blocker.Accent.Hover" Color="{StaticResource Blocker.Accent.Hover.Color}" />
     <SolidColorBrush x:Key="Blocker.Accent.Bar" Color="{StaticResource Blocker.Accent.Bar.Color}" />
+    <SolidColorBrush x:Key="Blocker.Accent.Text" Color="{StaticResource Blocker.Accent.Text.Color}" />
     <SolidColorBrush x:Key="Blocker.Accent.Soft" Color="{StaticResource Blocker.Accent.Soft.Color}" />
     <SolidColorBrush x:Key="Blocker.Warning" Color="{StaticResource Blocker.Warning.Color}" />
     <SolidColorBrush x:Key="Blocker.Warning.Soft" Color="{StaticResource Blocker.Warning.Soft.Color}" />
@@ -107,7 +111,7 @@
 
     <Color x:Key="TextFillColorPrimary">#EEF0F4</Color>
     <Color x:Key="TextFillColorSecondary">#9AA0AE</Color>
-    <Color x:Key="TextFillColorTertiary">#5C6270</Color>
+    <Color x:Key="TextFillColorTertiary">#858B9A</Color>
     <Color x:Key="TextFillColorDisabled">#4B5160</Color>
     <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
     <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
@@ -499,7 +503,8 @@
     <!-- Keyed and set explicitly on each item: NavigationView brings its own item style, which would win over an implicit one. -->
     <Style x:Key="Blocker.NavItem" TargetType="ui:NavigationViewItem">
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
-        <Setter Property="Margin" Value="0,0,0,2" />
+        <!-- The pane offsets items 6 px from the left; the right margin keeps the highlight inside the pane edge by the same amount. -->
+        <Setter Property="Margin" Value="0,0,10,2" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
         <Setter Property="Template">

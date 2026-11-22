@@ -11,7 +11,7 @@
             <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" Margin="0,0,0,24" />
 
             <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,16" Margin="0,0,0,24">
-                <TextBlock Style="{DynamicResource Blocker.Text.Mono}" Text="{Binding VersionText}" />
+                <TextBlock Style="{DynamicResource Blocker.Text.MonoSmall}" Foreground="{DynamicResource Blocker.Text.Secondary}" Text="{Binding VersionText}" />
             </Border>
 
             <ItemsControl ItemsSource="{Binding Sections}">
@@ -19,7 +19,7 @@
                     <DataTemplate>
                         <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24" Margin="0,0,0,24">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Title}" Margin="0,0,0,16" />
+                                <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Title}" Margin="0,0,0,16" />
                                 <rd:UiNodeView Node="{Binding Node}"
                                                bh:UiNodeActions.Contribution="{Binding}"
                                                bh:UiNodeActions.Command="{Binding DataContext.SendSectionActionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />

@@ -25,6 +25,7 @@ internal sealed class UiVisualBuilder
     private const double CardContentGap = 12;
     private const double FlatContentGap = 10;
     private const double PageGap = 16;
+    private const double RowMaxWidth = 640;
     private const double MonthCellChipsHeight = 98;
     private const double MonthCellNumberRowHeight = 31;
     private const double MonthCellChipsBottomPadding = 3;
@@ -149,10 +150,14 @@ internal sealed class UiVisualBuilder
     private FrameworkElement BuildStack(UiStack stack, bool insideCard) =>
         BuildChildren(stack.Children, stack.Orientation, UiMetrics.GapPixels(stack.Gap), insideCard);
 
-    private StackPanel BuildChildren(IReadOnlyList<UiNode> children, UiOrientation orientation, double gap, bool insideCard)
+    private Panel BuildChildren(IReadOnlyList<UiNode> children, UiOrientation orientation, double gap, bool insideCard)
     {
-        bool vertical = orientation == UiOrientation.Vertical;
-        var panel = new StackPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal };
+        if (orientation == UiOrientation.Horizontal)
+        {
+            return BuildRow(children, gap, insideCard);
+        }
+
+        var panel = new StackPanel();
         foreach (UiNode child in children)
         {
             FrameworkElement element = Build(child, insideCard);
@@ -163,13 +168,76 @@ internal sealed class UiVisualBuilder
 
             if (panel.Children.Count > 0)
             {
-                element.Margin = vertical ? new Thickness(0, gap, 0, 0) : new Thickness(gap, 0, 0, 0);
+                element.Margin = new Thickness(0, gap, 0, 0);
             }
 
             panel.Children.Add(element);
         }
 
         return panel;
+    }
+
+    // A row is a grid so trailing controls form a column: the first child takes the free width when it is text or a toggle, the rest
+    // keep their own size at the right edge. Rows of the same shape therefore line up whatever the title length.
+    private Panel BuildRow(IReadOnlyList<UiNode> children, double gap, bool insideCard)
+    {
+        var row = new Grid { Background = Brushes.Transparent };
+        bool flexibleFirst = children.Count > 1 && children[0] is UiText or UiToggle or UiProgress;
+        FrameworkElement? dismiss = null;
+        for (int i = 0; i < children.Count; i++)
+        {
+            bool isDismiss = i > 0 && i == children.Count - 1 && IsDismissAction(children[i]) && children[0] is UiToggle or UiText;
+            FrameworkElement element = isDismiss ? BuildDismissIcon((UiButton)children[i]) : Build(children[i], insideCard);
+            if (i > 0)
+            {
+                element.Margin = new Thickness(gap, 0, 0, 0);
+            }
+
+            if (element.VerticalAlignment == VerticalAlignment.Stretch)
+            {
+                element.VerticalAlignment = VerticalAlignment.Center;
+            }
+
+            if (isDismiss)
+            {
+                dismiss = element;
+            }
+
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 0 && flexibleFirst ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+            Grid.SetColumn(element, i);
+            row.Children.Add(element);
+        }
+
+        if (dismiss is not null)
+        {
+            RevealOnHover(row, dismiss);
+        }
+
+        // Rows with a free-width title stop at one reading width, so the trailing controls of every row sit in the same column.
+        return flexibleFirst ? LeftFrame(row, RowMaxWidth) : row;
+    }
+
+    // Removing a list entry is rare next to ticking it, so the "x" is not drawn until the pointer or keyboard focus is on its row.
+    private static bool IsDismissAction(UiNode node) => node is UiButton { Variant: UiButtonVariant.Subtle, Icon: UiIcon.Dismiss };
+
+    private FrameworkElement BuildDismissIcon(UiButton node)
+    {
+        var button = new Button { IsEnabled = node.IsEnabled, Opacity = 0, MinHeight = 32, MinWidth = 32, Padding = new Thickness(8, 0, 8, 0), ToolTip = node.Label, Content = Icon(UiIcon.Dismiss, 16) };
+        button.SetResourceReference(FrameworkElement.StyleProperty, ToneMap.ButtonStyleKey(node.Variant));
+        AutomationProperties.SetName(button, node.Label);
+        AutomationProperties.SetAutomationId(button, node.Id);
+        string id = node.Id;
+        button.Click += (_, _) => _raise(UiAction.Click(id));
+        return button;
+    }
+
+    private static void RevealOnHover(Grid row, FrameworkElement action)
+    {
+        void Update() => action.Opacity = row.IsMouseOver || action.IsKeyboardFocusWithin ? 1 : 0;
+        row.MouseEnter += (_, _) => Update();
+        row.MouseLeave += (_, _) => Update();
+        action.GotKeyboardFocus += (_, _) => Update();
+        action.LostKeyboardFocus += (_, _) => Update();
     }
 
     private FrameworkElement BuildGrid(UiGrid grid, bool insideCard)
@@ -183,18 +251,21 @@ internal sealed class UiVisualBuilder
             panel.Children.Add(element);
         }
 
-        return panel;
+        // The wrapper takes the margin a parent stack assigns; assigning it to the panel itself would replace its negative margin.
+        var wrapper = new Grid();
+        wrapper.Children.Add(panel);
+        return wrapper;
     }
 
     private FrameworkElement BuildCard(UiCard card)
     {
-        StackPanel stack = BuildCardStack(card);
+        Panel stack = BuildCardStack(card);
         return _flat ? stack : Styled(new Border { Child = stack }, "Blocker.CardBorder");
     }
 
-    private StackPanel BuildCardStack(UiCard card)
+    private Panel BuildCardStack(UiCard card)
     {
-        var stack = new StackPanel();
+        Panel stack = _flat ? new FitStackPanel() : new StackPanel();
         bool hasHeader = !_flat && (card.Title is not null || card.Subtitle is not null || card.Icon is not null);
         if (hasHeader)
         {
@@ -225,7 +296,7 @@ internal sealed class UiVisualBuilder
 
         if (card.Icon is { } icon)
         {
-            SymbolIcon symbol = Icon(icon, 20, "Blocker.Accent");
+            SymbolIcon symbol = Icon(icon, 20, "Blocker.Accent.Text");
             symbol.Margin = new Thickness(0, 1, 12, 0);
             symbol.VerticalAlignment = VerticalAlignment.Top;
             header.Children.Add(symbol);
@@ -249,9 +320,10 @@ internal sealed class UiVisualBuilder
         return header;
     }
 
-    private static FrameworkElement BuildText(UiText text)
+    private FrameworkElement BuildText(UiText text)
     {
         TextBlock block = Styled(new TextBlock { Text = text.Text }, ToneMap.TextStyleKey(text.Style));
+        FitStackPanel.SetKeepWithNext(block, _flat && text.Style == UiTextStyle.Caption);
         if (text.Tone != UiTone.Neutral)
         {
             block.SetResourceReference(TextBlock.ForegroundProperty, ToneMap.ForegroundKey(text.Tone));
@@ -498,17 +570,18 @@ internal sealed class UiVisualBuilder
 
     private static FrameworkElement BuildHeatmap(UiHeatmap map)
     {
-        const double cell = 16;
+        // Columns share the width of the card; cells are wide rather than square so the map reads as a band, not a thumbnail.
+        const double cell = 22;
         const double gap = 3;
         double max = HeatmapMath.Max(map.Values);
         int rows = map.RowLabels.Count;
         int cols = map.ColumnLabels.Count;
 
-        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         for (int c = 0; c < cols; c++)
         {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(cell + gap) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         }
 
         for (int r = 0; r <= rows; r++)
@@ -547,7 +620,7 @@ internal sealed class UiVisualBuilder
             for (int c = 0; c < cols; c++)
             {
                 double value = r < map.Values.Count && c < map.Values[r].Count ? map.Values[r][c] : 0;
-                Border box = HeatCell(HeatmapMath.Intensity(value, max), cell);
+                Border box = HeatCell(HeatmapMath.Intensity(value, max), double.NaN, cell);
                 box.Margin = new Thickness(0, 0, gap, gap);
                 box.ToolTip = map.RowLabels[r] + " · " + map.ColumnLabels[c] + ": " + ChartScale.FormatValue(value, map.ValueSuffix);
                 Grid.SetRow(box, r + 1);
@@ -564,7 +637,7 @@ internal sealed class UiVisualBuilder
         legend.Children.Add(less);
         foreach (double step in new[] { 0, 0.33, 0.66, 1 })
         {
-            Border swatch = HeatCell(step, 12);
+            Border swatch = HeatCell(step, 12, 12);
             swatch.Margin = new Thickness(0, 0, 3, 0);
             legend.Children.Add(swatch);
         }
@@ -582,9 +655,9 @@ internal sealed class UiVisualBuilder
         return WithChartTitle(stack, map.Title, summary);
     }
 
-    private static Border HeatCell(double intensity, double size)
+    private static Border HeatCell(double intensity, double width, double height)
     {
-        var box = new Border { Width = size, Height = size, CornerRadius = new CornerRadius(2) };
+        var box = new Border { Width = width, Height = height, CornerRadius = new CornerRadius(2) };
         if (intensity <= 0)
         {
             box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x16, 0x18, 0x1F)));
@@ -1041,6 +1114,7 @@ internal sealed class UiVisualBuilder
     {
         var stack = new StackPanel { MaxWidth = 480, HorizontalAlignment = _stretchForms ? HorizontalAlignment.Stretch : HorizontalAlignment.Left };
         var readers = new List<(string Id, Func<string> Read)>();
+        FrameworkElement? inlineControl = null;
 
         foreach (UiFormField field in form.Fields)
         {
@@ -1055,12 +1129,20 @@ internal sealed class UiVisualBuilder
 
             AutomationProperties.SetName(control, field.Label);
             AutomationProperties.SetAutomationId(control, field.Id);
-            group.Children.Add(control);
+            if (form.Fields.Count == 1 && field is UiTextField or UiNumberField)
+            {
+                inlineControl = control;
+            }
+            else
+            {
+                group.Children.Add(control);
+            }
+
             stack.Children.Add(group);
             readers.Add((field.Id, read));
         }
 
-        var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : 20, 0, 0) };
+        var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 || inlineControl is not null ? 0 : 20, 0, 0) };
         submit.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Primary");
         AutomationProperties.SetAutomationId(submit, form.Id);
         string formId = form.Id;
@@ -1074,8 +1156,35 @@ internal sealed class UiVisualBuilder
 
             _raise(UiAction.Submit(formId, values));
         };
-        stack.Children.Add(submit);
-        return stack;
+        if (inlineControl is not null)
+        {
+            // One field and its button share a line: the field takes the width, the button stays at its right end.
+            var line = new Grid();
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            inlineControl.VerticalAlignment = VerticalAlignment.Center;
+            submit.Margin = new Thickness(12, 0, 0, 0);
+            Grid.SetColumn(submit, 1);
+            line.Children.Add(inlineControl);
+            line.Children.Add(submit);
+            ((StackPanel)stack.Children[0]).Children.Add(line);
+        }
+        else
+        {
+            stack.Children.Add(submit);
+        }
+
+        return LeftFrame(stack, 480);
+    }
+
+    // Stops growing at maxWidth but stays at the left edge: a stretched element with a MaxWidth would be centred.
+    private static Grid LeftFrame(FrameworkElement content, double maxWidth)
+    {
+        var frame = new Grid();
+        frame.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = maxWidth });
+        frame.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        frame.Children.Add(content);
+        return frame;
     }
 
     private static (FrameworkElement Control, Func<string> Read, bool Labelled) BuildField(UiFormField field)

@@ -85,7 +85,9 @@
                 <!-- Idle: one action, one shortcut. -->
                 <StackPanel HorizontalAlignment="Center" Margin="0,32,0,24"
                             Visibility="{Binding IsIdle, Converter={StaticResource BoolToVisible}}">
-                    <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="{Binding ClockText}" HorizontalAlignment="Center" Margin="0,0,0,24" />
+                    <!-- No session: a muted zero clock that keeps the layout of the running state (the dashes of the placeholder text get spaced out by the tabular digits). -->
+                    <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="00:00:00" Foreground="{DynamicResource Blocker.Text.Muted}"
+                               HorizontalAlignment="Center" Margin="0,0,0,24" AutomationProperties.Name="No session running" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Style="{DynamicResource Blocker.Button.Primary}" Command="{Binding StartSessionCommand}">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -295,7 +297,8 @@
                                     </Border.Style>
                                 </Border>
 
-                                <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
+                                <!-- Content taller than the cell loses whole trailing rows (FitStackPanel); the bottom padding keeps what stays off the edge. -->
+                                <ContentControl Margin="15,13,15,12" ClipToBounds="True" Focusable="False"
                                                 Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}">
                                     <ContentControl.Style>
                                         <Style TargetType="ContentControl">
@@ -307,18 +310,6 @@
                                         </Style>
                                     </ContentControl.Style>
                                 </ContentControl>
-
-                                <!-- Content taller than the cell is clipped; the bottom edge fades out. -->
-                                <Border VerticalAlignment="Bottom" Height="24" Margin="1" CornerRadius="0,0,11,11" IsHitTestVisible="False"
-                                        Background="{DynamicResource Blocker.Bg.Raised}">
-                                    <Border.OpacityMask>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#00000000" Offset="0" />
-                                            <GradientStop Color="#00000000" Offset="0.45" />
-                                            <GradientStop Color="#FF000000" Offset="1" />
-                                        </LinearGradientBrush>
-                                    </Border.OpacityMask>
-                                </Border>
 
                                 <!-- Edit mode: dashed outline, remove button and resize handle fade in; they leave through a shorter fade and cannot be
                                      clicked while they do. -->
@@ -594,7 +585,7 @@
                                                     ClipToBounds="True">
                                                 <Viewbox Stretch="Uniform">
                                                     <Grid Width="{Binding SlotWidth}" Height="{Binding SlotHeight}" IsHitTestVisible="False">
-                                                        <ContentControl Margin="15,13,15,0" ClipToBounds="True" Focusable="False"
+                                                        <ContentControl Margin="15,13,15,12" ClipToBounds="True" Focusable="False"
                                                                         Content="{Binding Contribution}" ContentTemplate="{StaticResource App.WidgetFace}" />
                                                     </Grid>
                                                 </Viewbox>
