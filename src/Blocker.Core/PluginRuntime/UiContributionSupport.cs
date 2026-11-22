@@ -75,8 +75,33 @@ internal static partial class UiActionValidator
         {
             UiActionKind.Toggle => action.Value is "true" or "false" && FormValuesEmpty(action),
             UiActionKind.Submit => action.Value is null && ValidForm(action.FormValues),
+            UiActionKind.Schedule => action.Value is null && ValidSchedule(action.FormValues),
+            UiActionKind.Click => action.Value is null && (FormValuesEmpty(action) || IsExtendFlag(action.FormValues)),
             _ => action.Value is null && FormValuesEmpty(action),
         };
+    }
+
+    private static bool IsExtendFlag(IReadOnlyDictionary<string, string>? values) =>
+        values is { Count: 1 } && values.TryGetValue("extend", out string? extend) && extend == "true";
+
+    private static bool ValidSchedule(IReadOnlyDictionary<string, string>? values)
+    {
+        const int minutesPerDay = 1440;
+        const int maxDays = 7;
+        return values is { Count: 3 }
+            && TryMinute(values, "day", out int day) && day < maxDays
+            && TryMinute(values, "start", out int start)
+            && TryMinute(values, "end", out int end)
+            && start < end && end <= minutesPerDay;
+    }
+
+    private static bool TryMinute(IReadOnlyDictionary<string, string> values, string key, out int value)
+    {
+        value = 0;
+        return values.TryGetValue(key, out string? text)
+            && text is { Length: > 0 and <= 4 }
+            && text.All(char.IsAsciiDigit)
+            && int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 
     private static bool FormValuesEmpty(UiAction action) => action.FormValues is null or { Count: 0 };

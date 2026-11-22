@@ -31,6 +31,7 @@ Blocker.UI.Sdk.UiAction.Value.get -> string?
 Blocker.UI.Sdk.UiAction.Value.init -> void
 Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Click = 0 -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiActionKind.Schedule = 3 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Submit = 2 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Toggle = 1 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiAlignment
@@ -218,9 +219,11 @@ Blocker.UI.Sdk.UiLineChart.ValueSuffix.get -> string?
 Blocker.UI.Sdk.UiLineChart.ValueSuffix.init -> void
 Blocker.UI.Sdk.UiMonthCell
 Blocker.UI.Sdk.UiMonthCell.<Clone>$() -> Blocker.UI.Sdk.UiMonthCell!
+Blocker.UI.Sdk.UiMonthCell.Chips.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Blocker.UI.Sdk.UiMonthCell.Chips.init -> void
 Blocker.UI.Sdk.UiMonthCell.Day.get -> int
 Blocker.UI.Sdk.UiMonthCell.Day.init -> void
-Blocker.UI.Sdk.UiMonthCell.Deconstruct(out string! Id, out int Day, out int Markers, out bool IsToday, out bool IsSelected, out bool IsOutside, out Blocker.UI.Sdk.UiTone Tone, out string? Description) -> void
+Blocker.UI.Sdk.UiMonthCell.Deconstruct(out string! Id, out int Day, out int Markers, out bool IsToday, out bool IsSelected, out bool IsOutside, out Blocker.UI.Sdk.UiTone Tone, out string? Description, out System.Collections.Generic.IReadOnlyList<string!>? Chips) -> void
 Blocker.UI.Sdk.UiMonthCell.Description.get -> string?
 Blocker.UI.Sdk.UiMonthCell.Description.init -> void
 Blocker.UI.Sdk.UiMonthCell.Equals(Blocker.UI.Sdk.UiMonthCell? other) -> bool
@@ -236,7 +239,7 @@ Blocker.UI.Sdk.UiMonthCell.Markers.get -> int
 Blocker.UI.Sdk.UiMonthCell.Markers.init -> void
 Blocker.UI.Sdk.UiMonthCell.Tone.get -> Blocker.UI.Sdk.UiTone
 Blocker.UI.Sdk.UiMonthCell.Tone.init -> void
-Blocker.UI.Sdk.UiMonthCell.UiMonthCell(string! Id, int Day, int Markers = 0, bool IsToday = false, bool IsSelected = false, bool IsOutside = false, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent, string? Description = null) -> void
+Blocker.UI.Sdk.UiMonthCell.UiMonthCell(string! Id, int Day, int Markers = 0, bool IsToday = false, bool IsSelected = false, bool IsOutside = false, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent, string? Description = null, System.Collections.Generic.IReadOnlyList<string!>? Chips = null) -> void
 Blocker.UI.Sdk.UiMonthGrid
 Blocker.UI.Sdk.UiMonthGrid.Cells.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiMonthCell!>!
 Blocker.UI.Sdk.UiMonthGrid.Cells.init -> void
@@ -413,6 +416,74 @@ Blocker.UI.Sdk.UiTextStyle.Caption = 1 -> Blocker.UI.Sdk.UiTextStyle
 Blocker.UI.Sdk.UiTextStyle.Mono = 4 -> Blocker.UI.Sdk.UiTextStyle
 Blocker.UI.Sdk.UiTextStyle.Subtitle = 2 -> Blocker.UI.Sdk.UiTextStyle
 Blocker.UI.Sdk.UiTextStyle.Title = 3 -> Blocker.UI.Sdk.UiTextStyle
+Blocker.UI.Sdk.UiTimeGrid
+Blocker.UI.Sdk.UiTimeGrid.AllowCreate.get -> bool
+Blocker.UI.Sdk.UiTimeGrid.AllowCreate.init -> void
+Blocker.UI.Sdk.UiTimeGrid.Days.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridDay!>!
+Blocker.UI.Sdk.UiTimeGrid.Days.init -> void
+Blocker.UI.Sdk.UiTimeGrid.Deconstruct(out string! Id, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridDay!>! Days, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridEvent!>! Events, out int SnapMinutes, out int? NowMinute, out int ScrollToMinute, out bool AllowCreate, out Blocker.UI.Sdk.UiNode? Popover, out string? PopoverAnchorId, out string? DismissId, out int? PendingDay, out int? PendingStartMinute, out int? PendingEndMinute) -> void
+Blocker.UI.Sdk.UiTimeGrid.DismissId.get -> string?
+Blocker.UI.Sdk.UiTimeGrid.DismissId.init -> void
+Blocker.UI.Sdk.UiTimeGrid.Equals(Blocker.UI.Sdk.UiTimeGrid? other) -> bool
+Blocker.UI.Sdk.UiTimeGrid.Events.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridEvent!>!
+Blocker.UI.Sdk.UiTimeGrid.Events.init -> void
+Blocker.UI.Sdk.UiTimeGrid.Id.get -> string!
+Blocker.UI.Sdk.UiTimeGrid.Id.init -> void
+Blocker.UI.Sdk.UiTimeGrid.NowMinute.get -> int?
+Blocker.UI.Sdk.UiTimeGrid.NowMinute.init -> void
+Blocker.UI.Sdk.UiTimeGrid.PendingDay.get -> int?
+Blocker.UI.Sdk.UiTimeGrid.PendingDay.init -> void
+Blocker.UI.Sdk.UiTimeGrid.PendingEndMinute.get -> int?
+Blocker.UI.Sdk.UiTimeGrid.PendingEndMinute.init -> void
+Blocker.UI.Sdk.UiTimeGrid.PendingStartMinute.get -> int?
+Blocker.UI.Sdk.UiTimeGrid.PendingStartMinute.init -> void
+Blocker.UI.Sdk.UiTimeGrid.Popover.get -> Blocker.UI.Sdk.UiNode?
+Blocker.UI.Sdk.UiTimeGrid.Popover.init -> void
+Blocker.UI.Sdk.UiTimeGrid.PopoverAnchorId.get -> string?
+Blocker.UI.Sdk.UiTimeGrid.PopoverAnchorId.init -> void
+Blocker.UI.Sdk.UiTimeGrid.ScrollToMinute.get -> int
+Blocker.UI.Sdk.UiTimeGrid.ScrollToMinute.init -> void
+Blocker.UI.Sdk.UiTimeGrid.SnapMinutes.get -> int
+Blocker.UI.Sdk.UiTimeGrid.SnapMinutes.init -> void
+Blocker.UI.Sdk.UiTimeGrid.UiTimeGrid(string! Id, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridDay!>! Days, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridEvent!>! Events, int SnapMinutes = 15, int? NowMinute = null, int ScrollToMinute = 480, bool AllowCreate = true, Blocker.UI.Sdk.UiNode? Popover = null, string? PopoverAnchorId = null, string? DismissId = null, int? PendingDay = null, int? PendingStartMinute = null, int? PendingEndMinute = null) -> void
+Blocker.UI.Sdk.UiTimeGridDay
+Blocker.UI.Sdk.UiTimeGridDay.<Clone>$() -> Blocker.UI.Sdk.UiTimeGridDay!
+Blocker.UI.Sdk.UiTimeGridDay.Deconstruct(out string! Id, out string! Label, out int? Number, out bool IsToday) -> void
+Blocker.UI.Sdk.UiTimeGridDay.Equals(Blocker.UI.Sdk.UiTimeGridDay? other) -> bool
+Blocker.UI.Sdk.UiTimeGridDay.Id.get -> string!
+Blocker.UI.Sdk.UiTimeGridDay.Id.init -> void
+Blocker.UI.Sdk.UiTimeGridDay.IsToday.get -> bool
+Blocker.UI.Sdk.UiTimeGridDay.IsToday.init -> void
+Blocker.UI.Sdk.UiTimeGridDay.Label.get -> string!
+Blocker.UI.Sdk.UiTimeGridDay.Label.init -> void
+Blocker.UI.Sdk.UiTimeGridDay.Number.get -> int?
+Blocker.UI.Sdk.UiTimeGridDay.Number.init -> void
+Blocker.UI.Sdk.UiTimeGridDay.UiTimeGridDay(string! Id, string! Label, int? Number = null, bool IsToday = false) -> void
+Blocker.UI.Sdk.UiTimeGridEvent
+Blocker.UI.Sdk.UiTimeGridEvent.<Clone>$() -> Blocker.UI.Sdk.UiTimeGridEvent!
+Blocker.UI.Sdk.UiTimeGridEvent.Day.get -> int
+Blocker.UI.Sdk.UiTimeGridEvent.Day.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.Deconstruct(out string! Id, out int Day, out int StartMinute, out int EndMinute, out string! Title, out string? Detail, out Blocker.UI.Sdk.UiTone Tone, out bool IsSelected, out bool IsMovable, out bool IsResizable) -> void
+Blocker.UI.Sdk.UiTimeGridEvent.Detail.get -> string?
+Blocker.UI.Sdk.UiTimeGridEvent.Detail.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.EndMinute.get -> int
+Blocker.UI.Sdk.UiTimeGridEvent.EndMinute.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.Equals(Blocker.UI.Sdk.UiTimeGridEvent? other) -> bool
+Blocker.UI.Sdk.UiTimeGridEvent.Id.get -> string!
+Blocker.UI.Sdk.UiTimeGridEvent.Id.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.IsMovable.get -> bool
+Blocker.UI.Sdk.UiTimeGridEvent.IsMovable.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.IsResizable.get -> bool
+Blocker.UI.Sdk.UiTimeGridEvent.IsResizable.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.IsSelected.get -> bool
+Blocker.UI.Sdk.UiTimeGridEvent.IsSelected.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.StartMinute.get -> int
+Blocker.UI.Sdk.UiTimeGridEvent.StartMinute.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.Title.get -> string!
+Blocker.UI.Sdk.UiTimeGridEvent.Title.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.Tone.get -> Blocker.UI.Sdk.UiTone
+Blocker.UI.Sdk.UiTimeGridEvent.Tone.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.UiTimeGridEvent(string! Id, int Day, int StartMinute, int EndMinute, string! Title, string? Detail = null, Blocker.UI.Sdk.UiTone Tone = Blocker.UI.Sdk.UiTone.Accent, bool IsSelected = false, bool IsMovable = true, bool IsResizable = true) -> void
 Blocker.UI.Sdk.UiToggle
 Blocker.UI.Sdk.UiToggle.Deconstruct(out string! Id, out string! Label, out bool IsOn, out string? Description) -> void
 Blocker.UI.Sdk.UiToggle.Description.get -> string?
@@ -563,6 +634,16 @@ override Blocker.UI.Sdk.UiTextField.<Clone>$() -> Blocker.UI.Sdk.UiTextField!
 override Blocker.UI.Sdk.UiTextField.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiTextField.GetHashCode() -> int
 override Blocker.UI.Sdk.UiTextField.ToString() -> string!
+override Blocker.UI.Sdk.UiTimeGrid.<Clone>$() -> Blocker.UI.Sdk.UiTimeGrid!
+override Blocker.UI.Sdk.UiTimeGrid.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTimeGrid.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTimeGrid.ToString() -> string!
+override Blocker.UI.Sdk.UiTimeGridDay.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTimeGridDay.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTimeGridDay.ToString() -> string!
+override Blocker.UI.Sdk.UiTimeGridEvent.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiTimeGridEvent.GetHashCode() -> int
+override Blocker.UI.Sdk.UiTimeGridEvent.ToString() -> string!
 override Blocker.UI.Sdk.UiToggle.<Clone>$() -> Blocker.UI.Sdk.UiToggle!
 override Blocker.UI.Sdk.UiToggle.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiToggle.GetHashCode() -> int
@@ -590,6 +671,7 @@ override sealed Blocker.UI.Sdk.UiStatTile.Equals(Blocker.UI.Sdk.UiNode? other) -
 override sealed Blocker.UI.Sdk.UiTable.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiText.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiTextField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
+override sealed Blocker.UI.Sdk.UiTimeGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiToggle.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 static Blocker.UI.Sdk.ExtensionCapabilities.GetRequired(Blocker.Sdk.Extensions.IPluginExtension! extension) -> System.Collections.Generic.IReadOnlyList<Blocker.Sdk.PluginCapability>!
 static Blocker.UI.Sdk.Ui.BarChart(string! title, params Blocker.UI.Sdk.UiDataPoint![]! points) -> Blocker.UI.Sdk.UiBarChart!
@@ -609,6 +691,7 @@ static Blocker.UI.Sdk.Ui.Progress(double value, double maximum, string? label = 
 static Blocker.UI.Sdk.Ui.Row(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiStack!
 static Blocker.UI.Sdk.Ui.Stat(string! label, string! value, string? caption = null, Blocker.UI.Sdk.UiTone tone = Blocker.UI.Sdk.UiTone.Neutral, Blocker.UI.Sdk.UiIcon? icon = null) -> Blocker.UI.Sdk.UiStatTile!
 static Blocker.UI.Sdk.Ui.Text(string! text, Blocker.UI.Sdk.UiTextStyle style = Blocker.UI.Sdk.UiTextStyle.Body, Blocker.UI.Sdk.UiTone tone = Blocker.UI.Sdk.UiTone.Neutral) -> Blocker.UI.Sdk.UiText!
+static Blocker.UI.Sdk.Ui.TimeGrid(string! id, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridDay!>! days, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiTimeGridEvent!>! events, int? nowMinute = null) -> Blocker.UI.Sdk.UiTimeGrid!
 static Blocker.UI.Sdk.Ui.Toggle(string! id, string! label, bool isOn, string? description = null) -> Blocker.UI.Sdk.UiToggle!
 static Blocker.UI.Sdk.UiAction.Click(string! elementId) -> Blocker.UI.Sdk.UiAction!
 static Blocker.UI.Sdk.UiAction.Submit(string! elementId, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! values) -> Blocker.UI.Sdk.UiAction!
@@ -680,6 +763,12 @@ static Blocker.UI.Sdk.UiText.operator !=(Blocker.UI.Sdk.UiText? left, Blocker.UI
 static Blocker.UI.Sdk.UiText.operator ==(Blocker.UI.Sdk.UiText? left, Blocker.UI.Sdk.UiText? right) -> bool
 static Blocker.UI.Sdk.UiTextField.operator !=(Blocker.UI.Sdk.UiTextField? left, Blocker.UI.Sdk.UiTextField? right) -> bool
 static Blocker.UI.Sdk.UiTextField.operator ==(Blocker.UI.Sdk.UiTextField? left, Blocker.UI.Sdk.UiTextField? right) -> bool
+static Blocker.UI.Sdk.UiTimeGrid.operator !=(Blocker.UI.Sdk.UiTimeGrid? left, Blocker.UI.Sdk.UiTimeGrid? right) -> bool
+static Blocker.UI.Sdk.UiTimeGrid.operator ==(Blocker.UI.Sdk.UiTimeGrid? left, Blocker.UI.Sdk.UiTimeGrid? right) -> bool
+static Blocker.UI.Sdk.UiTimeGridDay.operator !=(Blocker.UI.Sdk.UiTimeGridDay? left, Blocker.UI.Sdk.UiTimeGridDay? right) -> bool
+static Blocker.UI.Sdk.UiTimeGridDay.operator ==(Blocker.UI.Sdk.UiTimeGridDay? left, Blocker.UI.Sdk.UiTimeGridDay? right) -> bool
+static Blocker.UI.Sdk.UiTimeGridEvent.operator !=(Blocker.UI.Sdk.UiTimeGridEvent? left, Blocker.UI.Sdk.UiTimeGridEvent? right) -> bool
+static Blocker.UI.Sdk.UiTimeGridEvent.operator ==(Blocker.UI.Sdk.UiTimeGridEvent? left, Blocker.UI.Sdk.UiTimeGridEvent? right) -> bool
 static Blocker.UI.Sdk.UiToggle.operator !=(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
 static Blocker.UI.Sdk.UiToggle.operator ==(Blocker.UI.Sdk.UiToggle? left, Blocker.UI.Sdk.UiToggle? right) -> bool
 static Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(string? pathData) -> bool

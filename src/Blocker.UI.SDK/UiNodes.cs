@@ -21,6 +21,7 @@ namespace Blocker.UI.Sdk;
 [JsonDerivedType(typeof(UiDonutChart), "donutChart")]
 [JsonDerivedType(typeof(UiHeatmap), "heatmap")]
 [JsonDerivedType(typeof(UiMonthGrid), "monthGrid")]
+[JsonDerivedType(typeof(UiTimeGrid), "timeGrid")]
 [JsonDerivedType(typeof(UiGlyph), "glyph")]
 [JsonDerivedType(typeof(UiTable), "table")]
 [JsonDerivedType(typeof(UiButton), "button")]
@@ -127,6 +128,8 @@ public sealed record UiHeatmap(
 /// <param name="IsOutside">Whether the day belongs to the previous or next month (drawn dimmed).</param>
 /// <param name="Tone">Colour role of the marker dots.</param>
 /// <param name="Description">Optional text for the tooltip and screen readers, for example <c>"Thursday 19 November, 2 entries"</c>.</param>
+/// <param name="Chips">Optional entry titles drawn as small labels inside the cell (full-size grids only, at most 4; the host shows
+/// as many as fit and a "+N" overflow). When set, the host draws chips instead of marker dots.</param>
 public sealed record UiMonthCell(
     string Id,
     int Day,
@@ -135,7 +138,8 @@ public sealed record UiMonthCell(
     bool IsSelected = false,
     bool IsOutside = false,
     UiTone Tone = UiTone.Accent,
-    string? Description = null);
+    string? Description = null,
+    IReadOnlyList<string>? Chips = null);
 
 /// <summary>
 /// A month as a grid of seven equal columns: a weekday header row and one row per week, all in the same grid so the header
@@ -155,6 +159,83 @@ public sealed record UiMonthGrid(
     string? PreviousId = null,
     string? NextId = null,
     bool IsCompact = false) : UiNode;
+
+/// <summary>One column (day) of a <see cref="UiTimeGrid"/>. Clicking the column header is delivered as <see cref="UiActionKind.Click"/>
+/// with <paramref name="Id"/> (for example to open that day).</summary>
+/// <param name="Id">Element id of the header, unique within the tree.</param>
+/// <param name="Label">Header text, for example <c>"Mon"</c>.</param>
+/// <param name="Number">Optional prominent number under the label, for example the day of the month.</param>
+/// <param name="IsToday">Whether the column is today (accent header, current-time line).</param>
+public sealed record UiTimeGridDay(string Id, string Label, int? Number = null, bool IsToday = false);
+
+/// <summary>
+/// A timed block in a <see cref="UiTimeGrid"/>. Clicking it is delivered as <see cref="UiActionKind.Click"/> with <paramref name="Id"/>;
+/// a Ctrl/Shift click carries <c>FormValues["extend"] = "true"</c> so the plugin can add it to a multi-selection. Dragging the body
+/// (when <paramref name="IsMovable"/>) or the bottom edge (when <paramref name="IsResizable"/>) is delivered as
+/// <see cref="UiActionKind.Schedule"/> with the new position.
+/// </summary>
+/// <param name="Id">Element id, unique within the tree.</param>
+/// <param name="Day">Zero-based column index.</param>
+/// <param name="StartMinute">Start, minutes after midnight (0-1439).</param>
+/// <param name="EndMinute">End, minutes after midnight (StartMinute+1 to 1440). Blocks that cross midnight are split by the plugin.</param>
+/// <param name="Title">Block title.</param>
+/// <param name="Detail">Optional second line, for example <c>"09:00-10:30"</c>.</param>
+/// <param name="Tone">Colour role.</param>
+/// <param name="IsSelected">Whether the block is selected (outlined and raised).</param>
+/// <param name="IsMovable">Whether the body can be dragged to another time or day.</param>
+/// <param name="IsResizable">Whether the bottom edge can be dragged to change the end.</param>
+public sealed record UiTimeGridEvent(
+    string Id,
+    int Day,
+    int StartMinute,
+    int EndMinute,
+    string Title,
+    string? Detail = null,
+    UiTone Tone = UiTone.Accent,
+    bool IsSelected = false,
+    bool IsMovable = true,
+    bool IsResizable = true);
+
+/// <summary>
+/// A day or week schedule: one column per day, an hour ruler and timed blocks laid out side by side when they overlap. The host draws
+/// everything, snaps drags to <paramref name="SnapMinutes"/> and shows a live preview while dragging; the plugin only receives the result.
+/// <list type="bullet">
+/// <item>Dragging across empty space in a column (or clicking it, which creates a one-hour block) is delivered as
+/// <see cref="UiActionKind.Schedule"/> with <c>ElementId = Id</c>.</item>
+/// <item>Moving or resizing a block is delivered as <see cref="UiActionKind.Schedule"/> with <c>ElementId</c> = the block id.</item>
+/// <item>Schedule actions carry <c>FormValues</c> <c>day</c>, <c>start</c> and <c>end</c> (invariant integers, minutes after midnight).</item>
+/// </list>
+/// When <paramref name="Popover"/> is set the host shows it in a floating card next to the block <paramref name="PopoverAnchorId"/>
+/// (or next to the pending new block when the anchor is <paramref name="Id"/>); clicking outside the card is delivered as a click on
+/// <paramref name="DismissId"/>. Use it for the quick editor that appears only after the user picked something.
+/// </summary>
+/// <param name="Id">Element id of the grid, unique within the tree.</param>
+/// <param name="Days">One to seven columns.</param>
+/// <param name="Events">Timed blocks (at most the tree's item limit).</param>
+/// <param name="SnapMinutes">Drag granularity: 5, 10, 15, 30 or 60.</param>
+/// <param name="NowMinute">Optional current time, minutes after midnight; drawn as a line across the column marked today.</param>
+/// <param name="ScrollToMinute">Time scrolled into view when the grid first appears (0-1439).</param>
+/// <param name="AllowCreate">Whether drags on empty space create blocks.</param>
+/// <param name="Popover">Optional floating content (no nested time grid).</param>
+/// <param name="PopoverAnchorId">The block id, or <paramref name="Id"/> for the pending new block; required with <paramref name="Popover"/>.</param>
+/// <param name="DismissId">Element id clicked when the popover is dismissed; required with <paramref name="Popover"/>.</param>
+/// <param name="PendingDay">Column of the pending new block drawn as a ghost while its popover is open.</param>
+/// <param name="PendingStartMinute">Start of the pending new block.</param>
+/// <param name="PendingEndMinute">End of the pending new block.</param>
+public sealed record UiTimeGrid(
+    string Id,
+    IReadOnlyList<UiTimeGridDay> Days,
+    IReadOnlyList<UiTimeGridEvent> Events,
+    int SnapMinutes = 15,
+    int? NowMinute = null,
+    int ScrollToMinute = 480,
+    bool AllowCreate = true,
+    UiNode? Popover = null,
+    string? PopoverAnchorId = null,
+    string? DismissId = null,
+    int? PendingDay = null,
+    int? PendingStartMinute = null,
+    int? PendingEndMinute = null) : UiNode;
 
 /// <summary>
 /// A plugin's own vector logo, drawn in a host colour. <paramref name="PathData"/> uses SVG/WPF path syntax limited to

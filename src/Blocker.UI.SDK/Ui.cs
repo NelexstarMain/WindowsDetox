@@ -135,4 +135,13 @@ public static class Ui
         string? previousId = null,
         string? nextId = null,
         bool isCompact = false) => new(weekdayLabels, cells, title, previousId, nextId, isCompact);
+
+    /// <summary>Creates a day or week schedule.</summary>
+    /// <param name="id">Grid id; receives Schedule actions for blocks drawn on empty space.</param>
+    /// <param name="days">One to seven columns.</param>
+    /// <param name="events">Timed blocks.</param>
+    /// <param name="nowMinute">Optional current time, minutes after midnight.</param>
+    /// <returns>The time grid.</returns>
+    public static UiTimeGrid TimeGrid(string id, IReadOnlyList<UiTimeGridDay> days, IReadOnlyList<UiTimeGridEvent> events, int? nowMinute = null) =>
+        new(id, days, events, NowMinute: nowMinute);
 }

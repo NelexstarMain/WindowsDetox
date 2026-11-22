@@ -214,4 +214,7 @@ public enum UiActionKind
 
     /// <summary>A <see cref="UiForm"/> was submitted.</summary>
     Submit,
+
+    /// <summary>A block of a <see cref="UiTimeGrid"/> was created, moved or resized; <c>FormValues</c> holds <c>day</c>, <c>start</c> and <c>end</c>.</summary>
+    Schedule,
 }

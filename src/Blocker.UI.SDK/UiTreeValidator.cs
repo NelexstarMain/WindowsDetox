@@ -36,6 +36,8 @@ public static partial class UiTreeValidator
     private const int MaxNavigationTitle = 32;
     private const int MonthGridColumns = 7;
     private const int MaxMonthMarkers = 99;
+    private const int MaxMonthChips = 4;
+    private const int MinutesPerDay = 1440;
 
     /// <summary>Checks SVG path data as accepted for <see cref="UiGlyph"/> and plugin icons: 1-4096 characters of path commands, numbers, spaces and commas.</summary>
     /// <param name="pathData">Path data.</param>
@@ -234,6 +236,9 @@ public static partial class UiTreeValidator
                 case UiMonthGrid month:
                     MonthGrid(month);
                     break;
+                case UiTimeGrid timeGrid:
+                    TimeGrid(timeGrid, depth);
+                    break;
                 case UiGlyph glyph:
                     if (!IsValidPathData(glyph.PathData))
                     {
@@ -391,8 +396,138 @@ public static partial class UiTreeValidator
 
                 Defined(cell.Tone, "UiMonthCell.Tone");
                 OptionalText(cell.Description, "UiMonthCell.Description");
+                if (cell.Chips is not null)
+                {
+                    if (cell.Chips.Count > MaxMonthChips)
+                    {
+                        Errors.Add($"UiMonthCell.Chips must contain at most {MaxMonthChips} labels.");
+                    }
+
+                    foreach (string chip in cell.Chips)
+                    {
+                        RequiredText(chip, "UiMonthCell.Chips");
+                    }
+                }
             }
         }
+
+        private void TimeGrid(UiTimeGrid grid, int depth)
+        {
+            Id(grid.Id);
+            if (grid.Days is null || grid.Days.Count is < 1 or > MonthGridColumns)
+            {
+                Errors.Add($"UiTimeGrid.Days must contain 1-{MonthGridColumns} columns.");
+                return;
+            }
+
+            foreach (UiTimeGridDay day in grid.Days)
+            {
+                if (day is null)
+                {
+                    Errors.Add("UiTimeGrid.Days contains null.");
+                    continue;
+                }
+
+                Id(day.Id);
+                RequiredText(day.Label, "UiTimeGridDay.Label");
+                if (day.Number is < 0 or > 9999)
+                {
+                    Errors.Add("UiTimeGridDay.Number must be between 0 and 9999.");
+                }
+            }
+
+            if (grid.SnapMinutes is not (5 or 10 or 15 or 30 or 60))
+            {
+                Errors.Add("UiTimeGrid.SnapMinutes must be 5, 10, 15, 30 or 60.");
+            }
+
+            if (grid.NowMinute is < 0 or >= MinutesPerDay || grid.ScrollToMinute is < 0 or >= MinutesPerDay)
+            {
+                Errors.Add("UiTimeGrid.NowMinute and ScrollToMinute must be between 0 and 1439.");
+            }
+
+            if (grid.Events is null || !Count(grid.Events.Count))
+            {
+                if (grid.Events is null)
+                {
+                    Errors.Add("UiTimeGrid.Events is required.");
+                }
+
+                return;
+            }
+
+            foreach (UiTimeGridEvent block in grid.Events)
+            {
+                if (block is null)
+                {
+                    Errors.Add("UiTimeGrid.Events contains null.");
+                    continue;
+                }
+
+                Id(block.Id);
+                RequiredText(block.Title, "UiTimeGridEvent.Title");
+                OptionalText(block.Detail, "UiTimeGridEvent.Detail");
+                Defined(block.Tone, "UiTimeGridEvent.Tone");
+                if (block.Day < 0 || block.Day >= grid.Days.Count)
+                {
+                    Errors.Add("UiTimeGridEvent.Day must index one of UiTimeGrid.Days.");
+                }
+
+                if (!IsValidSpan(block.StartMinute, block.EndMinute))
+                {
+                    Errors.Add("UiTimeGridEvent must satisfy 0 <= StartMinute < EndMinute <= 1440.");
+                }
+            }
+
+            bool hasPending = grid.PendingDay is not null || grid.PendingStartMinute is not null || grid.PendingEndMinute is not null;
+            if (hasPending && (grid.PendingDay is not { } pendingDay || pendingDay < 0 || pendingDay >= grid.Days.Count
+                || grid.PendingStartMinute is not { } pendingStart || grid.PendingEndMinute is not { } pendingEnd || !IsValidSpan(pendingStart, pendingEnd)))
+            {
+                Errors.Add("UiTimeGrid.PendingDay, PendingStartMinute and PendingEndMinute must be set together and describe a valid block.");
+            }
+
+            if (grid.Popover is null)
+            {
+                if (grid.PopoverAnchorId is not null || grid.DismissId is not null)
+                {
+                    Errors.Add("UiTimeGrid.PopoverAnchorId and DismissId require a Popover.");
+                }
+
+                return;
+            }
+
+            if (grid.PopoverAnchorId is null || grid.DismissId is null)
+            {
+                Errors.Add("UiTimeGrid.Popover requires PopoverAnchorId and DismissId.");
+                return;
+            }
+
+            Id(grid.DismissId);
+            bool anchorExists = grid.PopoverAnchorId == grid.Id ? hasPending : grid.Events.Any(e => e?.Id == grid.PopoverAnchorId);
+            if (!anchorExists)
+            {
+                Errors.Add("UiTimeGrid.PopoverAnchorId must name one of the events, or the grid itself together with a pending block.");
+            }
+
+            if (ContainsTimeGrid(grid.Popover))
+            {
+                Errors.Add("UiTimeGrid.Popover cannot contain another UiTimeGrid.");
+                return;
+            }
+
+            Visit(grid.Popover, depth + 1, isRoot: false);
+        }
+
+        private static bool IsValidSpan(int start, int end) => start >= 0 && start < end && end <= MinutesPerDay;
+
+        private static bool ContainsTimeGrid(UiNode node) => node switch
+        {
+            UiTimeGrid => true,
+            UiStack stack => stack.Children?.Any(c => c is not null && ContainsTimeGrid(c)) == true,
+            UiGrid grid => grid.Children?.Any(c => c is not null && ContainsTimeGrid(c)) == true,
+            UiCard card => card.Children?.Any(c => c is not null && ContainsTimeGrid(c)) == true,
+            _ => false,
+        };
 
         private void Points(IReadOnlyList<UiDataPoint>? points, string name)
         {
