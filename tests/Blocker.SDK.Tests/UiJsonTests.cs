@@ -97,4 +97,34 @@ public class UiJsonTests
     [Fact]
     public void Serialize_Null_ThrowsArgumentNullException() =>
         Assert.Throws<ArgumentNullException>(() => UiJson.Serialize(null!));
+
+    [Fact]
+    public void Roundtrip_StylesNotesFooterIconOnlyAndPast_ArePreserved()
+    {
+        UiPage original = Ui.Page(
+            "T",
+            [
+                new UiForm(
+                    "frm",
+                    [
+                        new UiTextField("title", "Title") { Style = UiFieldStyle.Title },
+                        new UiSelectField("kind", "Kind", [new UiOption("a", "A"), new UiOption("b", "B")]) { Style = UiFieldStyle.Chips },
+                        new UiNoteField("when", "When", "Monday", "Does not repeat", UiIcon.Clock),
+                    ],
+                    "Save") { FooterAction = Ui.Button("more", "More") },
+                new UiButton("edit", "Edit", UiButtonVariant.Subtle, UiIcon.Edit) { IconOnly = true },
+                new UiTimeGrid("g", [new UiTimeGridDay("d", "Mon")], [new UiTimeGridEvent("e", 0, 60, 120, "Past") { IsPast = true }]),
+            ]);
+
+        string json = UiJson.Serialize(original);
+        var restored = Assert.IsType<UiPage>(UiJson.Deserialize(json));
+
+        var form = Assert.IsType<UiForm>(restored.Children[0]);
+        Assert.Equal([UiFieldStyle.Title, UiFieldStyle.Chips, UiFieldStyle.Standard], form.Fields.Select(f => f.Style));
+        Assert.Equal(new UiNoteField("when", "When", "Monday", "Does not repeat", UiIcon.Clock), form.Fields[2]);
+        Assert.Equal("more", form.FooterAction?.Id);
+        Assert.True(Assert.IsType<UiButton>(restored.Children[1]).IconOnly);
+        Assert.True(Assert.IsType<UiTimeGrid>(restored.Children[2]).Events[0].IsPast);
+        Assert.DoesNotContain("\"style\":\"Standard\"", json);
+    }
 }

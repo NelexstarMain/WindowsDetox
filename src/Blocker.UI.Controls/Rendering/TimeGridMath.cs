@@ -211,6 +211,15 @@ internal static class TimeGridMath
     /// <returns><see langword="true"/> when the detail line is shown.</returns>
     public static bool ShowsDetail(double height) => height >= DetailMinHeight;
 
+    /// <summary>Gets the start of a time range detail such as <c>09:00–10:30</c>: the one-line form of a short block shows only that.</summary>
+    /// <param name="detail">The detail line of a block.</param>
+    /// <returns>The text before the first dash, trimmed; the whole trimmed text when it has no dash.</returns>
+    public static string StartOf(string detail)
+    {
+        int dash = detail.IndexOfAny(['–', '-']);
+        return (dash < 0 ? detail : detail[..dash]).Trim();
+    }
+
     /// <summary>Computes the range of a block created by dragging on empty space.</summary>
     /// <param name="anchorMinute">Raw minute under the press.</param>
     /// <param name="currentMinute">Raw minute under the pointer now (either side of the anchor).</param>

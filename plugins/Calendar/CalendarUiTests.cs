@@ -522,6 +522,21 @@ public class CalendarGridBlockTests
     }
 
     [Fact]
+    public async Task Blocks_that_ended_before_now_are_marked_past()
+    {
+        var rig = await Rig.CreateAsync();
+        _ = await rig.AddAsync(Kit.Task("early", Today, 8 * 60));
+        _ = await rig.AddAsync(Kit.Task("later", Today, 10 * 60));
+        _ = await rig.AddAsync(Kit.Task("tomorrow", Friday, 7 * 60));
+
+        UiTimeGrid grid = PageTree.Grid(await rig.PageAsync());
+
+        Assert.Equal(
+            [("early", true), ("later", false), ("tomorrow", false)],
+            grid.Events.OrderBy(e => e.Day).ThenBy(e => e.StartMinute).Select(e => (e.Title, e.IsPast)));
+    }
+
+    [Fact]
     public async Task The_now_line_appears_only_while_today_is_visible()
     {
         var rig = await Rig.CreateAsync();
@@ -575,7 +590,7 @@ public class CalendarGridBlockTests
         UiPage page = await rig.PageAsync();
 
         Assert.Null(PageTree.Grid(page).Popover);
-        Assert.True(Kit.HasText(page, "Friday 2 January, no time set"));
+        Assert.True(Kit.HasText(page, "Friday 2 January · no time set"));
         Assert.All([CalendarIds.Edit, CalendarIds.Duplicate, CalendarIds.Delete], id => Assert.Contains(id, PageTree.ButtonIds(page)));
         Assert.Single(Kit.Descendants(page).OfType<UiToggle>());
     }

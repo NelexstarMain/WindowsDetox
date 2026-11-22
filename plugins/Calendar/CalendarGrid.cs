@@ -38,6 +38,7 @@ public static class CalendarGrid
     {
         List<UiTimeGridEvent> blocks = [];
         bool h24 = view.Settings.Use24Hour;
+        int nowMinute = CalTime.MinuteOf(view.Now, view.Zone);
         foreach (Occurrence occurrence in view.Between(columns[0] - 1, columns[^1]).Where(o => o.HasTime))
         {
             bool crosses = Crosses(occurrence);
@@ -66,7 +67,10 @@ public static class CalendarGrid
                         tone,
                         isSelected,
                         IsMovable: movable,
-                        IsResizable: movable));
+                        IsResizable: movable)
+                    {
+                        IsPast = segments[i].Day < view.Today || (segments[i].Day == view.Today && segments[i].End <= nowMinute),
+                    });
                 }
             }
         }

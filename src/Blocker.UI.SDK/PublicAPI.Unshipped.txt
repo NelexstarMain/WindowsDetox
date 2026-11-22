@@ -53,6 +53,8 @@ Blocker.UI.Sdk.UiButton.Deconstruct(out string! Id, out string! Label, out Block
 Blocker.UI.Sdk.UiButton.Equals(Blocker.UI.Sdk.UiButton? other) -> bool
 Blocker.UI.Sdk.UiButton.Icon.get -> Blocker.UI.Sdk.UiIcon?
 Blocker.UI.Sdk.UiButton.Icon.init -> void
+Blocker.UI.Sdk.UiButton.IconOnly.get -> bool
+Blocker.UI.Sdk.UiButton.IconOnly.init -> void
 Blocker.UI.Sdk.UiButton.Id.get -> string!
 Blocker.UI.Sdk.UiButton.Id.init -> void
 Blocker.UI.Sdk.UiButton.IsEnabled.get -> bool
@@ -108,11 +110,18 @@ Blocker.UI.Sdk.UiDonutChart.Slices.init -> void
 Blocker.UI.Sdk.UiDonutChart.Title.get -> string?
 Blocker.UI.Sdk.UiDonutChart.Title.init -> void
 Blocker.UI.Sdk.UiDonutChart.UiDonutChart(System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiDataPoint!>! Slices, string? Title = null, string? CenterValue = null, string? CenterLabel = null) -> void
+Blocker.UI.Sdk.UiFieldStyle
+Blocker.UI.Sdk.UiFieldStyle.Chips = 3 -> Blocker.UI.Sdk.UiFieldStyle
+Blocker.UI.Sdk.UiFieldStyle.Compact = 2 -> Blocker.UI.Sdk.UiFieldStyle
+Blocker.UI.Sdk.UiFieldStyle.Standard = 0 -> Blocker.UI.Sdk.UiFieldStyle
+Blocker.UI.Sdk.UiFieldStyle.Title = 1 -> Blocker.UI.Sdk.UiFieldStyle
 Blocker.UI.Sdk.UiForm
 Blocker.UI.Sdk.UiForm.Deconstruct(out string! Id, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>! Fields, out string! SubmitLabel) -> void
 Blocker.UI.Sdk.UiForm.Equals(Blocker.UI.Sdk.UiForm? other) -> bool
 Blocker.UI.Sdk.UiForm.Fields.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiFormField!>!
 Blocker.UI.Sdk.UiForm.Fields.init -> void
+Blocker.UI.Sdk.UiForm.FooterAction.get -> Blocker.UI.Sdk.UiButton?
+Blocker.UI.Sdk.UiForm.FooterAction.init -> void
 Blocker.UI.Sdk.UiForm.Id.get -> string!
 Blocker.UI.Sdk.UiForm.Id.init -> void
 Blocker.UI.Sdk.UiForm.SubmitLabel.get -> string!
@@ -124,6 +133,8 @@ Blocker.UI.Sdk.UiFormField.Id.get -> string!
 Blocker.UI.Sdk.UiFormField.Id.init -> void
 Blocker.UI.Sdk.UiFormField.Label.get -> string!
 Blocker.UI.Sdk.UiFormField.Label.init -> void
+Blocker.UI.Sdk.UiFormField.Style.get -> Blocker.UI.Sdk.UiFieldStyle
+Blocker.UI.Sdk.UiFormField.Style.init -> void
 Blocker.UI.Sdk.UiFormField.UiFormField(Blocker.UI.Sdk.UiFormField! original) -> void
 Blocker.UI.Sdk.UiFormField.UiFormField(string! Id, string! Label) -> void
 Blocker.UI.Sdk.UiGap
@@ -171,7 +182,10 @@ Blocker.UI.Sdk.UiIcon.Checkmark = 10 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Clock = 0 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Code = 24 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Coffee = 29 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Copy = 33 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Delete = 34 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Dismiss = 11 -> Blocker.UI.Sdk.UiIcon
+Blocker.UI.Sdk.UiIcon.Edit = 32 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Flame = 18 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Folder = 30 -> Blocker.UI.Sdk.UiIcon
 Blocker.UI.Sdk.UiIcon.Game = 26 -> Blocker.UI.Sdk.UiIcon
@@ -270,6 +284,16 @@ Blocker.UI.Sdk.UiNavigationItem.UiNavigationItem(string! Title, Blocker.UI.Sdk.U
 Blocker.UI.Sdk.UiNode
 Blocker.UI.Sdk.UiNode.UiNode() -> void
 Blocker.UI.Sdk.UiNode.UiNode(Blocker.UI.Sdk.UiNode! original) -> void
+Blocker.UI.Sdk.UiNoteField
+Blocker.UI.Sdk.UiNoteField.Deconstruct(out string! Id, out string! Label, out string! Text, out string? Detail, out Blocker.UI.Sdk.UiIcon? Icon) -> void
+Blocker.UI.Sdk.UiNoteField.Detail.get -> string?
+Blocker.UI.Sdk.UiNoteField.Detail.init -> void
+Blocker.UI.Sdk.UiNoteField.Equals(Blocker.UI.Sdk.UiNoteField? other) -> bool
+Blocker.UI.Sdk.UiNoteField.Icon.get -> Blocker.UI.Sdk.UiIcon?
+Blocker.UI.Sdk.UiNoteField.Icon.init -> void
+Blocker.UI.Sdk.UiNoteField.Text.get -> string!
+Blocker.UI.Sdk.UiNoteField.Text.init -> void
+Blocker.UI.Sdk.UiNoteField.UiNoteField(string! Id, string! Label, string! Text, string? Detail = null, Blocker.UI.Sdk.UiIcon? Icon = null) -> void
 Blocker.UI.Sdk.UiNumberField
 Blocker.UI.Sdk.UiNumberField.Deconstruct(out string! Id, out string! Label, out double Value, out double Minimum, out double Maximum, out double Step) -> void
 Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiNumberField? other) -> bool
@@ -475,6 +499,8 @@ Blocker.UI.Sdk.UiTimeGridEvent.Id.get -> string!
 Blocker.UI.Sdk.UiTimeGridEvent.Id.init -> void
 Blocker.UI.Sdk.UiTimeGridEvent.IsMovable.get -> bool
 Blocker.UI.Sdk.UiTimeGridEvent.IsMovable.init -> void
+Blocker.UI.Sdk.UiTimeGridEvent.IsPast.get -> bool
+Blocker.UI.Sdk.UiTimeGridEvent.IsPast.init -> void
 Blocker.UI.Sdk.UiTimeGridEvent.IsResizable.get -> bool
 Blocker.UI.Sdk.UiTimeGridEvent.IsResizable.init -> void
 Blocker.UI.Sdk.UiTimeGridEvent.IsSelected.get -> bool
@@ -585,6 +611,10 @@ override Blocker.UI.Sdk.UiNavigationItem.ToString() -> string!
 override Blocker.UI.Sdk.UiNode.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiNode.GetHashCode() -> int
 override Blocker.UI.Sdk.UiNode.ToString() -> string!
+override Blocker.UI.Sdk.UiNoteField.<Clone>$() -> Blocker.UI.Sdk.UiNoteField!
+override Blocker.UI.Sdk.UiNoteField.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiNoteField.GetHashCode() -> int
+override Blocker.UI.Sdk.UiNoteField.ToString() -> string!
 override Blocker.UI.Sdk.UiNumberField.<Clone>$() -> Blocker.UI.Sdk.UiNumberField!
 override Blocker.UI.Sdk.UiNumberField.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiNumberField.GetHashCode() -> int
@@ -664,6 +694,7 @@ override sealed Blocker.UI.Sdk.UiGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bo
 override sealed Blocker.UI.Sdk.UiHeatmap.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiLineChart.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiMonthGrid.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiNoteField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiProgress.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
@@ -737,6 +768,8 @@ static Blocker.UI.Sdk.UiNavigationItem.operator !=(Blocker.UI.Sdk.UiNavigationIt
 static Blocker.UI.Sdk.UiNavigationItem.operator ==(Blocker.UI.Sdk.UiNavigationItem? left, Blocker.UI.Sdk.UiNavigationItem? right) -> bool
 static Blocker.UI.Sdk.UiNode.operator !=(Blocker.UI.Sdk.UiNode? left, Blocker.UI.Sdk.UiNode? right) -> bool
 static Blocker.UI.Sdk.UiNode.operator ==(Blocker.UI.Sdk.UiNode? left, Blocker.UI.Sdk.UiNode? right) -> bool
+static Blocker.UI.Sdk.UiNoteField.operator !=(Blocker.UI.Sdk.UiNoteField? left, Blocker.UI.Sdk.UiNoteField? right) -> bool
+static Blocker.UI.Sdk.UiNoteField.operator ==(Blocker.UI.Sdk.UiNoteField? left, Blocker.UI.Sdk.UiNoteField? right) -> bool
 static Blocker.UI.Sdk.UiNumberField.operator !=(Blocker.UI.Sdk.UiNumberField? left, Blocker.UI.Sdk.UiNumberField? right) -> bool
 static Blocker.UI.Sdk.UiNumberField.operator ==(Blocker.UI.Sdk.UiNumberField? left, Blocker.UI.Sdk.UiNumberField? right) -> bool
 static Blocker.UI.Sdk.UiOption.operator !=(Blocker.UI.Sdk.UiOption? left, Blocker.UI.Sdk.UiOption? right) -> bool

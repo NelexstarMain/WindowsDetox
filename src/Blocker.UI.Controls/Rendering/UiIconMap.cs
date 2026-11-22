@@ -44,6 +44,9 @@ public static class UiIconMap
         UiIcon.Coffee => SymbolRegular.DrinkCoffee24,
         UiIcon.Folder => SymbolRegular.Folder24,
         UiIcon.Trophy => SymbolRegular.Trophy24,
+        UiIcon.Edit => SymbolRegular.Edit24,
+        UiIcon.Copy => SymbolRegular.Copy24,
+        UiIcon.Delete => SymbolRegular.Delete24,
         _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, null),
     };
 }

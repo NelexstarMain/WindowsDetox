@@ -55,6 +55,14 @@
     <SolidColorBrush x:Key="Blocker.Success" Color="{StaticResource Blocker.Success.Color}" />
     <SolidColorBrush x:Key="Blocker.Success.Soft" Color="{StaticResource Blocker.Success.Soft.Color}" />
 
+    <!-- Calendar blocks: solid fills with their own text colour. Accent is the lifted brand olive, Neutral a slate for everything else. -->
+    <Color x:Key="Blocker.Event.Accent.Color">#98AD4A</Color>
+    <Color x:Key="Blocker.Event.OnLight.Color">#14180A</Color>
+    <Color x:Key="Blocker.Event.Neutral.Color">#3B4559</Color>
+    <SolidColorBrush x:Key="Blocker.Event.Accent" Color="{StaticResource Blocker.Event.Accent.Color}" />
+    <SolidColorBrush x:Key="Blocker.Event.OnLight" Color="{StaticResource Blocker.Event.OnLight.Color}" />
+    <SolidColorBrush x:Key="Blocker.Event.Neutral" Color="{StaticResource Blocker.Event.Neutral.Color}" />
+
     <!-- Brand logo: four wedges, sage. -->
     <Color x:Key="Blocker.Logo.Color">#BFD0B4</Color>
     <SolidColorBrush x:Key="Blocker.Logo.Brush" Color="{StaticResource Blocker.Logo.Color}" />
@@ -373,6 +381,84 @@
         <Setter Property="Background" Value="#121419" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+    </Style>
+
+    <Style x:Key="Blocker.Button.PrimaryPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
+        <Setter Property="Background" Value="{DynamicResource Blocker.Accent}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.OnAccent}" />
+        <Setter Property="Padding" Value="20,6" />
+    </Style>
+
+    <!-- Large borderless title input with an underline that turns accent on focus; the placeholder sits in Tag. -->
+    <Style x:Key="Blocker.TextBox.Title" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Blocker.Accent.Text}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Blocker.Accent}" />
+        <Setter Property="Padding" Value="0,4,0,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Border x:Name="Underline" BorderBrush="{DynamicResource Blocker.Border.Strong}" BorderThickness="0,0,0,2">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" Focusable="False" />
+                        </Border>
+                        <TextBlock x:Name="Hint"
+                                   Margin="{TemplateBinding Padding}"
+                                   Text="{TemplateBinding Tag}"
+                                   Foreground="{DynamicResource Blocker.Text.Muted}"
+                                   IsHitTestVisible="False"
+                                   Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Underline" Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Bar}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A choice chip (radio behaviour): outlined when off, soft accent when on. -->
+    <Style x:Key="Blocker.Chip" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Root"
+                            Padding="14,5"
+                            Background="Transparent"
+                            BorderBrush="{DynamicResource Blocker.Border.Strong}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource Blocker.Radius.Pill}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Blocker.Bg.Card}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource Blocker.Accent.Soft}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Bar}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Accent.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="Blocker.Button.Subtle" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">

@@ -8,6 +8,8 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Blocker.UI.Sdk;
+using SymbolIcon = Wpf.Ui.Controls.SymbolIcon;
+using SymbolRegular = Wpf.Ui.Controls.SymbolRegular;
 
 namespace Blocker.UI.Controls.Rendering;
 
@@ -123,7 +125,7 @@ internal sealed class TimeGridElement : Grid
 
     private static Effect CreateShadow()
     {
-        var shadow = new DropShadowEffect { Color = Colors.Black, BlurRadius = 24, ShadowDepth = 6, Direction = 270, Opacity = 0.55 };
+        var shadow = new DropShadowEffect { Color = Colors.Black, BlurRadius = 32, ShadowDepth = 8, Direction = 270, Opacity = 0.5 };
         shadow.Freeze();
         return shadow;
     }
@@ -212,34 +214,68 @@ internal sealed class TimeGridElement : Grid
 
     private Border BuildCard(FrameworkElement content)
     {
-        // The card is capped at the control height: a long editor scrolls inside it, but the form's submit button stays pinned below.
+        // The card is capped at the control height: a long editor scrolls inside it, but the form's footer stays pinned below.
         var scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = content };
         var layout = new Grid();
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        layout.Children.Add(BuildCloseButton());
+        SetRow(scroller, 1);
         layout.Children.Add(scroller);
         if (TakeSubmit(content) is { } submit)
         {
-            submit.Margin = new Thickness(0, 12, 0, 0);
-            SetRow(submit, 1);
+            submit.Margin = new Thickness(0, 14, 0, 0);
+            SetRow(submit, 2);
             layout.Children.Add(submit);
         }
 
-        var card = new Border { Padding = new Thickness(16), Child = layout, Effect = CardShadow, Visibility = Visibility.Hidden, ClipToBounds = true };
+        var card = new Border
+        {
+            Padding = new Thickness(20, 8, 20, 18),
+            CornerRadius = new CornerRadius(12),
+            Child = layout,
+            Effect = CardShadow,
+            Visibility = Visibility.Hidden,
+            ClipToBounds = true,
+        };
         card.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.CardBorder");
         card.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
         card.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Strong");
         return card;
     }
 
-    private static Button? TakeSubmit(DependencyObject node)
+    private Button BuildCloseButton()
+    {
+        var close = new Button
+        {
+            Content = new SymbolIcon { Symbol = SymbolRegular.Dismiss24, FontSize = 16 },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            MinHeight = 0,
+            MinWidth = 0,
+            Padding = new Thickness(6),
+            Margin = new Thickness(0, 0, -8, 4),
+            ToolTip = "Close",
+        };
+        close.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Subtle");
+        AutomationProperties.SetName(close, "Close");
+        if (_grid.DismissId is { } dismissId)
+        {
+            close.Click += (_, _) => _raise(UiAction.Click(dismissId));
+        }
+
+        return close;
+    }
+
+    private static FrameworkElement? TakeSubmit(DependencyObject node)
     {
         foreach (object child in LogicalTreeHelper.GetChildren(node))
         {
-            if (child is Button { Tag: UiVisualBuilder.FormSubmitTag } button && LogicalTreeHelper.GetParent(button) is Panel parent)
+            if (child is FrameworkElement { Tag: UiVisualBuilder.FormSubmitTag } pinned && LogicalTreeHelper.GetParent(pinned) is Panel parent)
             {
-                parent.Children.Remove(button);
-                return button;
+                parent.Children.Remove(pinned);
+                return pinned;
             }
 
             if (child is DependencyObject nested && TakeSubmit(nested) is { } found)

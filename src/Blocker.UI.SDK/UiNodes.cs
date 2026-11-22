@@ -194,7 +194,12 @@ public sealed record UiTimeGridEvent(
     UiTone Tone = UiTone.Accent,
     bool IsSelected = false,
     bool IsMovable = true,
-    bool IsResizable = true);
+    bool IsResizable = true)
+{
+    /// <summary>Gets whether the block lies in the past; the host draws it muted.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsPast { get; init; }
+}
 
 /// <summary>
 /// A day or week schedule: one column per day, an hour ruler and timed blocks laid out side by side when they overlap. The host draws
@@ -269,7 +274,12 @@ public sealed record UiTable(IReadOnlyList<UiTableColumn> Columns, IReadOnlyList
 /// <param name="Icon">Optional icon.</param>
 /// <param name="IsEnabled">Whether the button can be clicked.</param>
 /// <param name="ShortLabel">Optional compact text drawn instead of <paramref name="Label"/> (for example a minus sign); the label stays the accessible name and tooltip.</param>
-public sealed record UiButton(string Id, string Label, UiButtonVariant Variant = UiButtonVariant.Secondary, UiIcon? Icon = null, bool IsEnabled = true, string? ShortLabel = null) : UiNode;
+public sealed record UiButton(string Id, string Label, UiButtonVariant Variant = UiButtonVariant.Secondary, UiIcon? Icon = null, bool IsEnabled = true, string? ShortLabel = null) : UiNode
+{
+    /// <summary>Gets whether only the icon is drawn (the label stays the tooltip and accessible name); requires <see cref="Icon"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IconOnly { get; init; }
+}
 
 /// <summary>An on/off switch. Changes are delivered as <see cref="UiActionKind.Toggle"/> with value <c>"true"</c>/<c>"false"</c>.</summary>
 /// <param name="Id">Element id, unique within the tree.</param>
@@ -282,7 +292,11 @@ public sealed record UiToggle(string Id, string Label, bool IsOn, string? Descri
 /// <param name="Id">Element id, unique within the tree.</param>
 /// <param name="Fields">Input fields.</param>
 /// <param name="SubmitLabel">Text of the submit button.</param>
-public sealed record UiForm(string Id, IReadOnlyList<UiFormField> Fields, string SubmitLabel) : UiNode;
+public sealed record UiForm(string Id, IReadOnlyList<UiFormField> Fields, string SubmitLabel) : UiNode
+{
+    /// <summary>Gets an optional text-link button drawn left of the submit button (in a floating card, in the pinned footer).</summary>
+    public UiButton? FooterAction { get; init; }
+}
 
 /// <summary>Base of form input fields. Field ids must be unique within the whole tree.</summary>
 /// <param name="Id">Field id; used as the key in <see cref="UiAction.FormValues"/>.</param>
@@ -292,7 +306,13 @@ public sealed record UiForm(string Id, IReadOnlyList<UiFormField> Fields, string
 [JsonDerivedType(typeof(UiNumberField), "number")]
 [JsonDerivedType(typeof(UiSelectField), "select")]
 [JsonDerivedType(typeof(UiCheckboxField), "checkbox")]
-public abstract record UiFormField(string Id, string Label);
+[JsonDerivedType(typeof(UiNoteField), "note")]
+public abstract record UiFormField(string Id, string Label)
+{
+    /// <summary>Gets how the field is drawn; <see cref="UiFieldStyle.Standard"/> is a labelled field.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public UiFieldStyle Style { get; init; }
+}
 
 /// <summary>Single-line text input.</summary>
 /// <param name="Id">Field id.</param>
@@ -328,3 +348,11 @@ public sealed record UiSelectField(string Id, string Label, IReadOnlyList<UiOpti
 /// <param name="Label">Label.</param>
 /// <param name="IsChecked">Initial state.</param>
 public sealed record UiCheckboxField(string Id, string Label, bool IsChecked = false) : UiFormField(Id, Label);
+
+/// <summary>Read-only line inside a form (for example a summary of the chosen date). It is not a value: the form does not submit it.</summary>
+/// <param name="Id">Field id.</param>
+/// <param name="Label">Accessible name.</param>
+/// <param name="Text">Main line.</param>
+/// <param name="Detail">Optional muted line below.</param>
+/// <param name="Icon">Optional icon before the text.</param>
+public sealed record UiNoteField(string Id, string Label, string Text, string? Detail = null, UiIcon? Icon = null) : UiFormField(Id, Label);
