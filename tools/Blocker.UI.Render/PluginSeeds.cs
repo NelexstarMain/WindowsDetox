@@ -45,6 +45,8 @@ internal static class PluginSeeds
         _ = await store.AddAsync(Task("Release v2.1", today + 3, 12 * 60, 30, color: 2), cancellationToken);
         _ = await store.AddAsync(Task("Weekly review", today + 4, 17 * 60, 45, color: 1), cancellationToken);
         _ = await store.AddAsync(Session("Read: Designing Data-Intensive Applications", today + 5, 10 * 60, 90, color: 0), cancellationToken);
+        _ = await store.AddAsync(Task("Extra one", today, 16 * 60, 30, color: 1), cancellationToken);
+        _ = await store.AddAsync(Task("Extra two", today, 17 * 60, 30, color: 2), cancellationToken);
         _ = await store.AddAsync(Task("Plan next sprint", today - 2, 15 * 60, 60, color: 3), cancellationToken);
         await store.FlushAsync(cancellationToken);
     }

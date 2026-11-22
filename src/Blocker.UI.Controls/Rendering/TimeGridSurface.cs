@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -478,12 +479,18 @@ internal sealed class TimeGridSurface : Panel
         private readonly TextBlock _detail;
         private readonly Border _surface;
         private readonly string? _baseDetail;
+        private readonly string _fullTitle;
+        private readonly string _inlineTitle;
         private readonly bool _selected;
         private bool _detailShown;
+        private bool _titleInline;
 
         public BlockVisual(UiTimeGridEvent ev, Effect raisedShadow)
         {
             _baseDetail = string.IsNullOrEmpty(ev.Detail) ? null : ev.Detail;
+            _fullTitle = ev.Title;
+            // A block too short for a second line carries its start inline: "Team standup, 11:00".
+            _inlineTitle = _baseDetail is null ? ev.Title : ev.Title + ", " + _baseDetail.Split('–', ' ')[0];
             _selected = ev.IsSelected;
             IsHitTestVisible = false;
             CornerRadius = new CornerRadius(4);
@@ -525,6 +532,28 @@ internal sealed class TimeGridSurface : Panel
             {
                 _detailShown = show;
                 _detail.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            bool inline = !show && _baseDetail is not null;
+            if (inline == _titleInline)
+            {
+                return;
+            }
+
+            _titleInline = inline;
+            if (!inline)
+            {
+                _title.Inlines.Clear();
+                _title.Text = _fullTitle;
+                _title.FontSize = 12;
+            }
+            else
+            {
+                // Smaller so the start still fits next to the title in a narrow week column.
+                _title.FontSize = 11;
+                _title.Inlines.Clear();
+                _title.Inlines.Add(new Run(_fullTitle));
+                _title.Inlines.Add(new Run(_inlineTitle[_fullTitle.Length..]) { FontWeight = FontWeights.Normal, FontSize = 10 });
             }
         }
 

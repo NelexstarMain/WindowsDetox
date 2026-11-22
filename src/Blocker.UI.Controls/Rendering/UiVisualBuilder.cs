@@ -31,6 +31,7 @@ internal sealed class UiVisualBuilder
 
     private readonly Action<UiAction> _raise;
     private readonly bool _flat;
+    private bool _stretchForms;
     private readonly TimeGridViewState _timeGridState;
 
     /// <summary>Initializes a new instance of the <see cref="UiVisualBuilder"/> class.</summary>
@@ -641,7 +642,15 @@ internal sealed class UiVisualBuilder
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             }
 
-            Button cell = BuildMonthCell(month.Cells[i], compact, tall);
+            FrameworkElement cell = BuildMonthCell(month.Cells[i], compact, tall);
+            if (!compact)
+            {
+                // Faint divider lines between the cells of a full-size month: left and top only on the first column and row, so no line is drawn twice.
+                var lines = new Border { BorderThickness = new Thickness(i % 7 == 0 ? 1 : 0, row == 1 ? 1 : 0, 1, 1), Child = cell };
+                lines.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Subtle");
+                cell = lines;
+            }
+
             Grid.SetRow(cell, row);
             Grid.SetColumn(cell, i % 7);
             grid.Children.Add(cell);
@@ -702,7 +711,7 @@ internal sealed class UiVisualBuilder
             Height = height,
             MinHeight = 0,
             Padding = new Thickness(0),
-            Margin = new Thickness(compact ? 1 : 2),
+            Margin = new Thickness(compact ? 1 : 0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             FontWeight = FontWeights.Normal,
             FontSize = compact ? 12 : 13,
@@ -798,8 +807,9 @@ internal sealed class UiVisualBuilder
     {
         IReadOnlyList<string> titles = cell.Chips!;
         double room = MonthCellChipsHeight - 2 - MonthCellNumberRowHeight - MonthCellChipsBottomPadding;
-        int visible = MonthChipMath.VisibleChips(titles.Count, room);
-        var panel = new StackPanel { Margin = new Thickness(4, 0, 4, MonthCellChipsBottomPadding), Opacity = cell.IsOutside ? 0.45 : 1 };
+        int total = Math.Max(titles.Count, cell.Markers);
+        int visible = Math.Min(MonthChipMath.VisibleChips(total, room), titles.Count);
+        var panel = new StackPanel { Margin = new Thickness(3, 0, 3, MonthCellChipsBottomPadding), Opacity = cell.IsOutside ? 0.45 : 1 };
         for (int i = 0; i < visible; i++)
         {
             var bar = new Border { Width = 3, CornerRadius = new CornerRadius(2, 0, 0, 2) };
@@ -827,9 +837,9 @@ internal sealed class UiVisualBuilder
             panel.Children.Add(chip);
         }
 
-        if (visible < titles.Count)
+        if (visible < total)
         {
-            TextBlock more = Caption("+" + (titles.Count - visible).ToString(CultureInfo.InvariantCulture));
+            TextBlock more = Caption("+" + (total - visible).ToString(CultureInfo.InvariantCulture) + " more");
             more.FontSize = 11;
             more.Height = MonthChipMath.OverflowHeight;
             more.Margin = new Thickness(4, MonthChipMath.ChipGap, 0, 0);
@@ -843,7 +853,20 @@ internal sealed class UiVisualBuilder
     private FrameworkElement BuildTimeGrid(UiTimeGrid grid) => new TimeGridElement(grid, _raise, BuildPopoverContent, _timeGridState);
 
     // A popover is already a floating card, so a card root contributes its header and children without a second border.
-    private FrameworkElement BuildPopoverContent(UiNode node) => node is UiCard card ? BuildCardStack(card) : Build(node, insideCard: true);
+    // Its forms fill the card width instead of shrinking to their content.
+    private FrameworkElement BuildPopoverContent(UiNode node)
+    {
+        bool before = _stretchForms;
+        _stretchForms = true;
+        try
+        {
+            return node is UiCard card ? BuildCardStack(card) : Build(node, insideCard: true);
+        }
+        finally
+        {
+            _stretchForms = before;
+        }
+    }
 
     private static FrameworkElement BuildGlyph(UiGlyph glyph)
     {
@@ -1016,7 +1039,7 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildForm(UiForm form)
     {
-        var stack = new StackPanel { MaxWidth = 480, HorizontalAlignment = HorizontalAlignment.Left };
+        var stack = new StackPanel { MaxWidth = 480, HorizontalAlignment = _stretchForms ? HorizontalAlignment.Stretch : HorizontalAlignment.Left };
         var readers = new List<(string Id, Func<string> Read)>();
 
         foreach (UiFormField field in form.Fields)

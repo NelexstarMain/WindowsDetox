@@ -135,7 +135,10 @@ public static class CalendarPopover
             body.Add(Ui.Text(message.Text, UiTextStyle.Caption, message.IsError ? UiTone.Danger : UiTone.Success));
         }
 
-        body.Add(Ui.Text(CalTime.LongDate(draft.Day), UiTextStyle.Caption));
+        // The date and the switch for the extra fields share the top line, so the form below ends with Save alone.
+        body.Add(Ui.Row(
+            Ui.Text(CalTime.LongDate(draft.Day), UiTextStyle.Caption),
+            Ui.Button(CalendarIds.More, state.ShowMore ? "Fewer options" : "More options", UiButtonVariant.Subtle)));
         if (!editing)
         {
             body.Add(Ui.Text(
@@ -172,7 +175,6 @@ public static class CalendarPopover
         }
 
         body.Add(Ui.Form(CalendarForm.FormId, "Save", [.. fields]));
-        body.Add(Ui.Button(CalendarIds.More, state.ShowMore ? "Fewer options" : "More options", UiButtonVariant.Subtle));
         return Ui.Column([.. body]);
     }
 
