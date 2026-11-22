@@ -193,10 +193,11 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
             body.Add(Ui.Button(ClearButtonId, "Clear completed", UiButtonVariant.Secondary, UiIcon.Checkmark));
         }
 
-        body.Add(Ui.Row(
+        // The inner row is the only child of the outer one, so it keeps its natural width and the buttons sit next to the label.
+        body.Add(Ui.Row(Ui.Row(
             Ui.Text($"Goal for today: {GoalsFormat.Count(v.Goal, "task")}", UiTextStyle.Caption),
             new UiButton(GoalDownId, "Goal -1", UiButtonVariant.Secondary, IsEnabled: v.Goal > GoalsLimits.MinGoal, ShortLabel: "\u2212"),
-            new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Secondary, IsEnabled: v.Goal < GoalsLimits.MaxGoal, ShortLabel: "+")));
+            new UiButton(GoalUpId, "Goal +1", UiButtonVariant.Secondary, IsEnabled: v.Goal < GoalsLimits.MaxGoal, ShortLabel: "+"))));
         return new UiCard(body, "Today's tasks", v.Tasks.Count == 0 ? null : $"{v.Open} open, {v.Done} done");
     }
 

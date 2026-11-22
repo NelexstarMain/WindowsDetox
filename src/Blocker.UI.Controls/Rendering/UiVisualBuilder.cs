@@ -27,6 +27,9 @@ internal sealed class UiVisualBuilder
     private const double PageGap = 16;
     private const double RowMaxWidth = 640;
     private const double FormFieldGap = 10;
+
+    /// <summary>Tag of a form's submit button, so a host that scrolls the form can pin the button outside the scroll area.</summary>
+    internal const string FormSubmitTag = "Blocker.FormSubmit";
     private const double DismissRestingOpacity = 0.55;
     private const double MonthCellChipsHeight = 98;
     private const double MonthCellNumberRowHeight = 31;
@@ -211,8 +214,9 @@ internal sealed class UiVisualBuilder
         }
 
         // Rows with a free-width title stop at one reading width, so the trailing controls of every row sit in the same column.
-        // Toggle rows span the card instead: the switch belongs at the card's right edge.
-        return flexibleFirst && children[0] is not UiToggle ? LeftFrame(row, RowMaxWidth) : row;
+        // Toggle rows and −/+ stepper rows span the card instead: their trailing control belongs at the card's right edge.
+        bool spansCard = children[0] is UiToggle || children.Skip(1).All(child => child is UiButton { ShortLabel: not null });
+        return flexibleFirst && !spansCard ? LeftFrame(row, RowMaxWidth) : row;
     }
 
     // Removing a list entry is rare next to ticking it, so the "x" is muted until the pointer or keyboard focus is on its row.
@@ -1178,6 +1182,7 @@ internal sealed class UiVisualBuilder
         var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 || inlineControl is not null ? 0 : 20, 0, 0) };
         submit.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Button.Primary");
         AutomationProperties.SetAutomationId(submit, form.Id);
+        submit.Tag = FormSubmitTag;
         string formId = form.Id;
         submit.Click += (_, _) =>
         {

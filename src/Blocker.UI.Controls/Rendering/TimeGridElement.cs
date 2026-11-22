@@ -212,13 +212,43 @@ internal sealed class TimeGridElement : Grid
 
     private Border BuildCard(FrameworkElement content)
     {
-        // The card is capped at the control height; a long editor scrolls inside it instead of being cut off.
+        // The card is capped at the control height: a long editor scrolls inside it, but the form's submit button stays pinned below.
         var scroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = content };
-        var card = new Border { Padding = new Thickness(16), Child = scroller, Effect = CardShadow, Visibility = Visibility.Hidden, ClipToBounds = true };
+        var layout = new Grid();
+        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        layout.Children.Add(scroller);
+        if (TakeSubmit(content) is { } submit)
+        {
+            submit.Margin = new Thickness(0, 12, 0, 0);
+            SetRow(submit, 1);
+            layout.Children.Add(submit);
+        }
+
+        var card = new Border { Padding = new Thickness(16), Child = layout, Effect = CardShadow, Visibility = Visibility.Hidden, ClipToBounds = true };
         card.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.CardBorder");
         card.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
         card.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Strong");
         return card;
+    }
+
+    private static Button? TakeSubmit(DependencyObject node)
+    {
+        foreach (object child in LogicalTreeHelper.GetChildren(node))
+        {
+            if (child is Button { Tag: UiVisualBuilder.FormSubmitTag } button && LogicalTreeHelper.GetParent(button) is Panel parent)
+            {
+                parent.Children.Remove(button);
+                return button;
+            }
+
+            if (child is DependencyObject nested && TakeSubmit(nested) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void OnScrollChanged(object sender, ScrollChangedEventArgs e)
