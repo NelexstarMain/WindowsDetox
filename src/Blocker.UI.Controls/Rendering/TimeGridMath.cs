@@ -86,7 +86,7 @@ internal static class TimeGridMath
     public const double HeaderHeight = 64;
 
     /// <summary>Viewport height of the scrolling body when the host gives no finite height.</summary>
-    public const double DefaultViewportHeight = 560;
+    public const double DefaultViewportHeight = 720;
 
     /// <summary>Height of the bottom strip of an event that resizes it.</summary>
     public const double ResizeHandleHeight = 6;

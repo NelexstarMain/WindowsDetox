@@ -510,25 +510,14 @@ if (Click-Named $main 'Goals') {
   Shot $main '18-goals-in-use'
 }
 if (Click-Named $main 'Calendar') {
-  # A planned session three days ahead (never close enough to start by itself while the shots are taken) and a task today, both
-  # entered through the real form: the page opens it with the buttons, the fields get real key presses.
+  # Entries are made by dragging on the time grid, which UI Automation cannot do, so nothing is seeded: the week (the default view),
+  # then the month, each opened with the real view switch.
   Start-Sleep -Seconds 2
-  if (Press-Named $main 'Plan a session') {
-    Start-Sleep -Milliseconds 1500
-    Set-Field $main 'Title' 'Deep work' | Out-Null
-    Set-Field $main 'Date (yyyy-mm-dd)' (Get-Date).AddDays(3).ToString('yyyy-MM-dd') | Out-Null
-    Press-Named $main 'Save' | Out-Null
-    Start-Sleep -Milliseconds 1500
-  }
-  if (Press-Named $main 'Add a task') {
-    Start-Sleep -Milliseconds 1500
-    Set-Field $main 'Title' 'Reply to supervisor' | Out-Null
-    Set-Field $main 'Date (yyyy-mm-dd)' (Get-Date).ToString('yyyy-MM-dd') | Out-Null
-    Press-Named $main 'Save' | Out-Null
-    Start-Sleep -Milliseconds 1500
-  }
-  Scroll-ToText $main 'Reply to supervisor'
   Shot $main '21-calendar-in-use'
+  if (Press-Named $main 'Month') {
+    Start-Sleep -Seconds 2
+    Shot $main '22-calendar-month'
+  }
 }
 if (Click-Named $main 'Session') { Start-Sleep -Seconds 3; Shot $main '19-session-widgets-in-use' }
 

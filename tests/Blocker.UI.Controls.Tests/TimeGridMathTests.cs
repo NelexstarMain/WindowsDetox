@@ -185,9 +185,9 @@ public sealed class TimeGridMathTests
     public void Ranges_are_formatted_with_an_en_dash() => Assert.Equal("09:00 – 10:30", TimeGridMath.FormatRange(540, 630));
 
     [Theory]
-    [InlineData(double.PositiveInfinity, 560)]
-    [InlineData(400, 560)]
-    [InlineData(624, 560)]
+    [InlineData(double.PositiveInfinity, 720)]
+    [InlineData(400, 720)]
+    [InlineData(784, 720)]
     [InlineData(900, 836)]
     public void Viewport_fills_larger_space_but_never_shrinks_below_the_default(double available, double expected) =>
         Assert.Equal(expected, TimeGridMath.ViewportHeight(available));

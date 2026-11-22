@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text.Json;
 using Blocker.Plugin.Testing;
 using Xunit;
 
@@ -112,7 +112,7 @@ public class CalendarStoreSafetyTests
     {
         (FakePluginContext ctx, CalendarStore store) = await LoadAsync();
         long free = ctx.Storage.QuotaBytes - ctx.FakeStorage.UsedBytes;
-        await ctx.Storage.WriteAsync("filler", new string('x', (int)((free - 80) / 2) - 6), Ct);
+        await ctx.Storage.WriteAsync("filler", new string('x', (int)(free - 20) - 6), Ct);
 
         bool recorded = await store.RecordAsync("1:20000", SessionOutcome.Started, Kit.Start.ToUnixTimeSeconds(), Ct);
 
@@ -125,11 +125,11 @@ public class CalendarStoreSafetyTests
     }
 
     [Fact]
-    public async Task An_unreadable_copy_is_cut_to_64_KiB_of_utf8()
+    public async Task An_unreadable_copy_is_cut_to_64_KiB_as_the_storage_counts_it()
     {
         var ctx = new FakePluginContext("com.windowsdetox.calendar");
         string ascii = "{" + new string('x', 200_000);
-        string polish = "{" + string.Concat(Enumerable.Repeat("żółć", 40_000));
+        string polish = "{" + string.Concat(Enumerable.Repeat("żółć", 10_000));
         await ctx.Storage.WriteAsync(CalendarStore.DataKey, ascii, Ct);
         await ctx.Storage.WriteAsync(CalendarStore.HistoryKey, polish, Ct);
 
@@ -137,9 +137,9 @@ public class CalendarStoreSafetyTests
 
         string keptAscii = KeptText((await ctx.Storage.ReadAsync(CalendarStore.DataKey + CalendarStore.CorruptSuffix, Ct))!);
         string keptPolish = KeptText((await ctx.Storage.ReadAsync(CalendarStore.HistoryKey + CalendarStore.CorruptSuffix, Ct))!);
-        Assert.Equal(CalendarLimits.MaxKeptUnreadableBytes, Encoding.UTF8.GetByteCount(keptAscii));
+        Assert.Equal(CalendarLimits.MaxKeptUnreadableBytes, StoredBytes(keptAscii));
         Assert.StartsWith("{xxx", keptAscii, StringComparison.Ordinal);
-        Assert.InRange(Encoding.UTF8.GetByteCount(keptPolish), CalendarLimits.MaxKeptUnreadableBytes - 3, CalendarLimits.MaxKeptUnreadableBytes);
+        Assert.InRange(StoredBytes(keptPolish), CalendarLimits.MaxKeptUnreadableBytes - 6, CalendarLimits.MaxKeptUnreadableBytes);
         Assert.StartsWith("{żółć", keptPolish, StringComparison.Ordinal);
         Assert.False(keptPolish.Any(char.IsSurrogate));
     }
@@ -169,7 +169,7 @@ public class CalendarStoreSafetyTests
         string text = KeptText((await ctx.Storage.ReadAsync(CalendarStore.DataKey + CalendarStore.CorruptSuffix, Ct))!);
         Assert.Equal(Kit.Start.ToUnixTimeSeconds(), KeptAt((await ctx.Storage.ReadAsync(CalendarStore.DataKey + CalendarStore.CorruptSuffix, Ct))!));
         Assert.StartsWith("{ raw text", text, StringComparison.Ordinal);
-        Assert.Equal(CalendarLimits.MaxKeptUnreadableBytes, Encoding.UTF8.GetByteCount(text));
+        Assert.Equal(CalendarLimits.MaxKeptUnreadableBytes, StoredBytes(text));
     }
 
     [Fact]
@@ -294,6 +294,8 @@ public class CalendarStoreSafetyTests
         entry.Id = 1;
         return entry;
     }
+
+    private static int StoredBytes(string text) => JsonEncodedText.Encode(text).EncodedUtf8Bytes.Length;
 
     // A kept copy is "<unix seconds>\n<text>".
     private static string KeptText(string stored) => stored[(stored.IndexOf('\n', StringComparison.Ordinal) + 1)..];

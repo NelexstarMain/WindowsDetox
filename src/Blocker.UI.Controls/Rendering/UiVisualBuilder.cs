@@ -155,6 +155,11 @@ internal sealed class UiVisualBuilder
         foreach (UiNode child in children)
         {
             FrameworkElement element = Build(child, insideCard);
+            if (!vertical)
+            {
+                element.VerticalAlignment = VerticalAlignment.Center;   // a title next to buttons sits on their middle line
+            }
+
             if (panel.Children.Count > 0)
             {
                 element.Margin = vertical ? new Thickness(0, gap, 0, 0) : new Thickness(gap, 0, 0, 0);

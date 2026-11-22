@@ -15,7 +15,7 @@ Times are local wall-clock times: "09:00 every Monday" stays 09:00 across daylig
 Safety of the stored data:
 
 * **Newer or unknown data is read-only.** A document whose `v` is newer than this build writes, or one with a kind, repeat, end or outcome this build does not know, is shown as far as it is understood and never written back (the page says so, dragging and saving do nothing, nothing starts by itself). A downgrade therefore cannot delete newer data.
-* **Unreadable data starts empty** (the page says so) and a copy is kept under `<key>-unreadable` as `<unix seconds>` newline `<text>`, cut to 64 KiB. The copy is deleted 30 days after it was made.
+* **Unreadable data starts empty** (the page says so) and a copy is kept under `<key>-unreadable` as `<unix seconds>` newline `<text>`, cut to 64 KiB (as the storage counts it). The copy is deleted 30 days after it was made.
 * **A session never starts twice.** The history record is written before the start is requested; if that write fails the session is not started and the next tick tries again.
 * **Ids stay unique.** After an unreadable entries document the id counter is placed above every id the history still mentions.
 

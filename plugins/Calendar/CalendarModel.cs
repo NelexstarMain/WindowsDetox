@@ -98,7 +98,7 @@ public static class CalendarLimits
     /// <summary>Longest duration of a task with a time, in minutes.</summary>
     public const int MaxTaskMinutes = 24 * 60;
 
-    /// <summary>Most bytes of an unreadable document that are kept for the user to recover.</summary>
+    /// <summary>Most bytes (as the storage counts them) of an unreadable document that are kept for the user to recover.</summary>
     public const int MaxKeptUnreadableBytes = 64 * 1024;
 
     /// <summary>Days an unreadable copy is kept before it is deleted.</summary>

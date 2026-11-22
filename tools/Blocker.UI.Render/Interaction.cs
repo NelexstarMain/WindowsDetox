@@ -119,7 +119,9 @@ internal static partial class Interaction
         {
             "toggle" => UiAction.Toggle(id, !string.Equals(step.Value, "false", StringComparison.OrdinalIgnoreCase)),
             "submit" => UiAction.Submit(id, (step.Args ?? []).ToDictionary(p => p.Key, p => p.Value.ValueKind == System.Text.Json.JsonValueKind.String ? p.Value.GetString()! : p.Value.GetRawText())),
-            _ => UiAction.Click(id),
+            _ => step.Args is null
+                ? UiAction.Click(id)
+                : new UiAction(id, UiActionKind.Click, null, step.Args.ToDictionary(p => p.Key, p => p.Value.GetString() ?? p.Value.GetRawText())),
         };
     }
 

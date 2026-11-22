@@ -59,19 +59,18 @@ public static class CalendarPopover
         return blocks.FirstOrDefault(b => b.Id.StartsWith(prefix, StringComparison.Ordinal))?.Id;
     }
 
+    // One button per line: the floating card is narrow and clips a row that is wider than it.
     private static UiNode Multi(CalendarView view, CalendarUiState state, int count)
     {
-        List<UiNode> row = [];
+        List<UiNode> body = [Ui.Text(string.Create(CultureInfo.InvariantCulture, $"{count} selected"), UiTextStyle.Subtitle)];
         if (!view.ReadOnly)
         {
-            row.Add(Armed(state, CalendarIds.DeleteSelected, "Delete selected", "Click again to delete"));
-            row.Add(Ui.Button(CalendarIds.DuplicateNextWeek, "Duplicate to next week", UiButtonVariant.Subtle));
+            body.Add(Armed(state, CalendarIds.DeleteSelected, "Delete selected", "Click again to delete"));
+            body.Add(Ui.Button(CalendarIds.DuplicateNextWeek, "Duplicate to next week", UiButtonVariant.Subtle));
         }
 
-        row.Add(Ui.Button(CalendarIds.ClearSelection, "Clear selection", UiButtonVariant.Subtle));
-        return Ui.Column(
-            Ui.Text(string.Create(CultureInfo.InvariantCulture, $"{count} selected"), UiTextStyle.Subtitle),
-            Ui.Row([.. row]));
+        body.Add(Ui.Button(CalendarIds.ClearSelection, "Clear selection", UiButtonVariant.Subtle));
+        return Ui.Column([.. body]);
     }
 
     private static UiNode Details(CalendarView view, CalendarUiState state, Occurrence occurrence)
@@ -110,18 +109,20 @@ public static class CalendarPopover
         }
 
         bool repeats = entry.Repeat != RepeatKind.Once;
-        List<UiNode> actions =
-        [
-            Ui.Button(CalendarIds.Edit, "Edit", UiButtonVariant.Secondary),
-            Ui.Button(CalendarIds.Duplicate, "Duplicate", UiButtonVariant.Subtle),
-            Armed(state, CalendarIds.Delete, repeats ? "Delete this one" : "Delete", "Click again to delete"),
-        ];
-        if (repeats)
+        if (!repeats)
         {
-            actions.Add(Armed(state, CalendarIds.DeleteSeries, "Delete series", "Click again to delete all"));
+            body.Add(Ui.Row(
+                Ui.Button(CalendarIds.Edit, "Edit", UiButtonVariant.Secondary),
+                Ui.Button(CalendarIds.Duplicate, "Duplicate", UiButtonVariant.Subtle),
+                Armed(state, CalendarIds.Delete, "Delete", "Click again to delete")));
+            return Ui.Column([.. body]);
         }
 
-        body.Add(Ui.Row([.. actions]));
+        body.Add(Ui.Row(
+            Ui.Button(CalendarIds.Edit, "Edit", UiButtonVariant.Secondary),
+            Ui.Button(CalendarIds.Duplicate, "Duplicate", UiButtonVariant.Subtle)));
+        body.Add(Armed(state, CalendarIds.Delete, "Delete this one", "Click again to delete"));
+        body.Add(Armed(state, CalendarIds.DeleteSeries, "Delete series", "Click again to delete all"));
         return Ui.Column([.. body]);
     }
 

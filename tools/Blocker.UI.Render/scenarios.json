@@ -11,10 +11,13 @@
     { "name": "setup", "target": "main:setup", "size": [1280, 1080] },
     { "name": "plugins", "target": "main:plugins", "size": [1280, 1080] },
     { "name": "settings", "target": "main:settings", "size": [1280, 1300] },
-    { "name": "calendar-month", "target": "plugin:calendar", "size": [1280, 1100] },
-    { "name": "calendar-week", "target": "plugin:calendar", "size": [1280, 1700], "steps": [ { "action": "cal-view-week" } ] },
-    { "name": "calendar-agenda", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-view-agenda" } ] },
-    { "name": "calendar-plan-form", "target": "plugin:calendar", "size": [1280, 1900], "steps": [ { "action": "cal-plan-session" } ] },
+    { "name": "calendar-week", "target": "plugin:calendar", "size": [1280, 1500] },
+    { "name": "calendar-day", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-col-739943" } ] },
+    { "name": "calendar-month", "target": "plugin:calendar", "size": [1280, 1300], "steps": [ { "action": "cal-view-month" } ] },
+    { "name": "calendar-create", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "drag": [[700, 700], [700, 800]] }, { "wait": 300 } ] },
+    { "name": "calendar-selected", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" } ] },
+    { "name": "calendar-selected-series", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-1-739942-0" } ] },
+    { "name": "calendar-multiselect", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" }, { "action": "cal-ev-5-739943-0", "kind": "click", "args": { "extend": "true" } } ] },
     { "name": "goals", "target": "plugin:goals", "size": [1280, 1200] },
     { "name": "insights", "target": "plugin:insights", "size": [1280, 1800] }
   ]

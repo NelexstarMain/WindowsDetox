@@ -240,7 +240,8 @@ internal sealed class TimeGridElement : Grid
         PositionPopover();
     }
 
-    private double InitialScrollOffset() => _grid.ScrollToMinute * TimeGridMath.HourHeight / 60;
+    // A little above the requested time, so the label of that hour is not cut by the top edge.
+    private double InitialScrollOffset() => Math.Max(0, (_grid.ScrollToMinute * TimeGridMath.HourHeight / 60) - 10);
 
     private void OnLoaded(object sender, RoutedEventArgs e) =>
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>

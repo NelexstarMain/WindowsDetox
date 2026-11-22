@@ -376,7 +376,7 @@ public class CalendarAutoStarterTests
     {
         (FakePluginContext ctx, CalendarStore store, CalendarAutoStarter starter) = await StartAsync();
         long free = ctx.Storage.QuotaBytes - ctx.FakeStorage.UsedBytes;
-        await ctx.Storage.WriteAsync("filler", new string('x', (int)((free - 80) / 2) - 6), CancellationToken.None);
+        await ctx.Storage.WriteAsync("filler", new string('x', (int)(free - 20) - 6), CancellationToken.None);
 
         await StepAsync(ctx, starter, TimeSpan.FromMinutes(6));
 

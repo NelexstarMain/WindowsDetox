@@ -6,7 +6,6 @@
 // kind, repeat, end or outcome), is shown as far as it is understood but never written back, so a downgrade cannot destroy newer data.
 
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Blocker.Sdk.Diagnostics;
@@ -694,20 +693,21 @@ public sealed class CalendarStore
     private static string KeptCopy(long unixSeconds, string text) =>
         string.Create(CultureInfo.InvariantCulture, $"{unixSeconds}\n{Cap(text)}");
 
-    // At most MaxKeptUnreadableBytes of UTF-8, cut at a character boundary.
+    // At most MaxKeptUnreadableBytes as the storage counts them (the UTF-8 size of the JSON-escaped text), cut at a character boundary.
     private static string Cap(string text)
     {
-        if (Encoding.UTF8.GetByteCount(text) <= CalendarLimits.MaxKeptUnreadableBytes)
+        if (StoredBytes(text) <= CalendarLimits.MaxKeptUnreadableBytes)
         {
             return text;
         }
 
+        int Whole(int length) => length > 0 && char.IsHighSurrogate(text[length - 1]) ? length - 1 : length;
         int low = 0;
         int high = Math.Min(text.Length, CalendarLimits.MaxKeptUnreadableBytes);
         while (low < high)
         {
             int middle = (low + high + 1) / 2;
-            if (Encoding.UTF8.GetByteCount(text.AsSpan(0, middle)) <= CalendarLimits.MaxKeptUnreadableBytes)
+            if (StoredBytes(text.AsSpan(0, Whole(middle))) <= CalendarLimits.MaxKeptUnreadableBytes)
             {
                 low = middle;
             }
@@ -717,8 +717,10 @@ public sealed class CalendarStore
             }
         }
 
-        return low > 0 && char.IsHighSurrogate(text[low - 1]) ? text[..(low - 1)] : text[..low];
+        return text[..Whole(low)];
     }
+
+    private static int StoredBytes(ReadOnlySpan<char> text) => JsonEncodedText.Encode(text).EncodedUtf8Bytes.Length;
 
     private static IReadOnlyList<HistoryRecord> SanitizeHistory(IEnumerable<HistoryRecord> records, long nowUnix)
     {
