@@ -70,6 +70,7 @@ public static class Kit
             UiStack stack => stack.Children,
             UiGrid grid => grid.Children,
             UiCard card => card.Children,
+            UiTimeGrid grid => grid.Popover is null ? [] : [grid.Popover],
             _ => Array.Empty<UiNode>(),
         };
         foreach (UiNode child in children)
@@ -94,6 +95,7 @@ public static class Kit
     public static SessionSnapshot Running() =>
         new(SessionPhase.Active, Guid.NewGuid(), TimeSpan.FromHours(1), null, 2, 2, TimeSpan.FromMinutes(10));
 
+    /// <summary>A form as the quick editor plus its extra fields would send it; <paramref name="length"/> is turned into the end time.</summary>
     public static Dictionary<string, string> Form(
         string kind = "session",
         string title = "Deep work",
@@ -115,7 +117,7 @@ public static class Kit
             [CalendarForm.TitleId] = title,
             [CalendarForm.DateId] = date,
             [CalendarForm.TimeId] = time,
-            [CalendarForm.LengthId] = length,
+            [CalendarForm.ToId] = EndOf(time, length),
             [CalendarForm.RepeatId] = repeat,
             [CalendarForm.EveryId] = every,
             [CalendarForm.EndId] = end,
@@ -134,6 +136,16 @@ public static class Kit
         }
 
         return values;
+    }
+
+    private static string EndOf(string time, string length)
+    {
+        if (!double.TryParse(length.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double minutes) || !CalTime.TryParseTime(time, out int start))
+        {
+            return length.Length == 0 ? "??" : length;
+        }
+
+        return CalTime.Clock((start + (int)Math.Round(minutes) + 1440) % 1440, true);
     }
 
     public static FormOutcome Submit(Dictionary<string, string> values, IReadOnlyList<CalendarEntry>? entries = null, CalendarDraft? draft = null, DateTimeOffset? now = null, TimeZoneInfo? zone = null) =>

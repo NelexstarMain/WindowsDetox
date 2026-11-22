@@ -1,7 +1,12 @@
 // Storage side of the Calendar plugin: bounded, sanitized, write-through documents ("data", "history", "settings") with an in-memory
 // copy that rendering reads. Entries are copy-on-write: a published entry object is never modified, so a render in progress cannot
 // see a half-applied edit. Mutations run one at a time.
+//
+// Read-only mode: a document written by a newer version of the plugin, or one that holds values this version does not know (an unknown
+// kind, repeat, end or outcome), is shown as far as it is understood but never written back, so a downgrade cannot destroy newer data.
 
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Blocker.Sdk.Diagnostics;
@@ -24,8 +29,6 @@ public sealed class CalendarStore
     /// <summary>Suffix of the key under which an unreadable document is kept.</summary>
     public const string CorruptSuffix = "-unreadable";
 
-    private const int MaxKeptCorruptChars = 200_000;
-
     private static readonly JsonSerializerOptions JsonOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.Never };
 
     private readonly IPluginStorage _storage;
@@ -36,6 +39,7 @@ public sealed class CalendarStore
     private IReadOnlyList<HistoryRecord> _history = [];
     private CalendarSettings _settings = new();
     private int _nextId = 1;
+    private bool _readOnly;
     private bool _dirtyData;
     private bool _dirtyHistory;
     private bool _dirtySettings;
@@ -59,6 +63,18 @@ public sealed class CalendarStore
 
     /// <summary>Whether a stored document could not be read at start-up and was replaced by an empty one (the unreadable text is kept in storage).</summary>
     public bool RecoveredFromCorruption { get; private set; }
+
+    /// <summary>Whether the stored data is newer than, or holds values unknown to, this version: it is shown but never changed.</summary>
+    public bool ReadOnly
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _readOnly;
+            }
+        }
+    }
 
     /// <summary>All entries. The objects must not be modified.</summary>
     public IReadOnlyList<CalendarEntry> Entries
@@ -102,33 +118,50 @@ public sealed class CalendarStore
     /// <summary>Finds an entry.</summary>
     public CalendarEntry? Find(int id) => Entries.FirstOrDefault(e => e.Id == id);
 
-    /// <summary>Loads persisted data. Missing data starts empty; unreadable data starts empty too and is kept under a separate key.</summary>
+    /// <summary>Loads persisted data. Missing data starts empty; unreadable data starts empty too and is kept (shortened, for a while) under a separate key.</summary>
     public async ValueTask LoadAsync(CancellationToken cancellationToken)
     {
-        CalendarData? data = await ReadAsync<CalendarData>(DataKey, cancellationToken);
-        CalendarHistory? history = await ReadAsync<CalendarHistory>(HistoryKey, cancellationToken);
-        CalendarSettings? settings = await ReadAsync<CalendarSettings>(SettingsKey, cancellationToken);
+        bool newer = false;
+        CalendarData? data = await ReadAsync<CalendarData>(DataKey, CalendarData.CurrentVersion, () => newer = true, cancellationToken);
+        CalendarHistory? history = await ReadAsync<CalendarHistory>(HistoryKey, CalendarHistory.CurrentVersion, () => newer = true, cancellationToken);
+        CalendarSettings? settings = await ReadAsync<CalendarSettings>(SettingsKey, int.MaxValue, () => { }, cancellationToken);
+        await PurgeUnreadableAsync(cancellationToken);
         lock (_gate)
         {
+            int nextFromData = 1;
             if (data is not null)
             {
-                (_entries, _nextId) = Sanitize(data);
+                (IReadOnlyList<CalendarEntry> entries, nextFromData, bool unknown) = Sanitize(data);
+                _entries = entries;
+                newer |= unknown || data.Version > CalendarData.CurrentVersion;
             }
 
             if (history is not null)
             {
-                _history = SanitizeHistory(history.Records, Time.GetUtcNow().ToUnixTimeSeconds());
+                IReadOnlyList<HistoryRecord> raw = history.Records ?? [];
+                _history = SanitizeHistory(raw, Time.GetUtcNow().ToUnixTimeSeconds());
+                newer |= history.Version > CalendarHistory.CurrentVersion || raw.Any(r => r is not null && !Enum.IsDefined(r.Outcome));
             }
 
             if (settings is not null)
             {
                 _settings = settings.Sanitized();
             }
+
+            // Also above the ids that history keys mention: after an unreadable entries document the counter must not hand out an id
+            // whose occurrences the history already knows, or the new series would never start by itself.
+            _nextId = Math.Max(nextFromData, _history.Select(r => HistoryEntryId(r.Key)).DefaultIfEmpty(0).Max() + 1);
+            _readOnly = newer;
+        }
+
+        if (newer)
+        {
+            _logger.Warn("The stored calendar was written by a newer version or holds values this version does not know. It is shown read-only and not changed.");
         }
     }
 
-    /// <summary>Adds an entry. The id and creation time are assigned here.</summary>
-    /// <returns>The stored entry, or <see langword="null"/> when the calendar is full.</returns>
+    /// <summary>Adds an entry. The id and creation time are assigned here and every field is validated like a stored one.</summary>
+    /// <returns>The stored entry, or <see langword="null"/> when the calendar is full, read-only or the entry is invalid.</returns>
     public async ValueTask<CalendarEntry?> AddAsync(CalendarEntry draft, CancellationToken cancellationToken)
     {
         await _writeGate.WaitAsync(cancellationToken);
@@ -137,12 +170,11 @@ public sealed class CalendarStore
             CalendarEntry? added = null;
             lock (_gate)
             {
-                if (_entries.Count < CalendarLimits.MaxEntries)
+                if (!_readOnly && _entries.Count < CalendarLimits.MaxEntries && _nextId < int.MaxValue && SanitizeEntry(draft) is { } clean)
                 {
-                    added = draft.Clone();
+                    added = clean;
                     added.Id = _nextId++;
                     added.Created = Time.GetUtcNow().ToUnixTimeSeconds();
-                    added.Title = CleanTitle(added.Title);
                     _entries = [.. _entries, added];
                     _dirtyData = true;
                 }
@@ -161,14 +193,17 @@ public sealed class CalendarStore
         }
     }
 
-    /// <summary>Replaces a whole series with <paramref name="updated"/> (same id). Edits of single occurrences are dropped; skips and ticks that are no longer series days are dropped.</summary>
+    /// <summary>Replaces a whole series with <paramref name="updated"/> (same id, validated like a stored entry). Edits of single occurrences are dropped; skips and ticks that are no longer series days are dropped.</summary>
     public ValueTask<bool> ReplaceAsync(CalendarEntry updated, CancellationToken cancellationToken) =>
         MutateAsync(
             updated.Id,
             _ =>
             {
-                CalendarEntry copy = updated.Clone();
-                copy.Title = CleanTitle(copy.Title);
+                if (SanitizeEntry(updated) is not { } copy)
+                {
+                    return null;
+                }
+
                 copy.Overrides = [];
                 copy.Skipped = [.. copy.Skipped.Where(d => CalendarRecurrence.IsSeriesDay(copy, d)).Distinct().Take(CalendarLimits.MaxSkips)];
                 copy.DoneDays = [.. copy.DoneDays.Where(d => CalendarRecurrence.IsSeriesDay(copy, d)).Distinct().Take(CalendarLimits.MaxDone)];
@@ -194,8 +229,8 @@ public sealed class CalendarStore
                 {
                     OriginalDay = change.OriginalDay,
                     Day = Math.Clamp(change.Day, MinDay, MaxDay),
-                    Minute = Math.Clamp(change.Minute, -1, 1439),
-                    Duration = Math.Clamp(change.Duration, 0, CalendarLimits.MaxTaskMinutes),
+                    Minute = entry.Kind == EntryKind.Session ? Math.Clamp(change.Minute, 0, 1439) : Math.Clamp(change.Minute, -1, 1439),
+                    Duration = ClampDuration(entry.Kind, change.Duration),
                     Title = CleanTitle(change.Title),
                 });
                 return copy;
@@ -268,13 +303,16 @@ public sealed class CalendarStore
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
-            bool removed;
+            bool removed = false;
             lock (_gate)
             {
-                int before = _entries.Count;
-                _entries = [.. _entries.Where(e => e.Id != id)];
-                removed = _entries.Count != before;
-                _dirtyData |= removed;
+                if (!_readOnly)
+                {
+                    int before = _entries.Count;
+                    _entries = [.. _entries.Where(e => e.Id != id)];
+                    removed = _entries.Count != before;
+                    _dirtyData |= removed;
+                }
             }
 
             if (removed)
@@ -297,13 +335,16 @@ public sealed class CalendarStore
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
-            int removed;
+            int removed = 0;
             lock (_gate)
             {
-                CalendarEntry[] keep = [.. _entries.Where(e => !IsPast(e, today))];
-                removed = _entries.Count - keep.Length;
-                _entries = keep;
-                _dirtyData |= removed > 0;
+                if (!_readOnly)
+                {
+                    CalendarEntry[] keep = [.. _entries.Where(e => !IsPast(e, today))];
+                    removed = _entries.Count - keep.Length;
+                    _entries = keep;
+                    _dirtyData |= removed > 0;
+                }
             }
 
             if (removed > 0)
@@ -335,19 +376,27 @@ public sealed class CalendarStore
         };
     }
 
-    /// <summary>Replaces the settings.</summary>
+    /// <summary>Replaces the settings (ignored while the calendar is read-only).</summary>
     public async ValueTask SetSettingsAsync(CalendarSettings settings, CancellationToken cancellationToken)
     {
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
+            bool changed;
             lock (_gate)
             {
-                _settings = settings.Sanitized();
-                _dirtySettings = true;
+                changed = !_readOnly;
+                if (changed)
+                {
+                    _settings = settings.Sanitized();
+                    _dirtySettings = true;
+                }
             }
 
-            await PersistAsync(cancellationToken);
+            if (changed)
+            {
+                await PersistAsync(cancellationToken);
+            }
         }
         finally
         {
@@ -355,26 +404,42 @@ public sealed class CalendarStore
         }
     }
 
-    /// <summary>Remembers what happened to an occurrence. Returns <see langword="false"/> when it already has a record, which is what stops a second start.</summary>
+    /// <summary>
+    /// Remembers what happened to an occurrence. Returns <see langword="false"/> when it already has a record (which is what stops a second start),
+    /// when the calendar is read-only, or when the record could not be written: the caller must then not start anything, because a start that
+    /// is not on disk could happen again after a restart. A record that could not be written is taken back so a later tick may try again.
+    /// </summary>
     public async ValueTask<bool> RecordAsync(string key, SessionOutcome outcome, long startUnix, CancellationToken cancellationToken)
     {
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
+            IReadOnlyList<HistoryRecord> before;
             lock (_gate)
             {
-                if (_history.Any(r => r.Key == key))
+                if (_readOnly || _history.Any(r => r.Key == key))
                 {
                     return false;
                 }
 
+                before = _history;
                 IEnumerable<HistoryRecord> all = [.. _history, new HistoryRecord { Key = key, Outcome = outcome, StartUnix = startUnix }];
                 _history = SanitizeHistory(all, Time.GetUtcNow().ToUnixTimeSeconds());
                 _dirtyHistory = true;
             }
 
             await PersistAsync(cancellationToken);
-            return true;
+            lock (_gate)
+            {
+                if (!_dirtyHistory)
+                {
+                    return true;
+                }
+
+                _history = before;
+            }
+
+            return false;
         }
         finally
         {
@@ -388,13 +453,16 @@ public sealed class CalendarStore
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
-            bool removed;
+            bool removed = false;
             lock (_gate)
             {
-                int before = _history.Count;
-                _history = [.. _history.Where(r => r.Key != key)];
-                removed = _history.Count != before;
-                _dirtyHistory |= removed;
+                if (!_readOnly)
+                {
+                    int before = _history.Count;
+                    _history = [.. _history.Where(r => r.Key != key)];
+                    removed = _history.Count != before;
+                    _dirtyHistory |= removed;
+                }
             }
 
             if (removed)
@@ -438,6 +506,17 @@ public sealed class CalendarStore
 
     private static int MaxDay => new DateOnly(CalendarLimits.MaxYear, 12, 31).DayNumber;
 
+    private static int ClampDuration(EntryKind kind, int duration) =>
+        kind == EntryKind.Session
+            ? Math.Clamp(duration, CalendarLimits.MinSessionMinutes, CalendarLimits.MaxSessionMinutes)
+            : Math.Clamp(duration, 0, CalendarLimits.MaxTaskMinutes);
+
+    private static int HistoryEntryId(string key)
+    {
+        int colon = key.IndexOf(':', StringComparison.Ordinal);
+        return colon > 0 && int.TryParse(key.AsSpan(0, colon), NumberStyles.None, CultureInfo.InvariantCulture, out int id) ? id : 0;
+    }
+
     private async ValueTask<bool> MutateAsync(int id, Func<CalendarEntry, CalendarEntry?> change, CancellationToken cancellationToken)
     {
         await _writeGate.WaitAsync(cancellationToken);
@@ -446,7 +525,7 @@ public sealed class CalendarStore
             bool changed = false;
             lock (_gate)
             {
-                CalendarEntry? current = _entries.FirstOrDefault(e => e.Id == id);
+                CalendarEntry? current = _readOnly ? null : _entries.FirstOrDefault(e => e.Id == id);
                 CalendarEntry? updated = current is null ? null : change(current);
                 if (current is not null && updated is not null)
                 {
@@ -537,7 +616,8 @@ public sealed class CalendarStore
         }
     }
 
-    private async ValueTask<T?> ReadAsync<T>(string key, CancellationToken cancellationToken)
+    // A document with a higher version than this build writes is never replaced, whether or not it still parses.
+    private async ValueTask<T?> ReadAsync<T>(string key, int currentVersion, Action markNewer, CancellationToken cancellationToken)
         where T : class
     {
         string? json = await _storage.ReadAsync(key, cancellationToken);
@@ -552,15 +632,92 @@ public sealed class CalendarStore
         }
         catch (JsonException ex)
         {
-            RecoveredFromCorruption = true;
-            _logger.Warn($"The stored calendar document '{key}' is unreadable and was replaced by an empty one: {ex.Message}");
-            if (json.Length <= MaxKeptCorruptChars)
+            if (PeekVersion(json) > currentVersion)
             {
-                _ = await TryWriteAsync(key + CorruptSuffix, json, cancellationToken);
+                markNewer();
+                return null;
             }
 
+            RecoveredFromCorruption = true;
+            _logger.Warn($"The stored calendar document '{key}' is unreadable and was replaced by an empty one: {ex.Message}");
+            string kept = KeptCopy(Time.GetUtcNow().ToUnixTimeSeconds(), json);
+            _ = await TryWriteAsync(key + CorruptSuffix, kept, cancellationToken);
             return null;
         }
+    }
+
+    private static int PeekVersion(string json)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("v", out JsonElement version)
+                && version.TryGetInt32(out int number)
+                    ? number
+                    : 0;
+        }
+        catch (JsonException)
+        {
+            return 0;
+        }
+    }
+
+    // A kept copy is "<unix seconds>\n<text>" (plain text: JSON escaping would inflate it against the quota). It is deleted after the keep
+    // period; a copy from an older version has no date and starts its period now.
+    private async ValueTask PurgeUnreadableAsync(CancellationToken cancellationToken)
+    {
+        long now = Time.GetUtcNow().ToUnixTimeSeconds();
+        foreach (string key in new[] { DataKey, HistoryKey, SettingsKey }.Select(k => k + CorruptSuffix))
+        {
+            string? stored = await _storage.ReadAsync(key, cancellationToken);
+            if (stored is null)
+            {
+                continue;
+            }
+
+            int newline = stored.IndexOf('\n', StringComparison.Ordinal);
+            if (newline > 0 && long.TryParse(stored.AsSpan(0, newline), NumberStyles.None, CultureInfo.InvariantCulture, out long keptAt) && keptAt > 0)
+            {
+                if (now - keptAt > CalendarLimits.UnreadableKeepDays * 86400L)
+                {
+                    _ = await _storage.DeleteAsync(key, cancellationToken);
+                }
+
+                continue;
+            }
+
+            _ = await TryWriteAsync(key, KeptCopy(now, stored), cancellationToken);
+        }
+    }
+
+    private static string KeptCopy(long unixSeconds, string text) =>
+        string.Create(CultureInfo.InvariantCulture, $"{unixSeconds}\n{Cap(text)}");
+
+    // At most MaxKeptUnreadableBytes of UTF-8, cut at a character boundary.
+    private static string Cap(string text)
+    {
+        if (Encoding.UTF8.GetByteCount(text) <= CalendarLimits.MaxKeptUnreadableBytes)
+        {
+            return text;
+        }
+
+        int low = 0;
+        int high = Math.Min(text.Length, CalendarLimits.MaxKeptUnreadableBytes);
+        while (low < high)
+        {
+            int middle = (low + high + 1) / 2;
+            if (Encoding.UTF8.GetByteCount(text.AsSpan(0, middle)) <= CalendarLimits.MaxKeptUnreadableBytes)
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle - 1;
+            }
+        }
+
+        return low > 0 && char.IsHighSurrogate(text[low - 1]) ? text[..(low - 1)] : text[..low];
     }
 
     private static IReadOnlyList<HistoryRecord> SanitizeHistory(IEnumerable<HistoryRecord> records, long nowUnix)
@@ -577,67 +734,84 @@ public sealed class CalendarStore
         ];
     }
 
-    private static (IReadOnlyList<CalendarEntry> Entries, int NextId) Sanitize(CalendarData data)
+    // Entries that are merely invalid are dropped; entries with a value this version does not know make the whole calendar read-only.
+    private static (IReadOnlyList<CalendarEntry> Entries, int NextId, bool HasUnknownValues) Sanitize(CalendarData data)
     {
         List<CalendarEntry> clean = [];
         HashSet<int> ids = [];
+        bool unknown = false;
         foreach (CalendarEntry? raw in (data.Entries ?? []).Take(CalendarLimits.MaxEntries))
         {
-            if (raw is null || raw.Id <= 0 || !ids.Add(raw.Id) || !Enum.IsDefined(raw.Kind) || !Enum.IsDefined(raw.Repeat) || !Enum.IsDefined(raw.End)
-                || raw.StartDay < MinDay || raw.StartDay > MaxDay)
+            if (raw is null || raw.Id <= 0 || !ids.Add(raw.Id))
             {
                 continue;
             }
 
-            bool session = raw.Kind == EntryKind.Session;
-            if (session && raw.StartMinute is < 0 or > 1439)
+            if (!Enum.IsDefined(raw.Kind) || !Enum.IsDefined(raw.Repeat) || !Enum.IsDefined(raw.End))
             {
+                unknown = true;
                 continue;
             }
 
-            var entry = new CalendarEntry
+            if (SanitizeEntry(raw) is { } entry)
             {
-                Id = raw.Id,
-                Kind = raw.Kind,
-                Title = CleanTitle(raw.Title),
-                StartDay = raw.StartDay,
-                StartMinute = Math.Clamp(raw.StartMinute, -1, 1439),
-                Duration = session
-                    ? Math.Clamp(raw.Duration, CalendarLimits.MinSessionMinutes, CalendarLimits.MaxSessionMinutes)
-                    : Math.Clamp(raw.Duration, 0, CalendarLimits.MaxTaskMinutes),
-                Repeat = raw.Repeat,
-                Interval = Math.Clamp(raw.Interval, 1, CalendarLimits.MaxInterval),
-                WeekdayMask = raw.WeekdayMask & 0x7F,
-                End = raw.Repeat == RepeatKind.Once ? EndKind.Never : raw.End,
-                UntilDay = Math.Clamp(raw.UntilDay, raw.StartDay, MaxDay),
-                Count = Math.Clamp(raw.Count, 1, CalendarLimits.MaxCount),
-                Color = ((raw.Color % CalendarLimits.ColorCount) + CalendarLimits.ColorCount) % CalendarLimits.ColorCount,
-                Created = Math.Max(0, raw.Created),
-                Skipped = [.. (raw.Skipped ?? []).Distinct().Take(CalendarLimits.MaxSkips)],
-                DoneDays = [.. (raw.DoneDays ?? []).Distinct().Take(CalendarLimits.MaxDone)],
-            };
-            entry.Overrides =
-            [
-                .. (raw.Overrides ?? [])
-                    .Where(o => o is not null && o.Day >= MinDay && o.Day <= MaxDay)
-                    .GroupBy(o => o.OriginalDay)
-                    .Select(g => g.Last())
-                    .Take(CalendarLimits.MaxOverrides)
-                    .Select(o => new OccurrenceOverride
-                    {
-                        OriginalDay = o.OriginalDay,
-                        Day = o.Day,
-                        Minute = session ? Math.Clamp(o.Minute, 0, 1439) : Math.Clamp(o.Minute, -1, 1439),
-                        Duration = session
-                            ? Math.Clamp(o.Duration, CalendarLimits.MinSessionMinutes, CalendarLimits.MaxSessionMinutes)
-                            : Math.Clamp(o.Duration, 0, CalendarLimits.MaxTaskMinutes),
-                        Title = CleanTitle(o.Title),
-                    }),
-            ];
-            clean.Add(entry);
+                clean.Add(entry);
+            }
         }
 
         int next = Math.Max(Math.Max(1, data.NextId), clean.Count == 0 ? 1 : clean.Max(e => e.Id) + 1);
-        return (clean, next);
+        return (clean, next, unknown);
+    }
+
+    // The one place that decides what a valid entry is; loading, adding and replacing all use it. Null: the entry is not acceptable.
+    private static CalendarEntry? SanitizeEntry(CalendarEntry raw)
+    {
+        if (!Enum.IsDefined(raw.Kind) || !Enum.IsDefined(raw.Repeat) || !Enum.IsDefined(raw.End) || raw.StartDay < MinDay || raw.StartDay > MaxDay)
+        {
+            return null;
+        }
+
+        bool session = raw.Kind == EntryKind.Session;
+        if (session && raw.StartMinute is < 0 or > 1439)
+        {
+            return null;
+        }
+
+        var entry = new CalendarEntry
+        {
+            Id = raw.Id,
+            Kind = raw.Kind,
+            Title = CleanTitle(raw.Title),
+            StartDay = raw.StartDay,
+            StartMinute = Math.Clamp(raw.StartMinute, -1, 1439),
+            Duration = ClampDuration(raw.Kind, raw.Duration),
+            Repeat = raw.Repeat,
+            Interval = Math.Clamp(raw.Interval, 1, CalendarLimits.MaxInterval),
+            WeekdayMask = raw.WeekdayMask & 0x7F,
+            End = raw.Repeat == RepeatKind.Once ? EndKind.Never : raw.End,
+            UntilDay = Math.Clamp(raw.UntilDay, raw.StartDay, MaxDay),
+            Count = Math.Clamp(raw.Count, 1, CalendarLimits.MaxCount),
+            Color = ((raw.Color % CalendarLimits.ColorCount) + CalendarLimits.ColorCount) % CalendarLimits.ColorCount,
+            Created = Math.Max(0, raw.Created),
+            Skipped = [.. (raw.Skipped ?? []).Distinct().Take(CalendarLimits.MaxSkips)],
+            DoneDays = [.. (raw.DoneDays ?? []).Distinct().Take(CalendarLimits.MaxDone)],
+        };
+        entry.Overrides =
+        [
+            .. (raw.Overrides ?? [])
+                .Where(o => o is not null && o.Day >= MinDay && o.Day <= MaxDay)
+                .GroupBy(o => o.OriginalDay)
+                .Select(g => g.Last())
+                .Take(CalendarLimits.MaxOverrides)
+                .Select(o => new OccurrenceOverride
+                {
+                    OriginalDay = o.OriginalDay,
+                    Day = o.Day,
+                    Minute = session ? Math.Clamp(o.Minute, 0, 1439) : Math.Clamp(o.Minute, -1, 1439),
+                    Duration = ClampDuration(raw.Kind, o.Duration),
+                    Title = CleanTitle(o.Title),
+                }),
+        ];
+        return entry;
     }
 }

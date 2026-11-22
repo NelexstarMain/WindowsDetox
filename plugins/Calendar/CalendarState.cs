@@ -1,25 +1,36 @@
-// In-memory UI state shared by the page, the widgets and the settings: which view and day are shown, the form draft, the last message and
-// the armed (first-click) destructive button. Nothing here is persisted.
+// In-memory UI state shared by the page, the widgets and the settings: which view and day are shown, what is selected, the pending block
+// and the editor draft, the last message and the armed (first-click) destructive button. Nothing here is persisted.
 
 namespace CalendarPlanner;
 
 /// <summary>Which calendar view the page shows.</summary>
 public enum CalendarMode
 {
-    /// <summary>Month grid with the selected day's agenda.</summary>
-    Month = 0,
+    /// <summary>One day as a time grid.</summary>
+    Day = 0,
 
-    /// <summary>Seven days of the week.</summary>
+    /// <summary>Seven days as a time grid.</summary>
     Week = 1,
 
-    /// <summary>The next days as a list.</summary>
-    Agenda = 2,
+    /// <summary>The month as a grid of days with the titles of their entries.</summary>
+    Month = 2,
 }
 
-/// <summary>A message shown above the tiles until dismissed.</summary>
+/// <summary>A message shown above the calendar until the next action.</summary>
 /// <param name="Text">The text.</param>
 /// <param name="IsError">Whether it is an error.</param>
 public sealed record CalendarMessage(string Text, bool IsError);
+
+/// <summary>One occurrence of an entry: the entry and the day it has in its series.</summary>
+/// <param name="EntryId">Entry id.</param>
+/// <param name="OriginalDay">Series day of the occurrence.</param>
+public readonly record struct OccurrenceRef(int EntryId, int OriginalDay);
+
+/// <summary>A new block the user dragged on the grid and has not saved yet.</summary>
+/// <param name="Day">Day number.</param>
+/// <param name="Start">Start, minutes after midnight.</param>
+/// <param name="End">End, minutes after midnight.</param>
+public sealed record PendingBlock(int Day, int Start, int End);
 
 /// <summary>Thread-safe UI state.</summary>
 public sealed class CalendarUiState
@@ -29,10 +40,13 @@ public sealed class CalendarUiState
 
     private readonly object _gate = new();
     private readonly TimeProvider _time;
-    private CalendarMode _mode;
+    private CalendarMode _mode = CalendarMode.Week;
     private int? _anchor;
-    private int? _selected;
+    private IReadOnlyList<OccurrenceRef> _selection = [];
+    private string? _anchorId;
+    private PendingBlock? _pending;
     private CalendarDraft? _draft;
+    private bool _showMore;
     private CalendarMessage? _message;
     private string? _armed;
     private long _armedAt;
@@ -48,14 +62,23 @@ public sealed class CalendarUiState
     /// <summary>The view.</summary>
     public CalendarMode Mode => Read(() => _mode);
 
-    /// <summary>The day the visible month or week is anchored on, or <see langword="null"/> for today.</summary>
+    /// <summary>A day of the shown day, week or month, or <see langword="null"/> for today.</summary>
     public int? Anchor => Read(() => _anchor);
 
-    /// <summary>The selected day, or <see langword="null"/> for today.</summary>
-    public int? Selected => Read(() => _selected);
+    /// <summary>The selected occurrences in the order they were picked; the last one carries the popover.</summary>
+    public IReadOnlyList<OccurrenceRef> Selection => Read(() => _selection);
 
-    /// <summary>The form draft being edited, or <see langword="null"/> for a fresh one.</summary>
+    /// <summary>Id of the grid block the user clicked last (where the popover is anchored), or <see langword="null"/>.</summary>
+    public string? AnchorId => Read(() => _anchorId);
+
+    /// <summary>The block being created, or <see langword="null"/>.</summary>
+    public PendingBlock? Pending => Read(() => _pending);
+
+    /// <summary>The editor draft, or <see langword="null"/> when no editor is open.</summary>
     public CalendarDraft? Draft => Read(() => _draft);
+
+    /// <summary>Whether the editor shows its extra fields.</summary>
+    public bool ShowMore => Read(() => _showMore);
 
     /// <summary>The message.</summary>
     public CalendarMessage? Message => Read(() => _message);
@@ -66,17 +89,54 @@ public sealed class CalendarUiState
     /// <summary>The day selected in the widget, or <see langword="null"/> for today.</summary>
     public int? WidgetSelected => Read(() => _widgetSelected);
 
-    /// <summary>Switches the view.</summary>
-    public void SetMode(CalendarMode mode) => Write(() => _mode = mode);
+    /// <summary>Shows another period: sets the view and the day and drops the selection, the pending block, the editor and the message.</summary>
+    public void Show(CalendarMode mode, int? anchor) => Write(() =>
+    {
+        _mode = mode;
+        _anchor = anchor;
+        DropTransient();
+        _message = null;
+    });
 
-    /// <summary>Sets the anchor day.</summary>
-    public void SetAnchor(int? day) => Write(() => _anchor = day);
+    /// <summary>Drops the selection, the pending block, the editor, the armed button and the message (the popover closes).</summary>
+    public void Dismiss() => Write(() =>
+    {
+        DropTransient();
+        _message = null;
+    });
 
-    /// <summary>Selects a day.</summary>
-    public void SetSelected(int? day) => Write(() => _selected = day);
+    /// <summary>Selects occurrences; the popover is anchored to <paramref name="anchorId"/>. Closes the editor and the pending block.</summary>
+    public void Select(IReadOnlyList<OccurrenceRef> selection, string? anchorId) => Write(() =>
+    {
+        DropTransient();
+        _selection = selection;
+        _anchorId = selection.Count == 0 ? null : anchorId;
+        _message = null;
+    });
 
-    /// <summary>Sets the draft.</summary>
-    public void SetDraft(CalendarDraft? draft) => Write(() => _draft = draft);
+    /// <summary>Starts a new block: the ghost on the grid and the editor for it.</summary>
+    public void BeginCreate(PendingBlock pending, CalendarDraft draft) => Write(() =>
+    {
+        DropTransient();
+        _pending = pending;
+        _draft = draft;
+        _message = null;
+    });
+
+    /// <summary>Opens the editor for the selected occurrence.</summary>
+    public void BeginEdit(CalendarDraft draft) => Write(() =>
+    {
+        _draft = draft;
+        _showMore = false;
+        _armed = null;
+        _message = null;
+    });
+
+    /// <summary>Replaces the draft of the open editor (after a refused save, so typed values stay).</summary>
+    public void SetDraft(CalendarDraft draft) => Write(() => _draft = draft);
+
+    /// <summary>Shows or hides the extra fields of the editor.</summary>
+    public void SetShowMore(bool value) => Write(() => _showMore = value);
 
     /// <summary>Sets or clears the message.</summary>
     public void SetMessage(CalendarMessage? message) => Write(() => _message = message);
@@ -109,6 +169,16 @@ public sealed class CalendarUiState
 
         Changed?.Invoke();
         return ok;
+    }
+
+    private void DropTransient()
+    {
+        _selection = [];
+        _anchorId = null;
+        _pending = null;
+        _draft = null;
+        _showMore = false;
+        _armed = null;
     }
 
     private T Read<T>(Func<T> read)

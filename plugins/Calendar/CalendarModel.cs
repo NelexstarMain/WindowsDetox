@@ -97,6 +97,12 @@ public static class CalendarLimits
 
     /// <summary>Longest duration of a task with a time, in minutes.</summary>
     public const int MaxTaskMinutes = 24 * 60;
+
+    /// <summary>Most bytes of an unreadable document that are kept for the user to recover.</summary>
+    public const int MaxKeptUnreadableBytes = 64 * 1024;
+
+    /// <summary>Days an unreadable copy is kept before it is deleted.</summary>
+    public const int UnreadableKeepDays = 30;
 }
 
 /// <summary>Edit of one occurrence of a repeating entry.</summary>
@@ -220,9 +226,12 @@ public sealed class CalendarEntry
 /// <summary>The persisted entries document.</summary>
 public sealed class CalendarData
 {
+    /// <summary>The schema version this build reads and writes; a document with a higher version is only ever read.</summary>
+    public const int CurrentVersion = 1;
+
     /// <summary>Schema version.</summary>
     [JsonPropertyName("v")]
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Id of the next entry.</summary>
     [JsonPropertyName("n")]
@@ -265,9 +274,12 @@ public sealed class HistoryRecord
 /// <summary>The persisted history document.</summary>
 public sealed class CalendarHistory
 {
+    /// <summary>The schema version this build reads and writes; a document with a higher version is only ever read.</summary>
+    public const int CurrentVersion = 1;
+
     /// <summary>Schema version.</summary>
     [JsonPropertyName("v")]
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Records, oldest first.</summary>
     [JsonPropertyName("h")]

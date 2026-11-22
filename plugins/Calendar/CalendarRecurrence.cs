@@ -77,6 +77,21 @@ public static class CalendarRecurrence
         return result;
     }
 
+    /// <summary>Finds the occurrence of <paramref name="entry"/> that has <paramref name="originalDay"/> in its series, wherever it was moved; <see langword="null"/> when there is none or it was skipped.</summary>
+    public static Occurrence? OccurrenceOf(CalendarEntry entry, int originalDay)
+    {
+        if (entry.Skipped.Contains(originalDay) || !IsSeriesDay(entry, originalDay))
+        {
+            return null;
+        }
+
+        bool done = entry.DoneDays.Contains(originalDay);
+        OccurrenceOverride? edit = entry.Overrides.FirstOrDefault(o => o.OriginalDay == originalDay);
+        return edit is null
+            ? new Occurrence(entry, originalDay, originalDay, entry.StartMinute, entry.Duration, entry.Title, done, IsOverride: false)
+            : new Occurrence(entry, originalDay, edit.Day, edit.Minute, edit.Duration, edit.Title, done, IsOverride: true);
+    }
+
     /// <summary>Whether <paramref name="day"/> is a day of the series (ignoring skips and edits).</summary>
     public static bool IsSeriesDay(CalendarEntry entry, int day) => BaseDays(entry, day, day).Any();
 

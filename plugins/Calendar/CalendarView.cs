@@ -29,6 +29,7 @@ public sealed class CalendarView
         Settings = store.Settings;
         Entries = store.Entries;
         History = store.History;
+        ReadOnly = store.ReadOnly;
         Today = CalTime.DayOf(now, Zone);
         _outcomes = History.ToDictionary(r => r.Key, r => r.Outcome, StringComparer.Ordinal);
     }
@@ -48,6 +49,9 @@ public sealed class CalendarView
     /// <summary>The history.</summary>
     public IReadOnlyList<HistoryRecord> History { get; }
 
+    /// <summary>Whether the stored data cannot be changed by this version.</summary>
+    public bool ReadOnly { get; }
+
     /// <summary>Today's day number.</summary>
     public int Today { get; }
 
@@ -56,6 +60,10 @@ public sealed class CalendarView
 
     /// <summary>Occurrences from <paramref name="fromDay"/> to <paramref name="toDay"/>.</summary>
     public IReadOnlyList<Occurrence> Between(int fromDay, int toDay) => CalendarRecurrence.Expand(Entries, fromDay, toDay);
+
+    /// <summary>Finds one occurrence of an entry by its series day, or <see langword="null"/> when it no longer exists.</summary>
+    public Occurrence? Find(OccurrenceRef reference) =>
+        Entries.FirstOrDefault(e => e.Id == reference.EntryId) is { } entry ? CalendarRecurrence.OccurrenceOf(entry, reference.OriginalDay) : null;
 
     /// <summary>What happened to a planned session, if anything.</summary>
     public SessionOutcome? OutcomeOf(Occurrence occurrence) =>

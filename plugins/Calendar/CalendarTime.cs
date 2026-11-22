@@ -203,6 +203,26 @@ public static class CalTime
         return string.Create(CultureInfo.InvariantCulture, $"{DayName(day)} {date.Day} {MonthNames[date.Month - 1][..3]}");
     }
 
+    /// <summary>Title of a week starting on <paramref name="first"/>, for example <c>9 – 15 March 2026</c> or <c>29 Dec 2025 – 4 Jan 2026</c>.</summary>
+    public static string WeekTitle(int first)
+    {
+        DateOnly a = DateOnly.FromDayNumber(first);
+        DateOnly b = DateOnly.FromDayNumber(first + 6);
+        string monthA = MonthNames[a.Month - 1][..3];
+        string monthB = MonthNames[b.Month - 1][..3];
+        if (a.Year != b.Year)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{a.Day} {monthA} {a.Year} – {b.Day} {monthB} {b.Year}");
+        }
+
+        return a.Month != b.Month
+            ? string.Create(CultureInfo.InvariantCulture, $"{a.Day} {monthA} – {b.Day} {monthB} {b.Year}")
+            : string.Create(CultureInfo.InvariantCulture, $"{a.Day} – {b.Day} {MonthNames[a.Month - 1]} {a.Year}");
+    }
+
+    /// <summary>Long date with the year, for example <c>Monday 9 March 2026</c>.</summary>
+    public static string DayTitle(int day) => string.Create(CultureInfo.InvariantCulture, $"{LongDate(day)} {DateOnly.FromDayNumber(day).Year}");
+
     /// <summary>Long date, for example <c>Monday 9 March</c>.</summary>
     public static string LongDate(int day)
     {
