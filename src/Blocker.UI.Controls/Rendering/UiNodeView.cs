@@ -18,6 +18,8 @@ public sealed class UiNodeView : ContentControl
     public static readonly DependencyProperty IsFlatProperty = DependencyProperty.Register(
         nameof(IsFlat), typeof(bool), typeof(UiNodeView), new PropertyMetadata(false, OnNodeChanged));
 
+    private readonly TimeGridViewState _timeGridState = new();
+
     /// <summary>Initializes a new instance of the <see cref="UiNodeView"/> class.</summary>
     public UiNodeView()
     {
@@ -64,7 +66,7 @@ public sealed class UiNodeView : ContentControl
             return;
         }
 
-        FrameworkElement visual = new UiVisualBuilder(action => ActionInvoked?.Invoke(this, action), IsFlat).Build(node);
+        FrameworkElement visual = new UiVisualBuilder(action => ActionInvoked?.Invoke(this, action), IsFlat, _timeGridState).Build(node);
         Content = node is UiPage
             ? new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = visual }
             : visual;
