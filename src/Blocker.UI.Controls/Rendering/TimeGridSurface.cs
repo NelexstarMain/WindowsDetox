@@ -6,7 +6,6 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using Blocker.UI.Sdk;
 
@@ -372,7 +371,11 @@ internal sealed class TimeGridSurface : Panel
 
     private static Rect ToRect(RectD r) => new(r.X, r.Y, Math.Max(r.Width, 0), Math.Max(r.Height, 0));
 
-    private static void MeasureGhost(GhostVisual ghost, RectD rect) => ghost.Measure(new Size(Math.Max(rect.Width, 0), Math.Max(rect.Height, 0)));
+    private static void MeasureGhost(GhostVisual ghost, RectD rect)
+    {
+        ghost.Prepare(rect.Height);
+        ghost.Measure(new Size(Math.Max(rect.Width, 0), Math.Max(rect.Height, 0)));
+    }
 
     private Brush Resource(string key, Brush fallback) => TryFindResource(key) as Brush ?? fallback;
 
@@ -493,67 +496,82 @@ internal sealed class TimeGridSurface : Panel
         _revertTimer.Start();
     }
 
-    /// <summary>One block: tone-coloured soft fill with a stronger bar on the left, a bold title and an optional detail line.</summary>
+    /// <summary>
+    /// One block: a solid tone-coloured rounded fill with dark (or, on the neutral slate, light) text. A tall block stacks a semibold title
+    /// over the time; a short one puts both on one line. The selected block gets a ring and a shadow, a past one is muted.
+    /// </summary>
     private sealed class BlockVisual : Border
     {
-        private readonly TextBlock _title;
-        private readonly TextBlock _detail;
-        private readonly Border _surface;
-        private readonly string? _baseDetail;
-        private readonly bool _selected;
         private const double NarrowBlockWidth = 100;
         private const double WrapMinHeight = 40;
-        private bool _detailShown;
+        private const double PastOpacity = 0.55;
+        private const double DetailOpacity = 0.8;
+
+        private readonly TextBlock _title;
+        private readonly TextBlock _detail;
+        private readonly TextBlock _oneLine;
+        private readonly Run _oneLineTime = new() { FontWeight = FontWeights.Normal };
+        private readonly string? _baseDetail;
+        private readonly bool _selected;
+        private string _time;
 
         public BlockVisual(UiTimeGridEvent ev, Effect raisedShadow)
         {
             _baseDetail = string.IsNullOrEmpty(ev.Detail) ? null : ev.Detail;
+            _time = _baseDetail ?? string.Empty;
             _selected = ev.IsSelected;
             IsHitTestVisible = false;
-            CornerRadius = new CornerRadius(4);
-            SetResourceReference(BackgroundProperty, "Blocker.Bg.Card");
+            CornerRadius = new CornerRadius(6);
+            SetResourceReference(BackgroundProperty, EventFillKey(ev.Tone));
+            string textKey = ev.Tone == UiTone.Neutral ? "Blocker.Text.Primary" : "Blocker.Event.OnLight";
 
-            var bar = new Border { Width = 4, CornerRadius = new CornerRadius(3, 0, 0, 3) };
-            bar.SetResourceReference(BackgroundProperty, ev.Tone == UiTone.Accent ? "Blocker.Accent.Bar" : ToneMap.FillKey(ev.Tone));
-            DockPanel.SetDock(bar, Dock.Left);
+            _title = CreateLabel(ev.Title, 12, FontWeights.SemiBold, textKey);
+            _detail = CreateLabel(_time, 11, FontWeights.Normal, textKey);
+            _detail.Opacity = DetailOpacity;
 
-            _title = CreateLabel(ev.Title, 12, FontWeights.SemiBold, "Blocker.Text.Primary");
-            _detail = CreateLabel(_baseDetail ?? string.Empty, 11, FontWeights.Normal, "Blocker.Text.Secondary");
-            _detailShown = _baseDetail is not null;
-            _detail.Visibility = _detailShown ? Visibility.Visible : Visibility.Collapsed;
+            _oneLine = CreateLabel(string.Empty, 12, FontWeights.SemiBold, textKey);
+            _oneLine.Inlines.Add(new Run(ev.Title));
+            _oneLine.Inlines.Add(_oneLineTime);
+            _oneLine.Visibility = Visibility.Collapsed;
+            UpdateOneLineTime();
 
-            var texts = new StackPanel { Margin = new Thickness(6, 3, 4, 3), VerticalAlignment = VerticalAlignment.Top };
+            var texts = new StackPanel { Margin = new Thickness(8, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
+            texts.Children.Add(_oneLine);
             texts.Children.Add(_title);
             texts.Children.Add(_detail);
 
-            _surface = new Border { CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Child = new DockPanel { Children = { bar, texts } } };
-            _surface.SetResourceReference(BackgroundProperty, ToneMap.SoftKey(ev.Tone));
-            Child = _surface;
-
+            var content = new Grid();
+            content.Children.Add(texts);
             if (ev.IsSelected)
             {
-                _surface.SetResourceReference(BorderBrushProperty, "Blocker.Text.Primary");
+                // The ring is its own overlay so it stays crisp on every fill colour and does not shift the text.
+                var ring = new Border { CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(2), IsHitTestVisible = false };
+                ring.SetResourceReference(BorderBrushProperty, "Blocker.Text.Primary");
+                content.Children.Add(ring);
                 Effect = raisedShadow;
                 SetZIndex(this, 10);
             }
+            else if (ev.IsPast)
+            {
+                Opacity = PastOpacity;
+            }
 
+            Child = content;
             AutomationProperties.SetName(this, _baseDetail is null ? ev.Title : ev.Title + ", " + _baseDetail);
         }
 
-        /// <summary>Shows or hides the detail line and wraps the title depending on the size the block gets.</summary>
+        /// <summary>Picks the one-line, two-line or wrapped layout for the size the block gets.</summary>
         /// <param name="height">The block height.</param>
         /// <param name="width">The block width.</param>
         public void Prepare(double height, double width)
         {
             // In a narrow column one line cuts the title to a few letters, so a block tall enough for two lines wraps it and drops the time.
             bool wrap = width < NarrowBlockWidth && height >= WrapMinHeight;
-            bool show = TimeGridMath.ShowsDetail(height) && !wrap && (_baseDetail is not null || _detail.Text.Length > 0);
-            if (show != _detailShown)
-            {
-                _detailShown = show;
-                _detail.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-            }
-
+            bool stacked = TimeGridMath.ShowsDetail(height) && !wrap;
+            bool hasTime = _time.Length > 0;
+            SetVisible(_oneLine, !stacked && !wrap);
+            SetVisible(_title, stacked || wrap);
+            SetVisible(_detail, stacked && hasTime);
             _title.TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap;
         }
 
@@ -561,46 +579,90 @@ internal sealed class TimeGridSurface : Panel
         /// <param name="label">The range text.</param>
         public void SetPreviewTime(string label)
         {
-            if (_detail.Text != label)
+            if (_time != label)
             {
+                _time = label;
                 _detail.Text = label;
+                UpdateOneLineTime();
             }
         }
 
         /// <summary>Restores the detail the plugin supplied and the normal stacking.</summary>
         public void ClearPreview()
         {
-            _detail.Text = _baseDetail ?? string.Empty;
+            _time = _baseDetail ?? string.Empty;
+            _detail.Text = _time;
+            UpdateOneLineTime();
             SetZIndex(this, _selected ? 10 : 0);
+        }
+
+        private static string EventFillKey(UiTone tone) => tone switch
+        {
+            UiTone.Accent => "Blocker.Event.Accent",
+            UiTone.Neutral => "Blocker.Event.Neutral",
+            _ => ToneMap.FillKey(tone),
+        };
+
+        private static void SetVisible(UIElement element, bool visible) =>
+            element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        private void UpdateOneLineTime()
+        {
+            string start = TimeGridMath.StartOf(_time);
+            _oneLineTime.Text = start.Length == 0 ? string.Empty : ", " + start;
         }
     }
 
-    /// <summary>A dashed accent block: the pending new block, or the block being drawn by a drag.</summary>
+    /// <summary>A solid, slightly transparent accent block: the pending new block, or the block being drawn by a drag.</summary>
     private sealed class GhostVisual : Grid
     {
-        private readonly TextBlock _time;
+        private const string NoTitle = "(No title)";
+
+        private readonly TextBlock _title;
+        private readonly TextBlock _detail;
+        private readonly TextBlock _oneLine;
+        private readonly Run _oneLineTime = new() { FontWeight = FontWeights.Normal };
+        private string _time = string.Empty;
 
         public GhostVisual()
         {
             IsHitTestVisible = false;
-            var outline = new Rectangle { RadiusX = 4, RadiusY = 4, StrokeThickness = 1.5, StrokeDashArray = [4, 3], Margin = new Thickness(0.75) };
-            outline.SetResourceReference(Shape.FillProperty, "Blocker.Accent.Soft");
-            outline.SetResourceReference(Shape.StrokeProperty, "Blocker.Accent.Bar");
-            Children.Add(outline);
+            var fill = new Border { CornerRadius = new CornerRadius(6), Opacity = 0.85 };
+            fill.SetResourceReference(Border.BackgroundProperty, "Blocker.Event.Accent");
+            Children.Add(fill);
 
-            var texts = new StackPanel { Margin = new Thickness(8, 4, 6, 4), VerticalAlignment = VerticalAlignment.Top };
-            texts.Children.Add(CreateLabel("(new)", 12, FontWeights.SemiBold, "Blocker.Text.Primary"));
-            _time = CreateLabel(string.Empty, 11, FontWeights.Normal, "Blocker.Text.Secondary");
-            texts.Children.Add(_time);
+            _title = CreateLabel(NoTitle, 12, FontWeights.SemiBold, "Blocker.Event.OnLight");
+            _detail = CreateLabel(string.Empty, 11, FontWeights.Normal, "Blocker.Event.OnLight");
+            _oneLine = CreateLabel(string.Empty, 12, FontWeights.SemiBold, "Blocker.Event.OnLight");
+            _oneLine.Inlines.Add(new Run(NoTitle));
+            _oneLine.Inlines.Add(_oneLineTime);
+            _oneLine.Visibility = Visibility.Collapsed;
+
+            var texts = new StackPanel { Margin = new Thickness(8, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
+            texts.Children.Add(_oneLine);
+            texts.Children.Add(_title);
+            texts.Children.Add(_detail);
             Children.Add(texts);
         }
 
         public void SetTime(string label)
         {
-            if (_time.Text != label)
+            if (_time != label)
             {
-                _time.Text = label;
+                _time = label;
+                _detail.Text = label;
+                _oneLineTime.Text = ", " + label;
             }
+        }
+
+        /// <summary>Puts the title and the time on one line when the block is too short for two.</summary>
+        /// <param name="height">The block height.</param>
+        public void Prepare(double height)
+        {
+            bool stacked = TimeGridMath.ShowsDetail(height);
+            _oneLine.Visibility = stacked ? Visibility.Collapsed : Visibility.Visible;
+            _title.Visibility = stacked ? Visibility.Visible : Visibility.Collapsed;
+            _detail.Visibility = stacked ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 

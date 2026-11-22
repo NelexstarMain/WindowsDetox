@@ -94,6 +94,15 @@ public sealed class TimeGridMathTests
     }
 
     [Theory]
+    [InlineData("10:30–11:00", "10:30")]
+    [InlineData("10:30 – 11:00", "10:30")]
+    [InlineData("9:00 AM-10:00 AM", "9:00 AM")]
+    [InlineData("14:00", "14:00")]
+    [InlineData("", "")]
+    public void The_one_line_time_of_a_short_block_is_the_start_of_its_range(string detail, string expected) =>
+        Assert.Equal(expected, TimeGridMath.StartOf(detail));
+
+    [Theory]
     [InlineData(0, 0)]
     [InlineData(480, 384)]
     [InlineData(1440, 1152)]
