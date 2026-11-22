@@ -298,15 +298,21 @@ public sealed partial class BlockerServiceApp
 /// <summary>The ownership marker of this installation (<c>BlockerOwned=&lt;installId&gt;</c>), generated once and kept in a plain file.</summary>
 public static class InstallIdStore
 {
-    /// <summary>Reads the install id, creating it when the file is missing or damaged.</summary>
+    /// <summary>Reads the install id, creating it when the file is missing; a damaged file is kept as <c>&lt;path&gt;.bad</c> before a new id replaces it.</summary>
     /// <param name="fileSystem">File system.</param>
     /// <param name="path">File path.</param>
     /// <returns>A 32-character hex id.</returns>
     public static string LoadOrCreate(IFileSystem fileSystem, string path)
     {
-        if (fileSystem.File.Exists(path) && fileSystem.File.ReadAllText(path).Trim() is { Length: 32 } existing && existing.All(char.IsAsciiHexDigit))
+        if (fileSystem.File.Exists(path))
         {
-            return existing;
+            if (fileSystem.File.ReadAllText(path).Trim() is { Length: 32 } existing && existing.All(char.IsAsciiHexDigit))
+            {
+                return existing;
+            }
+
+            // The old id may still be referenced by BlockerOwned markers; keep it so an operator can sweep them by hand.
+            fileSystem.File.Move(path, path + ".bad", overwrite: true);
         }
 
         string id = Guid.NewGuid().ToString("N");

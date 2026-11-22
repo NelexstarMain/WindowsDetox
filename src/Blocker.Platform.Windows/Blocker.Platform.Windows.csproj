@@ -23,5 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Blocker.Platform.Windows.Tests" />
+    <InternalsVisibleTo Include="Blocker.Service" />
+    <InternalsVisibleTo Include="Blocker.Service.Tests" />
   </ItemGroup>
 </Project>

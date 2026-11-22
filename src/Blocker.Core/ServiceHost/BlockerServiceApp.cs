@@ -57,7 +57,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private bool _watchdogEnsured;
     private int _disposed;
 
-    private BlockerServiceApp(BlockerServicePorts ports, BlockerPaths paths, ILoggerFactory loggers, string installId, IReadOnlyList<InstalledApp> cachedScan, AppScanCache scanCache)
+    private BlockerServiceApp(BlockerServicePorts ports, BlockerPaths paths, ILoggerFactory loggers, string installId, IReadOnlyList<InstalledApp> cachedScan, AppScanCache scanCache, SecureFileStore secure)
     {
         _ports = ports;
         _paths = paths;
@@ -65,7 +65,6 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         _logger = loggers.CreateLogger<BlockerServiceApp>();
         _scanCache = scanCache;
         InstallId = installId;
-        var secure = new SecureFileStore(ports.FileSystem, ports.SecretProtector, new HmacKeyStore(ports.FileSystem, ports.SecretProtector, paths.HmacKeyPath));
         Journal = new RollbackJournal(secure, paths.JournalPath, ports.CreateChangeHandlers(installId), installId, loggers.CreateLogger<RollbackJournal>());
         _verified = new VerifiedTimeService(ports.TimeSources, ports.Clock, ports.Time);
         _sessionStore = new SecureSessionStore(secure, paths.SessionStorePath);
@@ -214,7 +213,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         var scanCache = new AppScanCache(secure, paths.AppScanCachePath);
         IReadOnlyList<InstalledApp> cachedScan = await scanCache.LoadAsync(cancellationToken).ConfigureAwait(false);
 
-        var app = new BlockerServiceApp(ports, paths, loggers, installId, cachedScan, scanCache);
+        var app = new BlockerServiceApp(ports, paths, loggers, installId, cachedScan, scanCache, secure);
         try
         {
             await app.InitializeAsync(cachedScan.Count == 0 && ports.Enforcement.ScannedApps.Count == 0, cancellationToken).ConfigureAwait(false);

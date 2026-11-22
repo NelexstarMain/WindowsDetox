@@ -6,6 +6,7 @@ namespace Blocker.Core.Security;
 internal static class AtomicFile
 {
     private const int BufferSize = 4096;
+    private static readonly TimeSpan StaleTempAge = TimeSpan.FromMinutes(1);
 
     public static async ValueTask WriteAsync(IFileSystem fileSystem, string path, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
@@ -19,6 +20,7 @@ internal static class AtomicFile
             }
 
             fileSystem.File.Move(temp, path, overwrite: true);
+            DeleteStaleTemps(fileSystem, path);
         }
         catch
         {
@@ -39,6 +41,7 @@ internal static class AtomicFile
             }
 
             fileSystem.File.Move(temp, path, overwrite: true);
+            DeleteStaleTemps(fileSystem, path);
         }
         catch
         {
@@ -56,6 +59,32 @@ internal static class AtomicFile
         }
 
         return $"{path}.{Guid.NewGuid():N}.tmp";
+    }
+
+    /// <summary>Crash leftovers of earlier writes; the age threshold keeps the temp file of a concurrent writer safe.</summary>
+    private static void DeleteStaleTemps(IFileSystem fileSystem, string path)
+    {
+        if (fileSystem.Path.GetDirectoryName(path) is not { Length: > 0 } directory)
+        {
+            return;
+        }
+
+        try
+        {
+            DateTime threshold = DateTime.UtcNow - StaleTempAge;
+            foreach (string stale in fileSystem.Directory.GetFiles(directory, $"{fileSystem.Path.GetFileName(path)}.*.tmp"))
+            {
+                if (fileSystem.File.GetLastWriteTimeUtc(stale) < threshold)
+                {
+                    fileSystem.File.Delete(stale);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: a leftover temp file must never fail a write that already succeeded.
+            return;
+        }
     }
 
     private static FileSystemStream Create(IFileSystem fileSystem, string temp) =>

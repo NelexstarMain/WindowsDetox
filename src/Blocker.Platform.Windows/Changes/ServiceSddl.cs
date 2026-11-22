@@ -18,6 +18,13 @@ internal static partial class ServiceSddl
     /// <summary>The ACE that keeps SYSTEM in full control.</summary>
     internal const string SystemAce = "(A;;" + FullControl + ";;;SY)";
 
+    /// <summary>
+    /// The standard SCM default DACL (SYSTEM and Administrators full, Interactive and Service users read-only). The installer
+    /// creates the services without an explicit security descriptor, so this is what the sweep restores for a service that is
+    /// still carrying <see cref="BuildRestricted"/>.
+    /// </summary>
+    internal const string ScmDefaultDacl = "D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)";
+
     private static readonly string[] AllowedRights = ["CC", "LC", "SW", "RP", "LO", "RC"];
 
     /// <summary>Administrators, Interactive and Authenticated Users may only query, interrogate and start.</summary>

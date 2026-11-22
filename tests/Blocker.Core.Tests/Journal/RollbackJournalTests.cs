@@ -294,6 +294,22 @@ public sealed class RollbackJournalTests
         Assert.False(_h.Fs.File.Exists(_h.JournalPath));
     }
 
+    [Theory]
+    [InlineData("""{"Version":2,"Entries":[]}""")]
+    [InlineData("""{"Version":1,"Entries":null}""")]
+    [InlineData("""{"Version":1}""")]
+    public async Task Authentic_journal_with_a_foreign_version_or_missing_entries_also_sweeps(string json)
+    {
+        await _h.NewJournal().ApplyAsync("fake", "a", "1", _h.Ct);
+        await _h.Store.WriteAsync(_h.JournalPath, System.Text.Encoding.UTF8.GetBytes(json), _h.Ct);
+
+        RollbackReport report = await _h.NewJournal().RollbackAllAsync(_h.Ct);
+
+        Assert.Equal(RollbackMode.MarkerSweep, report.Mode);
+        Assert.Equal(1, report.Restored);
+        Assert.Empty(Sys.Values);
+    }
+
     [Fact]
     public async Task Sweep_runs_on_every_handler_and_sums_the_counts()
     {
