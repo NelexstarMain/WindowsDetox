@@ -67,8 +67,8 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Text="{Binding Name}" VerticalAlignment="Center" />
-                                        <Border Margin="16,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Name}" VerticalAlignment="Center" />
+                                        <Border VerticalAlignment="Center">
                                             <Border.Style>
                                                 <Style TargetType="Border" BasedOn="{StaticResource App.Chip}">
                                                     <Setter Property="Margin" Value="12,0,0,0" />
@@ -122,7 +122,7 @@
                                                Visibility="{Binding HasPrivacySensitiveCapability, Converter={StaticResource BoolToVisible}}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                    <Button Style="{DynamicResource Blocker.Button.Secondary}" Content="{Binding ToggleLabel}"
+                                    <Button Style="{DynamicResource Blocker.Button.Secondary}" Content="{Binding ToggleLabel}" MinWidth="88"
                                             Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
                                     <Button Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Subtle}" Content="Remove"

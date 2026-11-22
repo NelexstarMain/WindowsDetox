@@ -42,7 +42,7 @@ public sealed class RenderingMathTests
 
     [Theory]
     [InlineData(UiTone.Neutral, "Blocker.Text.Primary", "Blocker.Text.Secondary", "Blocker.Bg.Raised")]
-    [InlineData(UiTone.Accent, "Blocker.Accent", "Blocker.Accent", "Blocker.Accent.Soft")]
+    [InlineData(UiTone.Accent, "Blocker.Accent.Text", "Blocker.Accent", "Blocker.Accent.Soft")]
     [InlineData(UiTone.Warning, "Blocker.Warning", "Blocker.Warning", "Blocker.Warning.Soft")]
     [InlineData(UiTone.Danger, "Blocker.Danger", "Blocker.Danger", "Blocker.Danger.Soft")]
     [InlineData(UiTone.Success, "Blocker.Success", "Blocker.Success", "Blocker.Success.Soft")]

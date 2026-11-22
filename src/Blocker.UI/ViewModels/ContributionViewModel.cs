@@ -81,6 +81,24 @@ internal sealed partial class ContributionViewModel : ObservableObject
         }
     }
 
+    // A plugin with several widgets would otherwise show the same name above each of them: the second and later ones get " 2", " 3".
+    private static IEnumerable<UiContributionDto> NumberRepeatedTitles(IEnumerable<UiContributionDto> items)
+    {
+        Dictionary<(string PluginId, string Title), int> seen = [];
+        foreach (UiContributionDto dto in items)
+        {
+            if (dto.Title is not { } title)
+            {
+                yield return dto;
+                continue;
+            }
+
+            int number = seen.GetValueOrDefault((dto.PluginId, title)) + 1;
+            seen[(dto.PluginId, title)] = number;
+            yield return number == 1 ? dto : dto with { Title = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{title} {number}") };
+        }
+    }
+
     /// <summary>
     /// Brings <paramref name="target"/> in line with <paramref name="items"/>: keeps existing instances (so open views do not flicker),
     /// adds new ones, removes those that disappeared and drops invalid trees.
@@ -90,7 +108,7 @@ internal sealed partial class ContributionViewModel : ObservableObject
     public static void Synchronize(IList<ContributionViewModel> target, IEnumerable<UiContributionDto> items)
     {
         List<ContributionViewModel> next = [];
-        foreach (UiContributionDto dto in items)
+        foreach (UiContributionDto dto in NumberRepeatedTitles(items))
         {
             if (!TryCreate(dto, out ContributionViewModel? created))
             {
