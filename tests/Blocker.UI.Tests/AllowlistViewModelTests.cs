@@ -43,6 +43,16 @@ public sealed class AllowlistViewModelTests
     }
 
     [Fact]
+    public void Running_flag_follows_the_running_source()
+    {
+        AllowlistViewModel vm = CreateWithApps();
+        Assert.All(vm.FilteredApps, a => Assert.True(a.IsRunning));
+
+        AppEntryViewModel idle = new(new InstalledAppDto("Idle", @"C:\idle.exe", null, null, null, AppSourceDto.StartMenu));
+        Assert.False(idle.IsRunning);
+    }
+
+    [Fact]
     public void Select_all_filtered_selects_only_the_visible_apps_and_toggles_back()
     {
         AllowlistViewModel vm = CreateWithApps();

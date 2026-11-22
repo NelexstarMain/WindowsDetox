@@ -20,6 +20,7 @@ internal sealed partial class AppEntryViewModel : ObservableObject
         PackageFamilyName = app.PackageFamilyName;
         IconPng = DecodeIcon(app.IconPngBase64);
         Badges = DescribeSources(app.Sources);
+        IsRunning = app.Sources.HasFlag(AppSourceDto.Running);
     }
 
     /// <summary>Creates a row for a stored allowlist entry that the scan did not find (for example a portable app).</summary>
@@ -51,6 +52,9 @@ internal sealed partial class AppEntryViewModel : ObservableObject
 
     /// <summary>Gets where the application was found, as short badge texts.</summary>
     public IReadOnlyList<string> Badges { get; }
+
+    /// <summary>Gets a value indicating whether the application was running during the scan.</summary>
+    public bool IsRunning { get; }
 
     /// <summary>Gets the path to show under the name; Store apps show their package family.</summary>
     public string Subtitle => ExecutablePath ?? PackageFamilyName ?? string.Empty;

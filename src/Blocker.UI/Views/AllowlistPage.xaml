@@ -90,43 +90,95 @@
                     </Grid>
 
                     <Grid Grid.Row="2">
+                        <!-- Tiles toggle IsSelected on the view model directly (code-behind); the ListBox selection stays unused because a
+                             two-way container binding would deselect apps whenever the search filter rebuilds the list. -->
                         <ListBox ItemsSource="{Binding FilteredApps}" Background="Transparent" BorderThickness="0"
-                                 HorizontalContentAlignment="Stretch" VirtualizingPanel.IsVirtualizing="True"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Single">
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Single"
+                                 AutomationProperties.Name="Apps">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Margin" Value="0,0,8,8" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                    <Setter Property="IsEnabled" Value="{Binding DataContext.CanEditSelection, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnTileMouseDown" />
+                                    <EventSetter Event="KeyDown" Handler="OnTileKeyDown" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="Tile" Width="104" Height="104" Padding="6,10,6,8" CornerRadius="{StaticResource Blocker.Radius.Card}"
+                                                        BorderThickness="1" BorderBrush="Transparent" Background="Transparent" SnapsToDevicePixels="True">
+                                                    <Grid>
+                                                        <ContentPresenter />
+                                                        <Border x:Name="Check" Width="18" Height="18" CornerRadius="9" Visibility="Hidden"
+                                                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-2,0"
+                                                                Background="{DynamicResource Blocker.Accent}">
+                                                            <ui:SymbolIcon Symbol="Checkmark12" FontSize="11" Foreground="{DynamicResource Blocker.Text.OnAccent}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Tile" Property="Background" Value="{DynamicResource Blocker.Border.Subtle}" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter TargetName="Tile" Property="Background" Value="{DynamicResource Blocker.Accent.Soft}" />
+                                                        <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                                                        <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="Tile" Property="Opacity" Value="0.6" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:AppEntryViewModel}">
-                                    <Grid Margin="0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="32" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" Margin="0,0,8,0" MinWidth="0"
-                                                  IsEnabled="{Binding DataContext.CanEditSelection, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                  AutomationProperties.Name="{Binding DisplayName}" />
-                                        <Image Grid.Column="1" Width="24" Height="24" Source="{Binding IconPng, Converter={StaticResource PngToImage}}" />
-                                        <StackPanel Grid.Column="2" Margin="8,0,8,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" Style="{DynamicResource Blocker.Text.Body}"
-                                                       Foreground="{DynamicResource Blocker.Text.Primary}" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding Subtitle}" Style="{DynamicResource Blocker.Text.Caption}"
-                                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                                       ToolTip="{Binding Subtitle}" />
+                                    <Grid>
+                                        <Grid.ToolTip>
+                                            <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}">
+                                                <StackPanel MaxWidth="360">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                               Visibility="{Binding Subtitle, Converter={StaticResource HasTextToVisible}}" />
+                                                    <ItemsControl ItemsSource="{Binding Badges}" Margin="0,6,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Style="{StaticResource App.Chip}" Margin="0,0,4,0" Padding="8,2">
+                                                                    <TextBlock Text="{Binding}" Style="{StaticResource App.ChipText}" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Grid.ToolTip>
+                                        <Ellipse Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,-2,0,0"
+                                                 Fill="{DynamicResource Blocker.Success}"
+                                                 Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisible}}" />
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <Image Width="44" Height="44" HorizontalAlignment="Center"
+                                                   Source="{Binding IconPng, Converter={StaticResource PngToImage}}" />
+                                            <TextBlock Text="{Binding DisplayName}" Style="{DynamicResource Blocker.Text.Caption}"
+                                                       Foreground="{DynamicResource Blocker.Text.Primary}" Margin="0,8,0,0"
+                                                       TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                       MaxHeight="34" />
                                         </StackPanel>
-                                        <ItemsControl Grid.Column="3" ItemsSource="{Binding Badges}" VerticalAlignment="Center">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Style="{StaticResource App.Chip}" Margin="4,0,0,0">
-                                                        <TextBlock Text="{Binding}" Style="{StaticResource App.ChipText}" />
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
