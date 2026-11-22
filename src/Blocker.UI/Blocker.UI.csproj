@@ -30,5 +30,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Blocker.UI.Tests" />
+    <InternalsVisibleTo Include="Blocker.UI.Render" />
   </ItemGroup>
 </Project>

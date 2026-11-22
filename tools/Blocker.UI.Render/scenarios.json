@@ -1,0 +1,21 @@
+{
+  // One entry per screenshot. target: "main:<dashboard|allowlist|setup|plugins|settings>" or "plugin:<calendar|goals|insights>".
+  // size: window size in DIPs. session: idle (default) | active | pass.
+  // steps: { "action": "<UiAction element id>", "args": { form fields } } | { "click": [x, y] } | { "drag": [[x1, y1], [x2, y2]] } | { "wait": ms }.
+  // The fake clock is Monday 2026-11-23 10:30; plugins are seeded with a work week of data.
+  "shots": [
+    { "name": "dashboard-idle", "target": "main:dashboard", "size": [1280, 1080] },
+    { "name": "dashboard-session", "target": "main:dashboard", "size": [1280, 1080], "session": "active" },
+    { "name": "dashboard-pass", "target": "main:dashboard", "size": [1280, 1080], "session": "pass" },
+    { "name": "allowlist", "target": "main:allowlist", "size": [1280, 1080] },
+    { "name": "setup", "target": "main:setup", "size": [1280, 1080] },
+    { "name": "plugins", "target": "main:plugins", "size": [1280, 1080] },
+    { "name": "settings", "target": "main:settings", "size": [1280, 1300] },
+    { "name": "calendar-month", "target": "plugin:calendar", "size": [1280, 1100] },
+    { "name": "calendar-week", "target": "plugin:calendar", "size": [1280, 1700], "steps": [ { "action": "cal-view-week" } ] },
+    { "name": "calendar-agenda", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-view-agenda" } ] },
+    { "name": "calendar-plan-form", "target": "plugin:calendar", "size": [1280, 1900], "steps": [ { "action": "cal-plan-session" } ] },
+    { "name": "goals", "target": "plugin:goals", "size": [1280, 1200] },
+    { "name": "insights", "target": "plugin:insights", "size": [1280, 1800] }
+  ]
+}

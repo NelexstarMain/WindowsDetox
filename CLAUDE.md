@@ -27,6 +27,7 @@ dotnet test --solution WindowsDetox.slnx --filter-not-trait "Category=WindowsOnl
 dotnet slopwatch analyze -d . --fail-on warning
 eng/build-installer.sh Release   # out/WindowsDetox-Setup.exe
 ```
+- `eng/render.sh` renders the real UI with fake data to `artifacts/renders/*.png` under Wine (see `/ui-render`); view the PNGs with the Read tool.
 - Linux builds WPF via `EnableWindowsTargeting`; Windows-only behavior (ETW/WFP/IFEO/DACL/UI) runs in CI `windows-latest` and in a VM (`docs/VM_TESTING.md`).
 
 <!-- HYGIENE:AUTO -->
