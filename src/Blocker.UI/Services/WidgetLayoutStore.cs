@@ -74,15 +74,25 @@ internal sealed class WidgetLayoutStore(string path) : IWidgetLayoutStore
                 return null;
             }
 
-            using FileStream stream = File.OpenRead(path);
-            List<StoredPlacement?>? saved = JsonSerializer.Deserialize<List<StoredPlacement?>>(stream, Options);
-            return saved?
+            List<StoredPlacement?> saved = ReadElements(File.ReadAllBytes(path), out bool skippedInvalid);
+            if (skippedInvalid)
+            {
+                TryKeepBadCopy();
+            }
+
+            List<WidgetPlacement> placements = saved
                 .Where(p => !string.IsNullOrWhiteSpace(p?.Key))
                 .Select(p => new WidgetPlacement(p!.Key!, WidgetPlacement.ClampCols(p.Cols ?? (p.Size == LegacySize.Wide ? 2 : 1)), WidgetPlacement.ClampRows(p.Rows ?? 1)))
                 .DistinctBy(p => p.Key, StringComparer.Ordinal)
                 .ToList();
+            return skippedInvalid && placements.Count == 0 ? null : placements;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (JsonException)
+        {
+            TryKeepBadCopy();
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return null;
         }
@@ -92,8 +102,62 @@ internal sealed class WidgetLayoutStore(string path) : IWidgetLayoutStore
     public void Save(IReadOnlyList<WidgetPlacement> layout)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        string temp = path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(layout, Options));
-        File.Move(temp, path, overwrite: true);
+        // A unique temp name keeps concurrent writers (two app instances) from sharing one half-written file.
+        string temp = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (FileStream stream = new(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, layout, Options);
+                stream.Flush(flushToDisk: true);   // the data must be on disk before the move, or a power loss can leave an empty file
+            }
+
+            File.Move(temp, path, overwrite: true);
+        }
+        finally
+        {
+            File.Delete(temp);
+        }
+    }
+
+    // One bad element must not discard the rest of the layout, so elements are read one by one.
+    private static List<StoredPlacement?> ReadElements(byte[] json, out bool skippedInvalid)
+    {
+        skippedInvalid = false;
+        using JsonDocument document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException("The layout file does not contain a list.");
+        }
+
+        List<StoredPlacement?> elements = [];
+        foreach (JsonElement element in document.RootElement.EnumerateArray())
+        {
+            try
+            {
+                elements.Add(element.Deserialize<StoredPlacement>(Options));
+            }
+            catch (JsonException)
+            {
+                skippedInvalid = true;
+            }
+        }
+
+        return elements;
+    }
+
+    // The next Save replaces the file, so whatever could not be read is copied aside first. Best effort: failing to keep the
+    // copy must not stop the dashboard from starting with defaults.
+    private bool TryKeepBadCopy()
+    {
+        try
+        {
+            File.Copy(path, path + ".bad", overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 }

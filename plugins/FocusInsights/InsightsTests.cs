@@ -1,15 +1,35 @@
 // Tests run by Blocker before the plugin is installed. Only [Fact] and [Theory]+[InlineData]; the clock is FakeTime.
 // FakePluginContext starts at 2026-01-01T09:00:00Z (a Thursday) with UTC as the local time zone.
 
+using System.IO;
 using System.Text.Json;
 using Blocker.Plugin.Testing;
 using Blocker.Sdk;
 using Blocker.Sdk.Diagnostics;
 using Blocker.Sdk.Events;
+using Blocker.Sdk.Storage;
 using Blocker.UI.Sdk;
 using Xunit;
 
 namespace FocusInsights.Tests;
+
+/// <summary>Storage whose writes can be made to fail with a plain <see cref="IOException"/>, like a flaky disk.</summary>
+internal sealed class FlakyStorage(InMemoryPluginStorage inner) : IPluginStorage
+{
+    public bool FailWrites { get; set; }
+
+    public long QuotaBytes => inner.QuotaBytes;
+
+    public ValueTask<string?> ReadAsync(string key, CancellationToken cancellationToken = default) => inner.ReadAsync(key, cancellationToken);
+
+    public ValueTask WriteAsync(string key, string value, CancellationToken cancellationToken = default) =>
+        FailWrites ? throw new IOException("Disk is unavailable.") : inner.WriteAsync(key, value, cancellationToken);
+
+    public ValueTask<bool> DeleteAsync(string key, CancellationToken cancellationToken = default) => inner.DeleteAsync(key, cancellationToken);
+
+    public ValueTask<IReadOnlyList<string>> ListKeysAsync(string? prefix = null, CancellationToken cancellationToken = default) =>
+        inner.ListKeysAsync(prefix, cancellationToken);
+}
 
 /// <summary>Behaviour tests of the Focus Insights plugin.</summary>
 public sealed class InsightsTests
@@ -407,7 +427,6 @@ public sealed class InsightsTests
     [Theory]
     [InlineData(89, 2)]
     [InlineData(90, 1)]
-    [InlineData(200, 1)]
     public async Task Days_older_than_the_retention_window_are_dropped(int daysLater, int expectedStoredBlocks)
     {
         FakePluginContext ctx = await StartAsync();
@@ -499,12 +518,30 @@ public sealed class InsightsTests
         Assert.Equal(1, await StoredBlockedAsync(ctx));   // throttled, still only in memory
 
         ctx.FakeTime.Advance(InsightsStore.FlushInterval);
+        Assert.Equal(2, await StoredBlockedAsync(ctx));   // the pending timer wrote it; no further event was needed
         await BlockAsync(ctx);
-        Assert.Equal(3, await StoredBlockedAsync(ctx));
+        Assert.Equal(2, await StoredBlockedAsync(ctx));   // throttled again
 
         await BlockAsync(ctx);
         await plugin.ShutdownAsync(CancellationToken.None);
         Assert.Equal(4, await StoredBlockedAsync(ctx));
+    }
+
+    [Fact]
+    public async Task An_isolated_blocked_attempt_is_written_within_ten_seconds_without_any_further_event()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await new InsightsPlugin().InitializeAsync(ctx, CancellationToken.None);
+        await BlockAsync(ctx);   // the first attempt is written at once
+        ctx.FakeTime.Advance(TimeSpan.FromSeconds(3));
+        await BlockAsync(ctx);
+        Assert.Equal(1, await StoredBlockedAsync(ctx));
+
+        ctx.FakeTime.Advance(InsightsStore.FlushInterval - TimeSpan.FromSeconds(4));
+        Assert.Equal(1, await StoredBlockedAsync(ctx));
+        ctx.FakeTime.Advance(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(2, await StoredBlockedAsync(ctx));
     }
 
     [Fact]
@@ -551,6 +588,159 @@ public sealed class InsightsTests
         Assert.Equal(0, view.Heatmap.SelectMany(row => row).Sum());
         Assert.Empty(view.Recent);
         Assert.Equal(3, view.StoredBlocked);
+    }
+
+    // ---- store: newer format, quarantine, clock jumps, failed writes ----------------------------------------------
+
+    [Fact]
+    public async Task Data_of_a_newer_version_is_shown_but_never_overwritten()
+    {
+        string newer = $$"""{"v":2,"d":[{"d":{{Jan1}},"n":3,"zz":"unknown"}],"extra":true}""";
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", newer, CancellationToken.None);
+        InsightsStore store = await NewStoreAsync(ctx);
+
+        Assert.Equal(3, store.GetView().Blocked7d);
+        await BlockAsync(store, ctx);
+        await RunSessionAsync(store, ctx, Thirty, Thirty);
+        await store.SetRecordNamesAsync(false, CancellationToken.None);
+        await store.FlushAsync(CancellationToken.None);
+        await store.ClearAsync(CancellationToken.None);
+
+        Assert.Equal(newer, await ctx.Storage.ReadAsync("data", CancellationToken.None));
+        Assert.Null(await ctx.Storage.ReadAsync("record-names", CancellationToken.None));
+        Assert.Single(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Unreadable_data_is_copied_to_a_recovery_key_before_starting_empty()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{not json", CancellationToken.None);
+
+        InsightsStore store = await NewStoreAsync(ctx);
+        await BlockAsync(store, ctx);
+
+        Assert.Equal("{not json", await ctx.Storage.ReadAsync(InsightsStore.UnreadableKey, CancellationToken.None));
+        Assert.Equal(1, await StoredBlockedAsync(ctx));
+    }
+
+    [Fact]
+    public async Task The_first_unreadable_copy_is_kept_and_a_later_corruption_does_not_replace_it()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{first", CancellationToken.None);
+        await NewStoreAsync(ctx);
+
+        await ctx.Storage.WriteAsync("data", "{second", CancellationToken.None);
+        await NewStoreAsync(ctx);
+
+        Assert.Equal("{first", await ctx.Storage.ReadAsync(InsightsStore.UnreadableKey, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task The_unreadable_copy_is_capped()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{" + new string('x', 200_000), CancellationToken.None);
+
+        await NewStoreAsync(ctx);
+
+        string? kept = await ctx.Storage.ReadAsync(InsightsStore.UnreadableKey, CancellationToken.None);
+        Assert.Equal(InsightsStore.MaxUnreadableChars, kept?.Length);
+    }
+
+    [Fact]
+    public async Task A_clock_that_jumps_far_ahead_does_not_delete_the_history_when_loading()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        InsightsStore store = await NewStoreAsync(ctx);
+        await BlockAsync(store, ctx);
+        await store.FlushAsync(CancellationToken.None);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        InsightsStore restarted = await NewStoreAsync(ctx);
+        await BlockAsync(restarted, ctx);
+
+        Assert.Equal(2, restarted.GetView().StoredBlocked);
+    }
+
+    [Fact]
+    public async Task A_clock_that_jumps_far_ahead_does_not_delete_the_history_on_the_next_event()
+    {
+        FakePluginContext ctx = await StartAsync();
+        InsightsStore store = await NewStoreAsync(ctx);
+        await BlockAsync(store, ctx);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        await BlockAsync(store, ctx);
+
+        Assert.Equal(2, store.GetView().StoredBlocked);
+    }
+
+    [Fact]
+    public async Task History_older_than_the_window_is_pruned_once_the_clock_is_back_to_normal()
+    {
+        FakePluginContext ctx = await StartAsync();
+        InsightsStore store = await NewStoreAsync(ctx);
+        await BlockAsync(store, ctx);
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        await BlockAsync(store, ctx);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(1));
+        await BlockAsync(store, ctx);
+
+        Assert.Equal(2, store.GetView().StoredBlocked);
+    }
+
+    [Fact]
+    public async Task A_failed_write_does_not_throw_and_is_retried_by_the_next_flush()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        var storage = new FlakyStorage(ctx.FakeStorage) { FailWrites = true };
+        var store = new InsightsStore(storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+
+        await RunSessionAsync(store, ctx, Thirty, Thirty);   // session events write immediately, and that write fails
+        await store.FlushAsync(CancellationToken.None);      // still failing: must stay dirty and not throw
+        Assert.Null(await ctx.Storage.ReadAsync("data", CancellationToken.None));
+
+        storage.FailWrites = false;
+        await store.FlushAsync(CancellationToken.None);
+
+        using JsonDocument doc = await StoredAsync(ctx);
+        Assert.Equal(1, doc.RootElement.GetProperty("s").GetArrayLength());
+        Assert.Contains(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task A_blocked_attempt_whose_write_failed_is_retried_by_the_timer()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        var storage = new FlakyStorage(ctx.FakeStorage) { FailWrites = true };
+        var store = new InsightsStore(storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+        await BlockAsync(store, ctx);   // written at once, fails, stays dirty
+        await BlockAsync(store, ctx);   // throttled: arms the timer
+        storage.FailWrites = false;
+
+        ctx.FakeTime.Advance(InsightsStore.FlushInterval);
+
+        Assert.Equal(2, await StoredBlockedAsync(ctx));
+    }
+
+    [Fact]
+    public async Task A_failed_privacy_setting_write_is_logged_instead_of_thrown()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        var storage = new FlakyStorage(ctx.FakeStorage) { FailWrites = true };
+        var store = new InsightsStore(storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+
+        await store.SetRecordNamesAsync(false, CancellationToken.None);
+
+        Assert.False(store.RecordNames);
+        Assert.Contains(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
     }
 
     // ---- settings -------------------------------------------------------------------------------------------------

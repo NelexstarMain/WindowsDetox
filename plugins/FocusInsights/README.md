@@ -1,6 +1,6 @@
 # Focus Insights
 
-First-party Blocker plugin (`com.windowsdetox.insights`, version 1.0.0). The base app keeps no statistics on purpose; this plugin records them and shows them.
+First-party Blocker plugin (`com.windowsdetox.insights`, version 1.0.1). The base app keeps no statistics on purpose; this plugin records them and shows them.
 
 ## What it records
 

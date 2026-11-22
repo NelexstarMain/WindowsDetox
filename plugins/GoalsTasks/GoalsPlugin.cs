@@ -140,10 +140,10 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
                     await Store.ClearCompletedAsync(cancellationToken);
                     break;
                 case GoalDownId:
-                    await Store.SetTodayGoalAsync(Store.GetView().Goal - 1, cancellationToken);
+                    await Store.AdjustTodayGoalAsync(-1, cancellationToken);
                     break;
                 case GoalUpId:
-                    await Store.SetTodayGoalAsync(Store.GetView().Goal + 1, cancellationToken);
+                    await Store.AdjustTodayGoalAsync(1, cancellationToken);
                     break;
             }
         }
@@ -302,10 +302,10 @@ public sealed class GoalsSettings(GoalsStore store) : GoalsContribution(store), 
         switch (action.ElementId)
         {
             case DefaultDownId:
-                await Store.SetDefaultGoalAsync(Store.DefaultGoal - 1, cancellationToken);
+                await Store.AdjustDefaultGoalAsync(-1, cancellationToken);
                 break;
             case DefaultUpId:
-                await Store.SetDefaultGoalAsync(Store.DefaultGoal + 1, cancellationToken);
+                await Store.AdjustDefaultGoalAsync(1, cancellationToken);
                 break;
             case ResetButtonId when IsArmed():
                 Volatile.Write(ref _armed, 0);

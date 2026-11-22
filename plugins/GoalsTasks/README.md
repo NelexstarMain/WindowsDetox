@@ -1,6 +1,6 @@
 # Goals & Tasks
 
-First-party Blocker plugin (`com.windowsdetox.goals`, version 1.0.0). A small daily to-do list with a goal of focus tasks for the day, so a detox session starts with a plan.
+First-party Blocker plugin (`com.windowsdetox.goals`, version 1.0.1). A small daily to-do list with a goal of focus tasks for the day, so a detox session starts with a plan.
 
 ## What it stores
 

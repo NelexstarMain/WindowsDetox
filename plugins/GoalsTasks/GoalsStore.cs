@@ -4,6 +4,7 @@
 // (changes are rare and tiny); rendering reads the in-memory copy and never touches storage.
 
 using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -69,9 +70,12 @@ public sealed class DayRecord
 /// <summary>The persisted document.</summary>
 public sealed class GoalsData
 {
+    /// <summary>The schema version this build reads and writes. Newer documents are shown but never overwritten.</summary>
+    public const int CurrentVersion = 1;
+
     /// <summary>Schema version.</summary>
     [JsonPropertyName("v")]
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Id of the next task.</summary>
     [JsonPropertyName("n")]
@@ -91,6 +95,12 @@ public sealed class GoalsStore
     /// <summary>Storage key of the default daily goal.</summary>
     public const string DefaultGoalKey = "default-goal";
 
+    /// <summary>Storage key of the raw text of a document that could not be parsed, kept for manual recovery.</summary>
+    public const string UnreadableKey = "data-unreadable";
+
+    /// <summary>Longest unreadable text that is kept; it bounds how much quota the copy can use.</summary>
+    public const int MaxUnreadableChars = 64 * 1024;
+
     private static readonly JsonSerializerOptions JsonOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
 
     private readonly IPluginStorage _storage;
@@ -100,6 +110,7 @@ public sealed class GoalsStore
     private GoalsData _data = new();
     private int _defaultGoal = GoalsLimits.InitialGoal;
     private bool _dirty;
+    private bool _readOnly;
     private long _version;
     private long _written;
 
@@ -132,26 +143,37 @@ public sealed class GoalsStore
         }
     }
 
-    /// <summary>Loads persisted data. Missing or corrupt data starts empty.</summary>
+    /// <summary>
+    /// Loads persisted data. Corrupt data starts empty after a copy was kept under <see cref="UnreadableKey"/>; data written
+    /// by a newer format version is shown but the store never writes again (read-only), so a downgrade cannot destroy it.
+    /// </summary>
     public async ValueTask LoadAsync(CancellationToken cancellationToken)
     {
         GoalsData? loaded = null;
+        bool readOnly = false;
         string? json = await _storage.ReadAsync(DataKey, cancellationToken);
         if (json is not null)
         {
             try
             {
                 loaded = JsonSerializer.Deserialize<GoalsData>(json, JsonOptions);
+                if (loaded is { Version: > GoalsData.CurrentVersion })
+                {
+                    readOnly = true;
+                    _logger.Warn($"Stored tasks use format version {loaded.Version}, newer than {GoalsData.CurrentVersion}; they are shown read-only and changes are not saved.");
+                }
             }
             catch (JsonException ex)
             {
                 _logger.Warn($"Stored tasks are unreadable and were ignored: {ex.Message}");
+                await KeepUnreadableCopyAsync(json, cancellationToken);
             }
         }
 
         string? goal = await _storage.ReadAsync(DefaultGoalKey, cancellationToken);
         lock (_gate)
         {
+            _readOnly = readOnly;
             _data = Sanitize(loaded, CurrentDay);
             if (int.TryParse(goal, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
             {
@@ -173,7 +195,7 @@ public sealed class GoalsStore
                     return false;
                 }
 
-                day.Tasks.Add(new TaskItem { Id = data.NextId++, Text = clean });
+                day.Tasks.Add(new TaskItem { Id = TakeNextId(data), Text = clean });
                 return true;
             },
             cancellationToken);
@@ -221,22 +243,35 @@ public sealed class GoalsStore
             cancellationToken);
     }
 
+    /// <summary>Raises or lowers today's goal by <paramref name="delta"/> in one step, so quick clicks never overwrite each other.</summary>
+    public ValueTask<bool> AdjustTodayGoalAsync(int delta, CancellationToken cancellationToken) =>
+        ChangeAsync(
+            (data, today) =>
+            {
+                DayRecord day = GetDay(data, today);
+                int current = day.Goal > 0 ? day.Goal : _defaultGoal;
+                int adjusted = Math.Clamp(current + delta, GoalsLimits.MinGoal, GoalsLimits.MaxGoal);
+                if (adjusted == current)
+                {
+                    return false;
+                }
+
+                day.Goal = adjusted;
+                return true;
+            },
+            cancellationToken);
+
     /// <summary>Removes all tasks of today and its own goal.</summary>
     public ValueTask<bool> ResetTodayAsync(CancellationToken cancellationToken) =>
         ChangeAsync((data, today) => data.Days.RemoveAll(d => d.Day == today) > 0, cancellationToken);
 
     /// <summary>Changes and persists the default daily goal (limited to the allowed range).</summary>
-    public async ValueTask SetDefaultGoalAsync(int goal, CancellationToken cancellationToken)
-    {
-        int clamped = Math.Clamp(goal, GoalsLimits.MinGoal, GoalsLimits.MaxGoal);
-        lock (_gate)
-        {
-            _defaultGoal = clamped;
-        }
+    public ValueTask SetDefaultGoalAsync(int goal, CancellationToken cancellationToken) =>
+        ChangeDefaultGoalAsync(_ => goal, cancellationToken);
 
-        await _storage.WriteAsync(DefaultGoalKey, clamped.ToString(CultureInfo.InvariantCulture), cancellationToken);
-        Changed?.Invoke();
-    }
+    /// <summary>Raises or lowers the default daily goal by <paramref name="delta"/> in one step, so quick clicks never overwrite each other.</summary>
+    public ValueTask AdjustDefaultGoalAsync(int delta, CancellationToken cancellationToken) =>
+        ChangeDefaultGoalAsync(current => current + delta, cancellationToken);
 
     /// <summary>Writes pending changes that could not be saved earlier.</summary>
     public async ValueTask FlushAsync(CancellationToken cancellationToken)
@@ -287,6 +322,51 @@ public sealed class GoalsStore
         return cleaned.Length == 0 ? null : cleaned;
     }
 
+    private async ValueTask ChangeDefaultGoalAsync(Func<int, int> next, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            _defaultGoal = Math.Clamp(next(_defaultGoal), GoalsLimits.MinGoal, GoalsLimits.MaxGoal);
+        }
+
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            // Read the latest value inside the gate so overlapping changes can never leave an older value on disk.
+            int goal = DefaultGoal;
+            if (!_readOnly)
+            {
+                await _storage.WriteAsync(DefaultGoalKey, goal.ToString(CultureInfo.InvariantCulture), cancellationToken);
+            }
+        }
+        catch (IOException ex)
+        {
+            _logger.Warn($"The default goal could not be saved: {ex.Message}");
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+
+        Changed?.Invoke();
+    }
+
+    // Keeps the first unreadable document only: later corruption must not eat the quota again or replace the original evidence.
+    private async ValueTask KeepUnreadableCopyAsync(string raw, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await _storage.ReadAsync(UnreadableKey, cancellationToken) is null)
+            {
+                await _storage.WriteAsync(UnreadableKey, raw.Length > MaxUnreadableChars ? raw[..MaxUnreadableChars] : raw, cancellationToken);
+            }
+        }
+        catch (IOException ex)
+        {
+            _logger.Warn($"A copy of the unreadable tasks could not be kept: {ex.Message}");
+        }
+    }
+
     // Finds or creates the record of a day, keeping the list ordered by day.
     private static DayRecord GetDay(GoalsData data, int dayNumber)
     {
@@ -301,6 +381,26 @@ public sealed class GoalsStore
         return created;
     }
 
+    // Ids are never reused; if the counter is exhausted it restarts above the highest id still in use.
+    private static int TakeNextId(GoalsData data)
+    {
+        if (data.NextId == int.MaxValue)
+        {
+            data.NextId = data.Days.SelectMany(d => d.Tasks).Select(t => t.Id).DefaultIfEmpty(0).Max() + 1;
+        }
+
+        return data.NextId++;
+    }
+
+    // A clock that jumps far ahead (dead CMOS battery, bad sync) must not age out the whole history. When today is more than a
+    // full window past the newest stored day, keep the window that ends at that newest day instead; once a record exists for
+    // the new day the gap is gone and normal pruning resumes.
+    private static int OldestKeptDay(int newestStoredDay, int today) =>
+        (today - newestStoredDay > GoalsLimits.RetentionDays ? newestStoredDay : today) - GoalsLimits.RetentionDays + 1;
+
+    private static int NewestDay(IEnumerable<DayRecord> days, int fallback) =>
+        days.Select(d => d.Day).DefaultIfEmpty(fallback).Max();
+
     private static TaskItem? FindToday(GoalsData data, int today, int id) =>
         data.Days.Find(d => d.Day == today)?.Tasks.Find(t => t.Id == id);
 
@@ -310,6 +410,7 @@ public sealed class GoalsStore
         lock (_gate)
         {
             int today = CurrentDay;
+            int newestBefore = NewestDay(_data.Days, today);
             if (!change(_data, today))
             {
                 // A new day may have been created just to look; keep the list free of empty records.
@@ -317,7 +418,8 @@ public sealed class GoalsStore
                 return false;
             }
 
-            _data.Days.RemoveAll(d => d.Day < today - GoalsLimits.RetentionDays + 1);
+            int oldest = OldestKeptDay(newestBefore, today);
+            _data.Days.RemoveAll(d => d.Day < oldest);
         }
 
         await PersistAsync(cancellationToken);
@@ -331,9 +433,13 @@ public sealed class GoalsStore
         long version;
         lock (_gate)
         {
+            if (_readOnly)
+            {
+                return;
+            }
+
             json = JsonSerializer.Serialize(_data, JsonOptions);
             version = ++_version;
-            _dirty = false;
         }
 
         await _writeGate.WaitAsync(cancellationToken);
@@ -343,9 +449,17 @@ public sealed class GoalsStore
             {
                 await _storage.WriteAsync(DataKey, json, cancellationToken);
                 _written = version;
+                lock (_gate)
+                {
+                    // Only the newest snapshot may declare the data clean; an older one cannot know about later changes.
+                    if (version == _version)
+                    {
+                        _dirty = false;
+                    }
+                }
             }
         }
-        catch (PluginStorageException ex)
+        catch (IOException ex)
         {
             _logger.Warn($"Tasks could not be saved: {ex.Message}");
             lock (_gate)
@@ -367,7 +481,7 @@ public sealed class GoalsStore
             return new GoalsData();
         }
 
-        int oldest = today - GoalsLimits.RetentionDays + 1;
+        int oldest = OldestKeptDay(NewestDay((loaded.Days ?? []).Where(d => d is not null && d.Day <= DateOnly.MaxValue.DayNumber), today), today);
         HashSet<int> ids = [];
         List<DayRecord> days = [];
         foreach (DayRecord day in (loaded.Days ?? []).Where(d => d is not null && d.Day >= oldest && d.Day <= DateOnly.MaxValue.DayNumber).OrderBy(d => d.Day))

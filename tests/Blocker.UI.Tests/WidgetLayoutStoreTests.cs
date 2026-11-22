@@ -68,7 +68,7 @@ public sealed class WidgetLayoutStoreTests : IDisposable
         store.Save([new("a/two", 2, 1)]);
 
         Assert.Equal([new WidgetPlacement("a/two", 2, 1)], store.Load());
-        Assert.False(File.Exists(FilePath + ".tmp"));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(FilePath)!, "*.tmp"));
     }
 
     [Fact]
@@ -83,14 +83,64 @@ public sealed class WidgetLayoutStoreTests : IDisposable
 
     [Theory]
     [InlineData("not json")]
+    [InlineData("")]
     [InlineData("{\"widgets\": []}")]
     [InlineData("[{\"key\":\"a/one\",\"size\":\"Gigantic\"}]")]
-    public void Unreadable_file_is_treated_as_first_run(string content)
+    public void Unreadable_file_is_treated_as_first_run_and_kept_as_a_bad_copy(string content)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         File.WriteAllText(FilePath, content);
+        WidgetLayoutStore store = new(FilePath);
 
-        Assert.Null(new WidgetLayoutStore(FilePath).Load());
+        Assert.Null(store.Load());
+        store.Save([new("a/one")]);
+
+        Assert.Equal(content, File.ReadAllText(FilePath + ".bad"));
+        Assert.Equal([new WidgetPlacement("a/one")], store.Load());
+    }
+
+    [Fact]
+    public void One_invalid_element_is_skipped_and_the_rest_of_the_layout_survives()
+    {
+        const string content = """[{"key":"a/one"},{"key":"b/two","size":"Gigantic"},5,{"key":"c/three","cols":"wide"},{"key":"d/four","cols":2}]""";
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, content);
+
+        Assert.Equal([new WidgetPlacement("a/one"), new WidgetPlacement("d/four", 2, 1)], new WidgetLayoutStore(FilePath).Load());
+        Assert.Equal(content, File.ReadAllText(FilePath + ".bad"));
+    }
+
+    [Fact]
+    public void A_readable_file_leaves_no_bad_copy()
+    {
+        WidgetLayoutStore store = new(FilePath);
+        store.Save([new("a/one")]);
+
+        store.Load();
+
+        Assert.False(File.Exists(FilePath + ".bad"));
+    }
+
+    [Fact]
+    public void A_failed_save_leaves_no_temp_file_behind()
+    {
+        Directory.CreateDirectory(FilePath);   // the final move cannot replace a directory
+
+        Assert.ThrowsAny<Exception>(() => new WidgetLayoutStore(FilePath).Save([new("a/two")]));
+
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(FilePath)!, "*.tmp"));
+    }
+
+    [Fact]
+    public void A_leftover_temp_file_from_a_crash_does_not_block_saving()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath + ".tmp", "half written");
+        WidgetLayoutStore store = new(FilePath);
+
+        store.Save([new("a/one")]);
+
+        Assert.Equal([new WidgetPlacement("a/one")], store.Load());
     }
 
     [Fact]
