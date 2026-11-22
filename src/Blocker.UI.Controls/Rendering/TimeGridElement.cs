@@ -242,6 +242,15 @@ internal sealed class TimeGridElement : Grid
         card.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.CardBorder");
         card.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
         card.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Strong");
+
+        // A page title (28 px) is too big for a floating card; inside the card a Title text is the card's heading.
+        var heading = new Style(typeof(TextBlock));
+        heading.Setters.Add(new Setter(TextBlock.FontFamilyProperty, new DynamicResourceExtension("Blocker.Font.Display")));
+        heading.Setters.Add(new Setter(TextBlock.FontSizeProperty, 20.0));
+        heading.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+        heading.Setters.Add(new Setter(TextBlock.ForegroundProperty, new DynamicResourceExtension("Blocker.Text.Primary")));
+        heading.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
+        card.Resources["Blocker.Text.Title"] = heading;
         return card;
     }
 

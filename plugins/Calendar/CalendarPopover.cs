@@ -92,7 +92,7 @@ public static class CalendarPopover
 
         List<UiNode> body =
         [
-            Ui.Text(occurrence.Title, UiTextStyle.Subtitle),
+            Ui.Text(occurrence.Title, UiTextStyle.Title),
             Ui.Text(when, UiTextStyle.Caption),
             Ui.Text(string.Join(" - ", notes), UiTextStyle.Caption, ToneOfOutcome(view.OutcomeOf(occurrence))),
         ];
