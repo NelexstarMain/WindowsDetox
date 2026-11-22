@@ -326,7 +326,7 @@ public sealed class InsightsSettings(InsightsStore store) : InsightsContribution
             ? "Nothing is recorded yet."
             : $"Stored on this device: {InsightsFormat.Count(view.StoredSessions, "session")} and {InsightsFormat.Count(view.StoredBlocked, "blocked attempt")} from the last {InsightsLimits.RetentionDays} days.";
         UiButton clear = IsArmed()
-            ? Ui.Button(ClearButtonId, "Click again to confirm", UiButtonVariant.Warning, UiIcon.Warning)
+            ? Ui.Button(ClearButtonId, "Clear recorded data? Click again", UiButtonVariant.Warning, UiIcon.Warning)
             : Ui.Button(ClearButtonId, "Clear recorded data", UiButtonVariant.Secondary, UiIcon.Dismiss);
         return ValueTask.FromResult<UiNode>(Ui.Column(
             Ui.Toggle(

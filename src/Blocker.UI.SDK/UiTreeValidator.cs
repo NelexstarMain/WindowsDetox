@@ -260,6 +260,7 @@ public static partial class UiTreeValidator
                     RequiredText(button.Label, "UiButton.Label");
                     Defined(button.Variant, "UiButton.Variant");
                     OptionalIcon(button.Icon, "UiButton.Icon");
+                    OptionalText(button.ShortLabel, "UiButton.ShortLabel");
                     break;
                 case UiToggle toggle:
                     Id(toggle.Id);

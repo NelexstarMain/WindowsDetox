@@ -139,7 +139,8 @@ public static class CalendarPopover
         body.Add(Ui.Row(
             Ui.Text(CalTime.LongDate(draft.Day), UiTextStyle.Caption),
             Ui.Button(CalendarIds.More, state.ShowMore ? "Fewer options" : "More options", UiButtonVariant.Subtle)));
-        if (!editing)
+        // The hint is dropped once the extra fields are open: the card has no room to spare then.
+        if (!editing && !state.ShowMore)
         {
             body.Add(Ui.Text(
                 view.Settings.AutoStart

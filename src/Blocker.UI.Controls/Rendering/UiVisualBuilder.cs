@@ -26,6 +26,8 @@ internal sealed class UiVisualBuilder
     private const double FlatContentGap = 10;
     private const double PageGap = 16;
     private const double RowMaxWidth = 640;
+    private const double FormFieldGap = 10;
+    private const double DismissRestingOpacity = 0.55;
     private const double MonthCellChipsHeight = 98;
     private const double MonthCellNumberRowHeight = 31;
     private const double MonthCellChipsBottomPadding = 3;
@@ -133,7 +135,7 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildPage(UiPage page)
     {
-        var root = new StackPanel { Margin = new Thickness(28, 24, 28, 32) };
+        var root = new StackPanel();
         root.Children.Add(Styled(new TextBlock { Text = page.Title }, "Blocker.Text.Title"));
         if (!string.IsNullOrWhiteSpace(page.Subtitle))
         {
@@ -209,15 +211,16 @@ internal sealed class UiVisualBuilder
         }
 
         // Rows with a free-width title stop at one reading width, so the trailing controls of every row sit in the same column.
-        return flexibleFirst ? LeftFrame(row, RowMaxWidth) : row;
+        // Toggle rows span the card instead: the switch belongs at the card's right edge.
+        return flexibleFirst && children[0] is not UiToggle ? LeftFrame(row, RowMaxWidth) : row;
     }
 
-    // Removing a list entry is rare next to ticking it, so the "x" is not drawn until the pointer or keyboard focus is on its row.
+    // Removing a list entry is rare next to ticking it, so the "x" is muted until the pointer or keyboard focus is on its row.
     private static bool IsDismissAction(UiNode node) => node is UiButton { Variant: UiButtonVariant.Subtle, Icon: UiIcon.Dismiss };
 
     private FrameworkElement BuildDismissIcon(UiButton node)
     {
-        var button = new Button { IsEnabled = node.IsEnabled, Opacity = 0, MinHeight = 32, MinWidth = 32, Padding = new Thickness(8, 0, 8, 0), ToolTip = node.Label, Content = Icon(UiIcon.Dismiss, 16) };
+        var button = new Button { IsEnabled = node.IsEnabled, Opacity = DismissRestingOpacity, MinHeight = 32, MinWidth = 32, Padding = new Thickness(8, 0, 8, 0), ToolTip = node.Label, Content = Icon(UiIcon.Dismiss, 16) };
         button.SetResourceReference(FrameworkElement.StyleProperty, ToneMap.ButtonStyleKey(node.Variant));
         AutomationProperties.SetName(button, node.Label);
         AutomationProperties.SetAutomationId(button, node.Id);
@@ -228,7 +231,7 @@ internal sealed class UiVisualBuilder
 
     private static void RevealOnHover(Grid row, FrameworkElement action)
     {
-        void Update() => action.Opacity = row.IsMouseOver || action.IsKeyboardFocusWithin ? 1 : 0;
+        void Update() => action.Opacity = row.IsMouseOver || action.IsKeyboardFocusWithin ? 1 : DismissRestingOpacity;
         row.MouseEnter += (_, _) => Update();
         row.MouseLeave += (_, _) => Update();
         action.GotKeyboardFocus += (_, _) => Update();
@@ -347,9 +350,12 @@ internal sealed class UiVisualBuilder
 
         TextBlock value = Styled(new TextBlock { Text = tile.Value, Margin = new Thickness(0, 6, 0, 0) }, "Blocker.Text.Mono");
         value.FontSize = 28;
-        value.FontWeight = FontWeights.SemiBold;
         value.TextTrimming = TextTrimming.CharacterEllipsis;
-        if (tile.Tone != UiTone.Neutral)
+
+        // A word such as "Now" or "None" is a state, not a measurement: it keeps the normal weight and colour.
+        bool numeric = tile.Value.Any(char.IsDigit);
+        value.FontWeight = numeric ? FontWeights.SemiBold : FontWeights.Normal;
+        if (numeric && tile.Tone != UiTone.Neutral)
         {
             value.SetResourceReference(TextBlock.ForegroundProperty, ToneMap.ForegroundKey(tile.Tone));
         }
@@ -627,6 +633,7 @@ internal sealed class UiVisualBuilder
         var legend = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         TextBlock less = Caption("Less");
         less.FontSize = 10;
+        less.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
         less.Margin = new Thickness(0, 0, 6, 0);
         less.VerticalAlignment = VerticalAlignment.Center;
         legend.Children.Add(less);
@@ -639,6 +646,7 @@ internal sealed class UiVisualBuilder
 
         TextBlock more = Caption("More");
         more.FontSize = 10;
+        more.SetResourceReference(TextBlock.ForegroundProperty, "Blocker.Text.Secondary");
         more.Margin = new Thickness(3, 0, 0, 0);
         more.VerticalAlignment = VerticalAlignment.Center;
         legend.Children.Add(more);
@@ -655,7 +663,7 @@ internal sealed class UiVisualBuilder
         var box = new Border { Width = width, Height = height, CornerRadius = new CornerRadius(2) };
         if (intensity <= 0)
         {
-            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x16, 0x18, 0x1F)));
+            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x26, 0x2A, 0x36)));
         }
         else
         {
@@ -1053,7 +1061,18 @@ internal sealed class UiVisualBuilder
     {
         var button = new Button { IsEnabled = node.IsEnabled, HorizontalAlignment = HorizontalAlignment.Left };
         button.SetResourceReference(FrameworkElement.StyleProperty, ToneMap.ButtonStyleKey(node.Variant));
-        button.Content = ButtonContent(node.Label, node.Icon);
+        if (node.ShortLabel is { } shortLabel)
+        {
+            button.Content = shortLabel;
+            button.MinWidth = 32;
+            button.Padding = new Thickness(10, 4, 10, 4);
+            button.ToolTip = node.Label;
+        }
+        else
+        {
+            button.Content = ButtonContent(node.Label, node.Icon);
+        }
+
         AutomationProperties.SetName(button, node.Label);
         AutomationProperties.SetAutomationId(button, node.Id);
         string id = node.Id;
@@ -1111,10 +1130,32 @@ internal sealed class UiVisualBuilder
         var readers = new List<(string Id, Func<string> Read)>();
         FrameworkElement? inlineControl = null;
 
+        WrapPanel? checkboxRow = null;
         foreach (UiFormField field in form.Fields)
         {
-            var group = new StackPanel { Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : 14, 0, 0) };
             (FrameworkElement control, Func<string> read, bool labelled) = BuildField(field);
+            AutomationProperties.SetName(control, field.Label);
+            AutomationProperties.SetAutomationId(control, field.Id);
+            readers.Add((field.Id, read));
+
+            // Consecutive tick boxes (the repeat weekdays) share one wrapping row instead of a tall column.
+            if (field is UiCheckboxField)
+            {
+                if (checkboxRow is null)
+                {
+                    checkboxRow = new WrapPanel { Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : FormFieldGap, 0, 0) };
+                    stack.Children.Add(checkboxRow);
+                }
+
+                control.Margin = new Thickness(0, 0, 8, 0);
+                control.MinWidth = 0;
+                ((CheckBox)control).Padding = new Thickness(4, 0, 0, 0);
+                checkboxRow.Children.Add(control);
+                continue;
+            }
+
+            checkboxRow = null;
+            var group = new StackPanel { Margin = new Thickness(0, stack.Children.Count == 0 ? 0 : FormFieldGap, 0, 0) };
             if (!labelled)
             {
                 TextBlock label = Caption(field.Label);
@@ -1122,8 +1163,6 @@ internal sealed class UiVisualBuilder
                 group.Children.Add(label);
             }
 
-            AutomationProperties.SetName(control, field.Label);
-            AutomationProperties.SetAutomationId(control, field.Id);
             if (form.Fields.Count == 1 && field is UiTextField or UiNumberField)
             {
                 inlineControl = control;
@@ -1134,7 +1173,6 @@ internal sealed class UiVisualBuilder
             }
 
             stack.Children.Add(group);
-            readers.Add((field.Id, read));
         }
 
         var submit = new Button { Content = form.SubmitLabel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, stack.Children.Count == 0 || inlineControl is not null ? 0 : 20, 0, 0) };

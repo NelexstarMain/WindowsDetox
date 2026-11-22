@@ -17,6 +17,14 @@ public class UiTreeValidatorTests
     }
 
     [Fact]
+    public void Validate_ButtonShortLabelTooLong_Fails() =>
+        AssertSingleError(In(new UiButton("b", "Go", ShortLabel: "123456")), "UiButton.ShortLabel exceeds 5 characters.", SmallText);
+
+    [Fact]
+    public void Validate_ButtonWithShortLabel_IsValid() =>
+        Assert.True(UiTreeValidator.Validate(In(new UiButton("b", "Goal +1", ShortLabel: "+"))).IsValid);
+
+    [Fact]
     public void Validate_TreeBuiltWithFactory_IsValid()
     {
         UiPage tree = Ui.Page(

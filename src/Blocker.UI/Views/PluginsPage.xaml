@@ -100,6 +100,8 @@
                                                 <Border>
                                                     <Border.Style>
                                                         <Style TargetType="Border" BasedOn="{StaticResource App.Chip}">
+                                                            <Setter Property="Padding" Value="8,2" />
+                                                            <Setter Property="Margin" Value="0,0,6,6" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsPrivacySensitive}" Value="True">
                                                                     <Setter Property="Background" Value="{DynamicResource Blocker.Warning.Soft}" />
@@ -111,7 +113,7 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <ui:SymbolIcon Symbol="Warning24" FontSize="12" Margin="0,0,4,0" Foreground="{DynamicResource Blocker.Warning}"
                                                                        Visibility="{Binding IsPrivacySensitive, Converter={StaticResource BoolToVisible}}" />
-                                                        <TextBlock Text="{Binding Label}" Style="{StaticResource App.ChipText}" ToolTip="{Binding Name}" />
+                                                        <TextBlock Text="{Binding Label}" Style="{StaticResource App.ChipText}" FontSize="11" Foreground="{DynamicResource Blocker.Text.Muted}" ToolTip="{Binding Name}" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>

@@ -431,7 +431,7 @@ public class CalendarSettingsTests
 
         await rig.Click(rig.Settings, CalendarIds.SetClear);
         UiButton armed = Kit.Button(await RenderAsync(rig), CalendarIds.SetClear);
-        Assert.Equal(("Click again to confirm", UiButtonVariant.Warning), (armed.Label, armed.Variant));
+        Assert.Equal(("Clear finished entries? Click again", UiButtonVariant.Warning), (armed.Label, armed.Variant));
         Assert.Equal(2, rig.Store.Entries.Count);
 
         rig.Ctx.FakeTime.Advance(CalendarUiState.ConfirmWindow + TimeSpan.FromSeconds(1));

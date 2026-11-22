@@ -912,7 +912,7 @@ public sealed class GoalsTests
 
         Assert.Equal(before + 1, ctx.RenderRequests);
         Assert.Single((await NewStoreAsync(ctx)).GetView().Tasks);
-        Assert.Equal("Click again to confirm", Button(await RenderSettingsAsync(ctx), GoalsSettings.ResetButtonId).Label);
+        Assert.Equal("Reset today? Click again", Button(await RenderSettingsAsync(ctx), GoalsSettings.ResetButtonId).Label);
 
         await ctx.SendActionAsync(settings, UiAction.Click(GoalsSettings.ResetButtonId), CancellationToken.None);
 

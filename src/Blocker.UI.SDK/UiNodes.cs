@@ -268,7 +268,8 @@ public sealed record UiTable(IReadOnlyList<UiTableColumn> Columns, IReadOnlyList
 /// <param name="Variant">Visual weight.</param>
 /// <param name="Icon">Optional icon.</param>
 /// <param name="IsEnabled">Whether the button can be clicked.</param>
-public sealed record UiButton(string Id, string Label, UiButtonVariant Variant = UiButtonVariant.Secondary, UiIcon? Icon = null, bool IsEnabled = true) : UiNode;
+/// <param name="ShortLabel">Optional compact text drawn instead of <paramref name="Label"/> (for example a minus sign); the label stays the accessible name and tooltip.</param>
+public sealed record UiButton(string Id, string Label, UiButtonVariant Variant = UiButtonVariant.Secondary, UiIcon? Icon = null, bool IsEnabled = true, string? ShortLabel = null) : UiNode;
 
 /// <summary>An on/off switch. Changes are delivered as <see cref="UiActionKind.Toggle"/> with value <c>"true"</c>/<c>"false"</c>.</summary>
 /// <param name="Id">Element id, unique within the tree.</param>
