@@ -372,6 +372,42 @@ public class CalendarAutoStarterTests
     }
 
     [Fact]
+    public async Task A_session_whose_history_record_cannot_be_written_is_not_started_until_the_storage_works()
+    {
+        (FakePluginContext ctx, CalendarStore store, CalendarAutoStarter starter) = await StartAsync();
+        long free = ctx.Storage.QuotaBytes - ctx.FakeStorage.UsedBytes;
+        await ctx.Storage.WriteAsync("filler", new string('x', (int)((free - 80) / 2) - 6), CancellationToken.None);
+
+        await StepAsync(ctx, starter, TimeSpan.FromMinutes(6));
+
+        Assert.Empty(ctx.FakeSessions.Calls);
+        Assert.Empty(store.History);
+        _ = await ctx.Storage.DeleteAsync("filler", CancellationToken.None);
+        await StepAsync(ctx, starter, TimeSpan.FromSeconds(30));
+        Assert.Single(ctx.FakeSessions.Calls);
+        Assert.Equal(SessionOutcome.Started, Assert.Single(store.History).Outcome);
+    }
+
+    [Fact]
+    public async Task A_read_only_calendar_starts_nothing()
+    {
+        var ctx = new FakePluginContext("com.windowsdetox.calendar");
+        string day = Today.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await ctx.Storage.WriteAsync(CalendarStore.DataKey, "{\"v\":2,\"n\":2,\"e\":[{\"i\":1,\"k\":0,\"t\":\"Deep work\",\"s\":" + day + ",\"m\":545,\"n\":60,\"a\":0}]}", CancellationToken.None);
+        var store = new CalendarStore(ctx.Storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+        var starter = new CalendarAutoStarter(store, ctx.Sessions, ctx.Notifier, ctx.Logger);
+        ctx.Extensions.Add(starter);
+
+        await StepAsync(ctx, starter, TimeSpan.FromMinutes(8));
+
+        Assert.True(store.ReadOnly);
+        Assert.Empty(ctx.FakeSessions.Calls);
+        Assert.Empty(ctx.FakeNotifier.Messages);
+        Assert.Empty(store.History);
+    }
+
+    [Fact]
     public async Task With_auto_start_off_nothing_is_started_or_announced()
     {
         (FakePluginContext ctx, CalendarStore store, CalendarAutoStarter starter) = await StartAsync();

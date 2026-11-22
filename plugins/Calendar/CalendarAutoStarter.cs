@@ -57,7 +57,7 @@ public sealed class CalendarAutoStarter : ITickListener
     /// <inheritdoc/>
     public ValueTask OnTickAsync(TickContext context, CancellationToken cancellationToken)
     {
-        if (Volatile.Read(ref _busy) != 0)
+        if (Volatile.Read(ref _busy) != 0 || _store.ReadOnly)
         {
             return ValueTask.CompletedTask;
         }

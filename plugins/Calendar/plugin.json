@@ -1,7 +1,7 @@
 {
   "id": "com.windowsdetox.calendar",
   "name": "Calendar",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "WindowsDetox",
   "description": "Your own calendar on this PC: plan focus sessions and tasks, repeat them, and let planned sessions start by themselves. Nothing leaves this device.",
   "sdkVersion": "1.0",

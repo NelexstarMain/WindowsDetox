@@ -1,11 +1,12 @@
-// The "Plan" form: field ids, the draft that pre-fills it, and the validation that turns submitted text into an entry, a series
-// replacement or the edit of one occurrence. Pure: it reads the entries it is given and returns what the plugin should store.
+// The entry editor: field ids, the draft that pre-fills it, and the validation that turns submitted text (or a block dragged on the
+// grid) into an entry, a series replacement or the edit of one occurrence. Pure: it reads the entries it is given and returns what the
+// plugin should store.
 
 using System.Globalization;
 
 namespace CalendarPlanner;
 
-/// <summary>Values shown in the Plan form.</summary>
+/// <summary>Values shown in the entry editor.</summary>
 public sealed record CalendarDraft
 {
     /// <summary>Entry kind.</summary>
@@ -17,11 +18,11 @@ public sealed record CalendarDraft
     /// <summary>Day.</summary>
     public int Day { get; init; }
 
-    /// <summary>Time text (<c>hh:mm</c>) or empty.</summary>
+    /// <summary>Start time text (<c>hh:mm</c>) or empty.</summary>
     public string Time { get; init; } = string.Empty;
 
-    /// <summary>Length in minutes.</summary>
-    public int Length { get; init; } = 120;
+    /// <summary>End time text (<c>hh:mm</c>) or empty; an end before the start means the next day.</summary>
+    public string To { get; init; } = string.Empty;
 
     /// <summary>Repeat rule.</summary>
     public RepeatKind Repeat { get; init; }
@@ -57,7 +58,7 @@ public sealed record CalendarDraft
     public bool EditOccurrenceOnly { get; init; }
 }
 
-/// <summary>What a submitted form asks the plugin to do.</summary>
+/// <summary>What a submitted form (or a dragged block) asks the plugin to do.</summary>
 /// <param name="Error">Why it was refused; <see langword="null"/> when accepted.</param>
 /// <param name="Notice">Something to tell the user after a success.</param>
 /// <param name="Add">A new entry.</param>
@@ -88,11 +89,11 @@ public static class CalendarForm
     /// <summary>Id of the date field.</summary>
     public const string DateId = "cal-f-date";
 
-    /// <summary>Id of the time field.</summary>
+    /// <summary>Id of the start time field.</summary>
     public const string TimeId = "cal-f-time";
 
-    /// <summary>Id of the length field.</summary>
-    public const string LengthId = "cal-f-length";
+    /// <summary>Id of the end time field.</summary>
+    public const string ToId = "cal-f-to";
 
     /// <summary>Id of the repeat select.</summary>
     public const string RepeatId = "cal-f-repeat";
@@ -103,7 +104,7 @@ public static class CalendarForm
     /// <summary>Prefix of the weekday checkboxes; the Monday-based index follows.</summary>
     public const string WeekdayPrefix = "cal-f-wd";
 
-    /// <summary>Id of the end select.</summary>
+    /// <summary>Id of the end-rule select.</summary>
     public const string EndId = "cal-f-end";
 
     /// <summary>Id of the end date field.</summary>
@@ -121,25 +122,21 @@ public static class CalendarForm
     /// <summary>Planning horizon for overlap checks, in days.</summary>
     public const int OverlapHorizonDays = 180;
 
-    /// <summary>Builds the draft for a new entry on <paramref name="day"/>.</summary>
-    public static CalendarDraft NewDraft(int day, DateTimeOffset now, TimeZoneInfo zone, CalendarSettings settings, EntryKind kind = EntryKind.Session)
-    {
-        int minute = ((CalTime.MinuteOf(now, zone) / 60) + 1) * 60;
-        int shownDay = day;
-        if (minute >= 1440)
-        {
-            minute = 9 * 60;
-            shownDay = Math.Max(day, CalTime.DayOf(now, zone) + 1);
-        }
+    /// <summary>Title a new focus session starts with.</summary>
+    public const string DefaultSessionTitle = "Focus session";
 
-        return new CalendarDraft
-        {
-            Kind = kind,
-            Day = shownDay,
-            Time = kind == EntryKind.Session || day == CalTime.DayOf(now, zone) ? CalTime.Clock(minute, true) : string.Empty,
-            Length = kind == EntryKind.Session ? settings.DefaultSessionMinutes : 0,
-        };
-    }
+    /// <summary>Minutes a timed task without a length occupies on the grid.</summary>
+    public const int PointMinutes = 30;
+
+    /// <summary>Builds the draft of a new entry for the block the user dragged on <paramref name="day"/>.</summary>
+    public static CalendarDraft NewDraft(int day, int startMinute, int endMinute) => new()
+    {
+        Kind = EntryKind.Session,
+        Title = DefaultSessionTitle,
+        Day = day,
+        Time = CalTime.Clock(startMinute, true),
+        To = CalTime.Clock(endMinute % 1440, true),
+    };
 
     /// <summary>Builds the draft that edits an occurrence (and, with it, its series).</summary>
     public static CalendarDraft EditDraft(Occurrence occurrence)
@@ -151,7 +148,7 @@ public static class CalendarForm
             Title = occurrence.Title,
             Day = occurrence.Day,
             Time = occurrence.HasTime ? CalTime.Clock(occurrence.StartMinute, true) : string.Empty,
-            Length = occurrence.Duration,
+            To = occurrence.HasTime && occurrence.Duration > 0 ? CalTime.Clock((occurrence.StartMinute + occurrence.Duration) % 1440, true) : string.Empty,
             Repeat = e.Repeat,
             Every = e.Interval,
             Mask = e.WeekdayMask != 0 ? e.WeekdayMask : 1 << CalTime.Weekday(e.StartDay),
@@ -166,8 +163,20 @@ public static class CalendarForm
         };
     }
 
+    /// <summary>Builds the draft of a one-time copy of an occurrence, to be adjusted and saved as a new entry.</summary>
+    public static CalendarDraft DuplicateDraft(Occurrence occurrence) => EditDraft(occurrence) with
+    {
+        Repeat = RepeatKind.Once,
+        End = EndKind.Never,
+        Until = string.Empty,
+        EditId = 0,
+        EditOriginalDay = 0,
+        EditShownDay = 0,
+        EditOccurrenceOnly = false,
+    };
+
     /// <summary>Validates a submitted form.</summary>
-    /// <param name="values">Field id to text.</param>
+    /// <param name="values">Field id to text. A field the form did not carry keeps the value of <paramref name="editing"/>.</param>
     /// <param name="editing">The draft the form was showing (its edit target decides between add and edit).</param>
     /// <param name="entries">The current entries.</param>
     /// <param name="now">Verified now.</param>
@@ -182,7 +191,7 @@ public static class CalendarForm
         TimeZoneInfo zone,
         CalendarSettings settings)
     {
-        string Get(string id) => values.TryGetValue(id, out string? v) ? v ?? string.Empty : string.Empty;
+        string Get(string id, string fallback = "") => values.TryGetValue(id, out string? v) ? v ?? string.Empty : fallback;
         int today = CalTime.DayOf(now, zone);
         CalendarEntry? existing = editing.EditId > 0 ? entries.FirstOrDefault(e => e.Id == editing.EditId) : null;
         if (editing.EditId > 0 && existing is null)
@@ -190,7 +199,7 @@ public static class CalendarForm
             return FormOutcome.Refused("That entry no longer exists.");
         }
 
-        // The kind and the repeat rule are chosen with buttons next to the form, so the form may not carry them: the draft has them then.
+        // The quick editor carries only the main fields; a field it did not carry keeps what the draft has.
         EntryKind kind = !values.ContainsKey(KindId) ? editing.Kind : Get(KindId) switch
         {
             "session" => EntryKind.Session,
@@ -202,27 +211,30 @@ public static class CalendarForm
             return FormOutcome.Refused("Choose whether this is a session or a task.");
         }
 
-        string title = CalendarStore.CleanTitle(Get(TitleId));
-        if (Get(TitleId).Trim().Length == 0)
+        string titleText = Get(TitleId, editing.Title);
+        string title = CalendarStore.CleanTitle(titleText);
+        if (titleText.Trim().Length == 0)
         {
             if (kind == EntryKind.Task)
             {
                 return FormOutcome.Refused("Give the task a title.");
             }
 
-            title = "Focus session";
+            title = DefaultSessionTitle;
         }
 
-        if (!CalTime.TryParseDate(Get(DateId), out int day))
+        string dateText = Get(DateId, CalTime.IsoDate(editing.Day));
+        if (!CalTime.TryParseDate(dateText, out int day))
         {
             return FormOutcome.Refused("Enter the date as yyyy-mm-dd, for example 2026-03-09.");
         }
 
-        string? notice = CalTime.IsoDate(day) == Get(DateId).Trim().Replace('/', '-').Replace('.', '-') ? null : $"The date was adjusted to {CalTime.IsoDate(day)}.";
+        string? notice = CalTime.IsoDate(day) == dateText.Trim().Replace('/', '-').Replace('.', '-') ? null : $"The date was adjusted to {CalTime.IsoDate(day)}.";
         int minute = -1;
-        if (Get(TimeId).Trim().Length > 0)
+        string timeText = Get(TimeId, editing.Time);
+        if (timeText.Trim().Length > 0)
         {
-            if (!CalTime.TryParseTime(Get(TimeId), out minute))
+            if (!CalTime.TryParseTime(timeText, out minute))
             {
                 return FormOutcome.Refused("Enter the time as hh:mm, for example 09:30.");
             }
@@ -232,25 +244,28 @@ public static class CalendarForm
             return FormOutcome.Refused("A session needs a start time.");
         }
 
-        if (!TryNumber(Get(LengthId), out int length))
+        // The end is a time of day; one before the start means the next day, an empty one means the default length.
+        int length = 0;
+        string toText = Get(ToId, editing.To);
+        if (minute >= 0)
         {
-            return FormOutcome.Refused("Enter the length in minutes.");
-        }
-
-        if (kind == EntryKind.Session)
-        {
-            if (length is < CalendarLimits.MinSessionMinutes or > CalendarLimits.MaxSessionMinutes)
+            if (toText.Trim().Length == 0)
             {
-                return FormOutcome.Refused("A session lasts from 15 minutes to 12 hours.");
+                length = kind == EntryKind.Session ? settings.DefaultSessionMinutes : 0;
+            }
+            else if (CalTime.TryParseTime(toText, out int to))
+            {
+                length = (to - minute + 1440) % 1440;
+            }
+            else
+            {
+                return FormOutcome.Refused("Enter the end time as hh:mm, for example 10:30.");
             }
         }
-        else if (length is < 0 or > CalendarLimits.MaxTaskMinutes)
+
+        if (kind == EntryKind.Session && length is < CalendarLimits.MinSessionMinutes or > CalendarLimits.MaxSessionMinutes)
         {
-            return FormOutcome.Refused("A task lasts from 0 minutes to 24 hours.");
-        }
-        else if (minute < 0)
-        {
-            length = 0;
+            return FormOutcome.Refused("A session lasts from 15 minutes to 12 hours.");
         }
 
         RepeatKind repeat = !values.ContainsKey(RepeatId) ? editing.Repeat : Get(RepeatId) switch
@@ -265,22 +280,26 @@ public static class CalendarForm
             return FormOutcome.Refused("Choose how often it repeats.");
         }
 
-        int every = 1;
-        if ((values.ContainsKey(EveryId) || repeat != RepeatKind.Once) && (!TryNumber(Get(EveryId), out every) || every is < 1 or > CalendarLimits.MaxInterval))
+        int every = Math.Clamp(editing.Every, 1, CalendarLimits.MaxInterval);
+        if (values.ContainsKey(EveryId) && (!TryNumber(Get(EveryId), out every) || every is < 1 or > CalendarLimits.MaxInterval))
         {
             return FormOutcome.Refused($"Repeat every 1 to {CalendarLimits.MaxInterval}.");
         }
 
-        int mask = 0;
-        for (int i = 0; i < 7; i++)
+        int mask = editing.Mask;
+        if (Enumerable.Range(0, 7).Any(i => values.ContainsKey(WeekdayPrefix + i.ToString(CultureInfo.InvariantCulture))))
         {
-            if (Get(WeekdayPrefix + i.ToString(CultureInfo.InvariantCulture)) == "true")
+            mask = 0;
+            for (int i = 0; i < 7; i++)
             {
-                mask |= 1 << i;
+                if (Get(WeekdayPrefix + i.ToString(CultureInfo.InvariantCulture)) == "true")
+                {
+                    mask |= 1 << i;
+                }
             }
         }
 
-        EndKind end = Get(EndId) switch
+        EndKind end = !values.ContainsKey(EndId) ? editing.End : Get(EndId) switch
         {
             "date" => EndKind.OnDate,
             "count" => EndKind.AfterCount,
@@ -294,17 +313,18 @@ public static class CalendarForm
         }
         else if (end == EndKind.OnDate)
         {
-            if (!CalTime.TryParseDate(Get(UntilId), out until))
+            if (!CalTime.TryParseDate(Get(UntilId, editing.Until), out until))
             {
                 return FormOutcome.Refused("Enter the end date as yyyy-mm-dd.");
             }
         }
-        else if (end == EndKind.AfterCount && (!TryNumber(Get(CountId), out count) || count is < 1 or > CalendarLimits.MaxCount))
+        else if (end == EndKind.AfterCount && (!TryNumber(Get(CountId, editing.Count.ToString(CultureInfo.InvariantCulture)), out count) || count is < 1 or > CalendarLimits.MaxCount))
         {
             return FormOutcome.Refused($"Repeat 1 to {CalendarLimits.MaxCount} times.");
         }
 
-        if (!int.TryParse(Get(ColorId), NumberStyles.None, CultureInfo.InvariantCulture, out int color) || color >= CalendarLimits.ColorCount)
+        int color = editing.Color;
+        if (values.ContainsKey(ColorId) && (!int.TryParse(Get(ColorId), NumberStyles.None, CultureInfo.InvariantCulture, out color) || color >= CalendarLimits.ColorCount))
         {
             color = 0;
         }
@@ -330,7 +350,7 @@ public static class CalendarForm
 
         if (occurrenceOnly)
         {
-            return EditOccurrence(existing!, candidate, editing, entries, now, zone, settings, today, notice);
+            return EditOccurrence(existing!, candidate, editing.EditOriginalDay, entries, now, zone, settings, today, notice);
         }
 
         if (existing is not null)
@@ -340,11 +360,6 @@ public static class CalendarForm
             candidate.StartDay = Math.Clamp(existing.StartDay + shift, new DateOnly(CalendarLimits.MinYear, 1, 1).DayNumber, new DateOnly(CalendarLimits.MaxYear, 12, 31).DayNumber);
             if (end == EndKind.OnDate)
             {
-                if (!CalTime.TryParseDate(Get(UntilId), out until))
-                {
-                    return FormOutcome.Refused("Enter the end date as yyyy-mm-dd.");
-                }
-
                 candidate.UntilDay = until;
             }
 
@@ -362,27 +377,96 @@ public static class CalendarForm
             return FormOutcome.Refused("The end date is before the first day.");
         }
 
-        if (kind == EntryKind.Session)
+        if (kind == EntryKind.Session && CheckSession(candidate, entries, now, zone, settings, today) is { } problem)
         {
-            if (FutureProblem(candidate, now, zone, today) is { } past)
-            {
-                return FormOutcome.Refused(past);
-            }
-
-            string? overlap = CalendarRecurrence.FindSessionOverlap(candidate, entries, Math.Max(candidate.StartDay, today), OverlapHorizonDays, zone, settings.Use24Hour);
-            if (overlap is not null)
-            {
-                return FormOutcome.Refused(overlap);
-            }
+            return FormOutcome.Refused(problem);
         }
 
         return existing is null ? new FormOutcome(null, notice, Add: candidate) : new FormOutcome(null, notice, Replace: candidate);
     }
 
+    /// <summary>
+    /// Validates a block moved or resized on the grid. A one-time entry changes as a whole; of a repeating series only this occurrence changes
+    /// (the model keeps single-occurrence edits), so the rest of the series stays where it was.
+    /// </summary>
+    /// <param name="occurrence">The occurrence that was dragged.</param>
+    /// <param name="day">New day.</param>
+    /// <param name="start">New start, minutes after midnight.</param>
+    /// <param name="end">New end, minutes after midnight (after the start, within the day).</param>
+    /// <param name="entries">The current entries.</param>
+    /// <param name="now">Verified now.</param>
+    /// <param name="zone">The PC's zone.</param>
+    /// <param name="settings">Settings.</param>
+    /// <returns>The outcome.</returns>
+    public static FormOutcome Move(Occurrence occurrence, int day, int start, int end, IReadOnlyList<CalendarEntry> entries, DateTimeOffset now, TimeZoneInfo zone, CalendarSettings settings)
+    {
+        CalendarEntry? existing = entries.FirstOrDefault(e => e.Id == occurrence.Entry.Id);
+        if (existing is null)
+        {
+            return FormOutcome.Refused("That entry no longer exists.");
+        }
+
+        int length = end - start;
+        if (occurrence.Duration == 0 && length == PointMinutes)
+        {
+            length = 0;   // the grid draws a task without a length as a short block; moving it must not give it one
+        }
+
+        if (existing.Kind == EntryKind.Session && length is < CalendarLimits.MinSessionMinutes or > CalendarLimits.MaxSessionMinutes)
+        {
+            return FormOutcome.Refused("A session lasts from 15 minutes to 12 hours.");
+        }
+
+        CalendarEntry candidate = existing.Clone();
+        candidate.StartDay = day;
+        candidate.StartMinute = start;
+        candidate.Duration = length;
+        candidate.Title = occurrence.Title;
+        int today = CalTime.DayOf(now, zone);
+        if (existing.Repeat != RepeatKind.Once)
+        {
+            return EditOccurrence(existing, candidate, occurrence.OriginalDay, entries, now, zone, settings, today, "Only this occurrence moved; the rest of the series stays.");
+        }
+
+        if (existing.Kind == EntryKind.Session && CheckSession(candidate, entries, now, zone, settings, today) is { } problem)
+        {
+            return FormOutcome.Refused(problem);
+        }
+
+        return new FormOutcome(null, Replace: candidate);
+    }
+
+    /// <summary>Builds a one-time copy of an occurrence <paramref name="shiftDays"/> days later.</summary>
+    /// <returns>The outcome: <see cref="FormOutcome.Add"/> or why the copy is not possible (a session that would overlap another or lie in the past).</returns>
+    public static FormOutcome Copy(Occurrence occurrence, int shiftDays, IReadOnlyList<CalendarEntry> entries, DateTimeOffset now, TimeZoneInfo zone, CalendarSettings settings)
+    {
+        CalendarEntry source = occurrence.Entry;
+        CalendarEntry copy = new()
+        {
+            Kind = source.Kind,
+            Title = occurrence.Title,
+            StartDay = occurrence.Day + shiftDays,
+            StartMinute = occurrence.StartMinute,
+            Duration = occurrence.Duration,
+            Color = source.Color,
+        };
+        if (source.Kind == EntryKind.Session && CheckSession(copy, entries, now, zone, settings, CalTime.DayOf(now, zone)) is { } problem)
+        {
+            return FormOutcome.Refused(problem);
+        }
+
+        return new FormOutcome(null, Add: copy);
+    }
+
+    /// <summary>Why a session cannot be planned like this (nothing left to start, or an overlap with another session), or <see langword="null"/>.</summary>
+    public static string? CheckSession(CalendarEntry candidate, IReadOnlyList<CalendarEntry> entries, DateTimeOffset now, TimeZoneInfo zone, CalendarSettings settings, int today) =>
+        FutureProblem(candidate, now, zone, today)
+        ?? CalendarRecurrence.FindSessionOverlap(candidate, entries, Math.Max(candidate.StartDay, today), OverlapHorizonDays, zone, settings.Use24Hour);
+
     private static FormOutcome EditOccurrence(
         CalendarEntry existing,
         CalendarEntry candidate,
-        CalendarDraft editing,
+        int originalDay,
         IReadOnlyList<CalendarEntry> entries,
         DateTimeOffset now,
         TimeZoneInfo zone,
@@ -397,7 +481,7 @@ public static class CalendarForm
 
         var change = new OccurrenceOverride
         {
-            OriginalDay = editing.EditOriginalDay,
+            OriginalDay = originalDay,
             Day = candidate.StartDay,
             Minute = candidate.StartMinute,
             Duration = candidate.Duration,

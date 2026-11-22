@@ -397,15 +397,17 @@ public class CalendarSettingsTests
     }
 
     [Fact]
-    public async Task A_new_default_length_pre_fills_the_next_plan_form()
+    public async Task A_new_default_length_is_used_when_the_end_time_is_left_empty()
     {
         var rig = await Rig.CreateAsync();
         await rig.Click(rig.Settings, CalendarIds.SetLengthUp);
-        await rig.Click(rig.Page, CalendarIds.PlanSession);
+        await rig.Schedule(CalendarIds.Grid, 4, 600, 660);
+        Dictionary<string, string> values = Rig.Quick();
+        values[CalendarForm.ToId] = string.Empty;
 
-        UiNumberField length = Kit.Descendants(await rig.PageAsync()).OfType<UiForm>().Single().Fields.OfType<UiNumberField>().Single(f => f.Id == CalendarForm.LengthId);
+        await rig.SaveEditor(values);
 
-        Assert.Equal(135, length.Value);
+        Assert.Equal(135, Assert.Single(rig.Store.Entries).Duration);
     }
 
     [Fact]
@@ -520,13 +522,23 @@ public class CalendarPluginTests
         Assert.NotNull(await ctx.RenderAsync(ctx.GetExtension<ISettingsSectionPlugin>()));
     }
 
+    private static ValueTask DragAsync(FakePluginContext ctx, int column, int start, int end) =>
+        ctx.SendActionAsync(
+            ctx.GetExtension<IUiPagePlugin>(),
+            new UiAction(
+                CalendarIds.Grid,
+                UiActionKind.Schedule,
+                null,
+                new Dictionary<string, string> { ["day"] = column.ToString(System.Globalization.CultureInfo.InvariantCulture), ["start"] = start.ToString(System.Globalization.CultureInfo.InvariantCulture), ["end"] = end.ToString(System.Globalization.CultureInfo.InvariantCulture) }));
+
     [Fact]
-    public async Task A_session_added_through_the_page_starts_by_itself_end_to_end()
+    public async Task A_session_dragged_on_the_page_starts_by_itself_end_to_end()
     {
         FakePluginContext ctx = await Kit.StartPluginAsync();
         IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
         _ = await ctx.RenderAsync(page);
-        await ctx.SendActionAsync(page, UiAction.Submit(CalendarForm.FormId, Kit.Form(title: "Study", date: "2026-01-01", time: "09:30", length: "45")));
+        await DragAsync(ctx, 3, 570, 615);
+        await ctx.SendActionAsync(page, UiAction.Submit(CalendarForm.FormId, Rig.Quick("Study", time: "09:30", to: "10:15")));
         CalendarAutoStarter starter = (CalendarAutoStarter)ctx.GetExtension<ITickListener>();
 
         for (int i = 0; i < 4 * 31; i++)
@@ -545,15 +557,18 @@ public class CalendarPluginTests
     {
         FakePluginContext ctx = await Kit.StartPluginAsync();
         IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.SendActionAsync(page, UiAction.Submit(CalendarForm.FormId, Kit.Form(kind: "task", title: "Remember", date: "2026-01-20", time: string.Empty, length: "0")));
+        await DragAsync(ctx, 3, 840, 870);
+        await ctx.SendActionAsync(page, UiAction.Submit(CalendarForm.FormId, Kit.Form(kind: "task", title: "Remember", date: "2026-01-20", time: "14:00", length: "30")));
 
         var again = new FakePluginContext("com.windowsdetox.calendar");
         await again.Storage.WriteAsync(CalendarStore.DataKey, (await ctx.Storage.ReadAsync(CalendarStore.DataKey, CancellationToken.None))!, CancellationToken.None);
         await new CalendarPlugin().InitializeAsync(again, CancellationToken.None);
-        await again.SendActionAsync(again.GetExtension<IUiPagePlugin>(), UiAction.Click(CalendarIds.DayPrefix + Kit.D(2026, 1, 20)));
-        UiNode tree = await again.RenderAsync(again.GetExtension<IUiPagePlugin>());
+        IUiPagePlugin restarted = again.GetExtension<IUiPagePlugin>();
+        await again.SendActionAsync(restarted, UiAction.Click(CalendarIds.ViewPrefix + "month"));
+        await again.SendActionAsync(restarted, UiAction.Click(CalendarIds.DayPrefix + Kit.D(2026, 1, 20)));
+        UiNode tree = await again.RenderAsync(restarted);
 
-        Assert.Contains(Kit.Descendants(tree).OfType<UiToggle>(), t => t.Label == "Remember");
+        Assert.Equal("Remember", Assert.Single(Kit.Descendants(tree).OfType<UiTimeGrid>().Single().Events).Title);
     }
 
     [Fact]

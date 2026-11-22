@@ -259,17 +259,140 @@ public class CalendarFormTests
     }
 
     [Fact]
-    public void A_new_draft_suggests_the_next_full_hour_and_the_default_length()
+    public void A_dragged_block_becomes_a_session_draft_with_the_default_title()
     {
-        var settings = new CalendarSettings { DefaultSessionMinutes = 45 };
+        CalendarDraft draft = CalendarForm.NewDraft(Kit.D(2026, 1, 5), 600, 690);
+        CalendarDraft toMidnight = CalendarForm.NewDraft(Kit.D(2026, 1, 5), 1380, 1440);
 
-        CalendarDraft draft = CalendarForm.NewDraft(Kit.D(2026, 1, 1), Kit.Start, TimeZoneInfo.Utc, settings);
-        CalendarDraft late = CalendarForm.NewDraft(Kit.D(2026, 1, 1), new DateTimeOffset(2026, 1, 1, 23, 30, 0, TimeSpan.Zero), TimeZoneInfo.Utc, settings);
-        CalendarDraft task = CalendarForm.NewDraft(Kit.D(2026, 1, 9), Kit.Start, TimeZoneInfo.Utc, settings, EntryKind.Task);
+        Assert.Equal((EntryKind.Session, "Focus session", Kit.D(2026, 1, 5), "10:00", "11:30", 0), (draft.Kind, draft.Title, draft.Day, draft.Time, draft.To, draft.EditId));
+        Assert.Equal(("23:00", "00:00"), (toMidnight.Time, toMidnight.To));
+    }
 
-        Assert.Equal(("10:00", 45, Kit.D(2026, 1, 1)), (draft.Time, draft.Length, draft.Day));
-        Assert.Equal(("09:00", Kit.D(2026, 1, 2)), (late.Time, late.Day));
-        Assert.Equal((string.Empty, 0), (task.Time, task.Length));
+    [Fact]
+    public void An_empty_end_gives_a_session_the_default_length_and_a_task_none()
+    {
+        Dictionary<string, string> session = Kit.Form();
+        session[CalendarForm.ToId] = string.Empty;
+        Dictionary<string, string> task = Kit.Form(kind: "task", title: "Call");
+        task[CalendarForm.ToId] = " ";
+
+        CalendarEntry s = Kit.Submit(session).Add!;
+        CalendarEntry t = Kit.Submit(task).Add!;
+
+        Assert.Equal(120, s.Duration);
+        Assert.Equal((600, 0), (t.StartMinute, t.Duration));
+    }
+
+    [Fact]
+    public void An_end_before_the_start_means_the_next_day_and_a_bad_end_is_refused()
+    {
+        Dictionary<string, string> late = Kit.Form(time: "23:00");
+        late[CalendarForm.ToId] = "01:00";
+        Dictionary<string, string> bad = Kit.Form();
+        bad[CalendarForm.ToId] = "soon";
+
+        Assert.Equal(120, Kit.Submit(late).Add!.Duration);
+        Assert.Equal("Enter the end time as hh:mm, for example 10:30.", Kit.Submit(bad).Error);
+    }
+
+    [Fact]
+    public void A_form_without_the_extra_fields_keeps_what_the_draft_has()
+    {
+        CalendarEntry series = Kit.Weekly(Kit.Task("Water plants", Kit.D(2026, 1, 5), 480), 0b101, 2);
+        series.Id = 3;
+        series.Duration = 30;
+        series.End = EndKind.OnDate;
+        series.UntilDay = Kit.D(2026, 6, 30);
+        series.Color = 2;
+        CalendarDraft draft = CalendarForm.EditDraft(CalendarRecurrence.Expand([series], series.StartDay, series.StartDay).Single());
+        Dictionary<string, string> quick = new()
+        {
+            [CalendarForm.TitleId] = "Water the plants",
+            [CalendarForm.TimeId] = "08:00",
+            [CalendarForm.ToId] = "08:45",
+            [CalendarForm.RepeatId] = "weekly",
+            [CalendarForm.ScopeId] = "series",
+        };
+
+        CalendarEntry saved = Kit.Submit(quick, [series], draft).Replace!;
+
+        Assert.Equal(("Water the plants", 45, 2, 0b101, EndKind.OnDate, Kit.D(2026, 6, 30), 2, Kit.D(2026, 1, 5)), (saved.Title, saved.Duration, saved.Interval, saved.WeekdayMask, saved.End, saved.UntilDay, saved.Color, saved.StartDay));
+    }
+
+    [Fact]
+    public void Moving_a_one_time_entry_replaces_it_and_resizing_changes_its_length()
+    {
+        CalendarEntry session = Kit.Session("Deep work", Kit.D(2026, 1, 5), 600, 60);
+        session.Id = 4;
+        Occurrence occurrence = CalendarRecurrence.OccurrenceOf(session, session.StartDay)!;
+
+        FormOutcome moved = CalendarForm.Move(occurrence, Kit.D(2026, 1, 6), 780, 870, [session], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+        FormOutcome resized = CalendarForm.Move(occurrence, session.StartDay, 600, 750, [session], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+
+        Assert.Equal((4, Kit.D(2026, 1, 6), 780, 90), (moved.Replace!.Id, moved.Replace.StartDay, moved.Replace.StartMinute, moved.Replace.Duration));
+        Assert.Equal((Kit.D(2026, 1, 5), 600, 150), (resized.Replace!.StartDay, resized.Replace.StartMinute, resized.Replace.Duration));
+    }
+
+    [Fact]
+    public void Moving_one_occurrence_of_a_series_changes_only_that_occurrence()
+    {
+        CalendarEntry series = Kit.Weekly(Kit.Session("Weekly", Kit.D(2026, 1, 5), 540, 60), 1);
+        series.Id = 7;
+        Occurrence second = CalendarRecurrence.OccurrenceOf(series, Kit.D(2026, 1, 12))!;
+
+        FormOutcome outcome = CalendarForm.Move(second, Kit.D(2026, 1, 13), 600, 660, [series], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+
+        Assert.Null(outcome.Replace);
+        Assert.Equal(7, outcome.OverrideEntryId);
+        OccurrenceOverride change = outcome.Override!;
+        Assert.Equal((Kit.D(2026, 1, 12), Kit.D(2026, 1, 13), 600, 60, "Weekly"), (change.OriginalDay, change.Day, change.Minute, change.Duration, change.Title));
+        Assert.Equal("Only this occurrence moved; the rest of the series stays.", outcome.Notice);
+    }
+
+    [Fact]
+    public void A_block_cannot_be_moved_into_the_past_onto_another_session_or_made_longer_than_twelve_hours()
+    {
+        CalendarEntry session = Kit.Session("Deep work", Kit.D(2026, 1, 5), 600, 60);
+        session.Id = 4;
+        CalendarEntry other = Kit.Session("Other", Kit.D(2026, 1, 6), 780, 60);
+        other.Id = 5;
+        Occurrence occurrence = CalendarRecurrence.OccurrenceOf(session, session.StartDay)!;
+        var settings = new CalendarSettings();
+
+        Assert.Equal("That time has already passed.", CalendarForm.Move(occurrence, Kit.D(2025, 12, 30), 600, 660, [session, other], Kit.Start, TimeZoneInfo.Utc, settings).Error);
+        Assert.StartsWith("Overlaps \"Other\"", CalendarForm.Move(occurrence, Kit.D(2026, 1, 6), 800, 860, [session, other], Kit.Start, TimeZoneInfo.Utc, settings).Error);
+        Assert.Equal("A session lasts from 15 minutes to 12 hours.", CalendarForm.Move(occurrence, session.StartDay, 0, 780, [session, other], Kit.Start, TimeZoneInfo.Utc, settings).Error);
+        Assert.Equal("That entry no longer exists.", CalendarForm.Move(occurrence, session.StartDay, 600, 660, [], Kit.Start, TimeZoneInfo.Utc, settings).Error);
+    }
+
+    [Fact]
+    public void A_task_without_a_length_keeps_none_when_it_is_moved_as_the_short_block_it_is_drawn_as()
+    {
+        CalendarEntry task = Kit.Task("Call", Kit.D(2026, 1, 5), 600);
+        task.Id = 2;
+        Occurrence occurrence = CalendarRecurrence.OccurrenceOf(task, task.StartDay)!;
+
+        FormOutcome moved = CalendarForm.Move(occurrence, task.StartDay, 660, 690, [task], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+        FormOutcome resized = CalendarForm.Move(occurrence, task.StartDay, 600, 720, [task], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+
+        Assert.Equal((660, 0), (moved.Replace!.StartMinute, moved.Replace.Duration));
+        Assert.Equal(120, resized.Replace!.Duration);
+    }
+
+    [Fact]
+    public void A_copy_is_a_one_time_entry_shifted_by_the_given_days_and_a_clashing_session_is_refused()
+    {
+        CalendarEntry series = Kit.Weekly(Kit.Session("Weekly", Kit.D(2026, 1, 5), 540, 60), 1);
+        series.Id = 7;
+        series.Color = 3;
+        Occurrence first = CalendarRecurrence.OccurrenceOf(series, series.StartDay)!;
+
+        FormOutcome next = CalendarForm.Copy(first, 1, [series], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+        FormOutcome clash = CalendarForm.Copy(first, 7, [series], Kit.Start, TimeZoneInfo.Utc, new CalendarSettings());
+
+        CalendarEntry copy = next.Add!;
+        Assert.Equal((RepeatKind.Once, Kit.D(2026, 1, 6), 540, 60, "Weekly", 3), (copy.Repeat, copy.StartDay, copy.StartMinute, copy.Duration, copy.Title, copy.Color));
+        Assert.StartsWith("Overlaps \"Weekly\"", clash.Error);
     }
 
     [Fact]
@@ -426,7 +549,7 @@ public class CalendarStoreTests
         Assert.False(await store.OverrideAsync(series.Id, new OccurrenceOverride { OriginalDay = Kit.D(2026, 1, 13), Day = Kit.D(2026, 1, 13), Minute = 1, Duration = 20, Title = "x" }, Ct));
 
         OccurrenceOverride kept = Assert.Single(store.Find(series.Id)!.Overrides);
-        Assert.Equal(("two", Kit.D(2026, 1, 14), 660, CalendarLimits.MaxTaskMinutes), (kept.Title, kept.Day, kept.Minute, kept.Duration));
+        Assert.Equal(("two", Kit.D(2026, 1, 14), 660, CalendarLimits.MaxSessionMinutes), (kept.Title, kept.Day, kept.Minute, kept.Duration));
     }
 
     [Fact]
@@ -550,7 +673,7 @@ public class CalendarStoreTests
         Assert.True(store.RecoveredFromCorruption);
         Assert.Empty(store.Entries);
         Assert.Equal(45, store.Settings.DefaultSessionMinutes);
-        Assert.Equal("{ this is not json", await ctx.Storage.ReadAsync(CalendarStore.DataKey + CalendarStore.CorruptSuffix, Ct));
+        Assert.Equal(Kit.Start.ToUnixTimeSeconds() + "\n{ this is not json", await ctx.Storage.ReadAsync(CalendarStore.DataKey + CalendarStore.CorruptSuffix, Ct));
         Assert.Contains(ctx.FakeLogger.Entries, e => e.Message.Contains("unreadable", StringComparison.Ordinal));
     }
 
@@ -579,7 +702,6 @@ public class CalendarStoreTests
             + "{\"i\":1,\"k\":1,\"t\":\"ok\",\"s\":" + day + ",\"m\":99999,\"n\":99999,\"r\":2,\"v\":500,\"w\":65535,\"e\":1,\"u\":1,\"c\":999999,\"g\":-8},"
             + "{\"i\":1,\"k\":1,\"t\":\"duplicate id\",\"s\":" + day + "},"
             + "{\"i\":0,\"k\":1,\"t\":\"zero id\",\"s\":" + day + "},"
-            + "{\"i\":3,\"k\":9,\"t\":\"bad kind\",\"s\":" + day + "},"
             + "{\"i\":4,\"k\":0,\"t\":\"session without time\",\"s\":" + day + ",\"m\":-1,\"n\":60},"
             + "{\"i\":5,\"k\":0,\"t\":\"session\",\"s\":" + day + ",\"m\":600,\"n\":1},"
             + "{\"i\":6,\"k\":1,\"t\":\"before 2000\",\"s\":5},"
@@ -590,6 +712,7 @@ public class CalendarStoreTests
         await store.LoadAsync(Ct);
 
         Assert.Equal([1, 5], store.Entries.Select(e => e.Id));
+        Assert.False(store.ReadOnly);
         CalendarEntry ok = store.Find(1)!;
         Assert.Equal((0b1111111, CalendarLimits.MaxInterval, CalendarLimits.MaxCount, 1439), (ok.WeekdayMask, ok.Interval, ok.Count, ok.StartMinute));
         Assert.Equal(CalendarLimits.MaxTaskMinutes, ok.Duration);

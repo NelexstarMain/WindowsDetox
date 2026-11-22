@@ -1,5 +1,6 @@
-// The Calendar page, built like the Insights page: four stat tiles, the calendar card (month, week or agenda) and the Plan card.
-// The month is drawn by the host (UiMonthGrid): weekday header and days share one grid, so they line up.
+// The Calendar page, built like the Insights page: four stat tiles and one calendar card. The card has a single header row (Today,
+// arrows, period, Day/Week/Month) and either the host-drawn time grid (Day, Week: drag to create, move and resize, click to select,
+// a popover that exists only while something is picked) or the month grid (click a day to open it). Nothing else is always visible.
 
 using System.Globalization;
 using Blocker.UI.Sdk;
@@ -9,11 +10,11 @@ namespace CalendarPlanner;
 /// <summary>The Calendar page. Requires "ui.page".</summary>
 public sealed class CalendarPage(CalendarStore store, CalendarUiState state, CalendarController controller) : CalendarContribution(store, state, controller), IUiPagePlugin
 {
-    /// <summary>Most rows an agenda shows.</summary>
-    public const int MaxAgendaRows = 40;
+    /// <summary>Most entry titles one month cell carries (the host draws the overflow).</summary>
+    public const int MaxChips = 3;
 
-    /// <summary>Days an agenda covers.</summary>
-    public const int AgendaDays = 14;
+    /// <summary>Most tasks without a time that are listed under the grid.</summary>
+    public const int MaxUntimedRows = 6;
 
     /// <inheritdoc/>
     public UiNavigationItem Navigation { get; } = new("Calendar", UiIcon.Calendar);
@@ -39,20 +40,17 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
         List<UiNode> children = [];
         if (recovered)
         {
-            children.Add(Ui.Text("Saved calendar data could not be read, so the calendar started empty. The unreadable text was kept in the plugin's storage.", UiTextStyle.Caption, UiTone.Warning));
+            children.Add(Ui.Text("Saved calendar data could not be read, so the calendar started empty. The unreadable text was kept in the plugin's storage for a month.", UiTextStyle.Caption, UiTone.Warning));
         }
 
-        if (state.Message is { } message)
+        if (view.ReadOnly)
         {
-            children.Add(Ui.Row(
-                Ui.Text(message.Text, UiTextStyle.Caption, message.IsError ? UiTone.Danger : UiTone.Success),
-                Ui.Button(CalendarIds.Dismiss, "Dismiss", UiButtonVariant.Subtle, UiIcon.Dismiss)));
+            children.Add(Ui.Text(CalendarController.ReadOnlyText, UiTextStyle.Caption, UiTone.Warning));
         }
 
         children.Add(Tiles(view));
         children.Add(CalendarCard(view, state));
-        children.Add(PlanCard(view, state));
-        return new UiPage("Calendar", "Plan focus sessions and tasks. Sessions start by themselves when their time comes.", children);
+        return new UiPage("Calendar", "Drag on the calendar to plan a focus session or a task. Sessions start by themselves when their time comes.", children);
     }
 
     private static UiNode Tiles(CalendarView view)
@@ -61,7 +59,7 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
         UiNode nextTile;
         if (next is null)
         {
-            nextTile = Ui.Stat("Next session", "None", "Plan one below", UiTone.Neutral, UiIcon.Clock);
+            nextTile = Ui.Stat("Next session", "None", "Drag on the calendar", UiTone.Neutral, UiIcon.Clock);
         }
         else if (next.InProgress)
         {
@@ -98,55 +96,99 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
     {
         CalendarMode mode = state.Mode;
         int anchor = state.Anchor ?? view.Today;
-        int selected = state.Selected ?? view.Today;
-        List<UiNode> body = [Toolbar(mode)];
-        string title;
-        string subtitle;
-        switch (mode)
+        bool sunday = view.Settings.WeekStartsOnSunday;
+        string title = mode switch
         {
-            case CalendarMode.Month:
-                title = CalTime.MonthTitle(anchor);
-                subtitle = "Pick a day to see its plan";
-                body.Add(MonthGrid(view, anchor, selected, CalendarIds.DayPrefix, compact: false, trim: false, title: null, previousId: null, nextId: null));
-                body.AddRange(DaySection(view, state, selected));
-                break;
-            case CalendarMode.Week:
-                int first = CalTime.WeekStart(anchor, view.Settings.WeekStartsOnSunday);
-                title = $"{CalTime.ShortDate(first)} - {CalTime.ShortDate(first + 6)}";
-                subtitle = "Seven days, grouped by day";
-                body.Add(WeekStrip(view, first, selected));
-                body.AddRange(WeekRows(view, state, first));
-                break;
-            default:
-                title = "Next 14 days";
-                subtitle = $"{CalTime.ShortDate(anchor)} - {CalTime.ShortDate(anchor + AgendaDays - 1)}";
-                body.AddRange(AgendaRows(view, state, anchor));
-                break;
+            CalendarMode.Day => CalTime.DayTitle(anchor),
+            CalendarMode.Week => CalTime.WeekTitle(CalTime.WeekStart(anchor, sunday)),
+            _ => CalTime.MonthTitle(anchor),
+        };
+        List<UiNode> body = [Header(mode, title)];
+        if (mode == CalendarMode.Month)
+        {
+            AddMessage(body, state);
+            body.Add(MonthGrid(view, anchor, state.Anchor ?? view.Today, CalendarIds.DayPrefix, compact: false, trim: false, title: null, previousId: null, nextId: null, chips: true));
+            return new UiCard(body);
         }
 
-        return new UiCard(body, title, subtitle);
+        int[] columns = CalendarGrid.Columns(mode, anchor, sunday);
+        List<UiTimeGridEvent> blocks = CalendarGrid.Blocks(view, columns, [.. state.Selection], view.ReadOnly);
+        PopoverPlan? popover = CalendarPopover.Plan(view, state, columns, blocks);
+        if (popover is not { ShowsMessage: true })
+        {
+            AddMessage(body, state);
+        }
+
+        body.Add(CalendarGrid.Build(view, state, columns, blocks, popover));
+        UiNode? untimed = Untimed(view, columns, mode);
+        if (untimed is not null)
+        {
+            body.Add(untimed);
+        }
+
+        if (popover is null && CalendarPopover.Inline(view, state) is { } panel)
+        {
+            body.Add(panel);
+        }
+
+        return new UiCard(body);
     }
 
-    // The view switch (the selected view is filled) and the navigation (bordered, compact) sit in one row but look different.
-    private static UiNode Toolbar(CalendarMode mode) => new UiStack(
+    private static void AddMessage(List<UiNode> body, CalendarUiState state)
+    {
+        if (state.Message is { } message)
+        {
+            body.Add(Ui.Text(message.Text, UiTextStyle.Caption, message.IsError ? UiTone.Danger : UiTone.Success));
+        }
+    }
+
+    // One compact row: Today and the arrows, the period, the view switch (the current view is the filled one).
+    private static UiNode Header(CalendarMode mode, string title) => new UiStack(
         [
             Ui.Row(
-                ModeButton(CalendarMode.Month, "Month", mode),
-                ModeButton(CalendarMode.Week, "Week", mode),
-                ModeButton(CalendarMode.Agenda, "Agenda", mode)),
-            Ui.Row(
-                Ui.Button(CalendarIds.Prev, "‹", UiButtonVariant.Secondary),
                 Ui.Button(CalendarIds.Today, "Today", UiButtonVariant.Secondary),
-                Ui.Button(CalendarIds.Next, "›", UiButtonVariant.Secondary)),
+                Ui.Button(CalendarIds.Prev, "‹", UiButtonVariant.Subtle),
+                Ui.Button(CalendarIds.Next, "›", UiButtonVariant.Subtle)),
+            Ui.Text(title, UiTextStyle.Subtitle),
+            Ui.Row(
+                ModeButton(CalendarMode.Day, "Day", mode),
+                ModeButton(CalendarMode.Week, "Week", mode),
+                ModeButton(CalendarMode.Month, "Month", mode)),
         ],
         UiOrientation.Horizontal,
         UiGap.Large);
 
     private static UiButton ModeButton(CalendarMode mode, string label, CalendarMode current) =>
-        Ui.Button(CalendarIds.ViewPrefix + label.ToLowerInvariant(), label, mode == current ? UiButtonVariant.Primary : UiButtonVariant.Subtle);
+        Ui.Button(CalendarIds.ViewPrefix + label.ToLowerInvariant(), label, mode == current ? UiButtonVariant.Secondary : UiButtonVariant.Subtle);
 
-    /// <summary>The month as a host-drawn grid: <paramref name="trim"/> drops trailing weeks that hold no day of the month (widgets).</summary>
-    public static UiMonthGrid MonthGrid(CalendarView view, int anchor, int selected, string idPrefix, bool compact, bool trim, string? title, string? previousId, string? nextId)
+    // Tasks without a time have no block on the grid; they are listed under it, only while there are any.
+    private static UiNode? Untimed(CalendarView view, int[] columns, CalendarMode mode)
+    {
+        Occurrence[] items = [.. view.Between(columns[0], columns[^1]).Where(o => !o.HasTime)];
+        if (items.Length == 0)
+        {
+            return null;
+        }
+
+        List<UiNode> rows = [Ui.Text("No time set", UiTextStyle.Caption)];
+        foreach (Occurrence occurrence in items.Take(MaxUntimedRows))
+        {
+            string label = mode == CalendarMode.Week ? $"{CalTime.ShortDate(occurrence.Day)}  {occurrence.Title}" : occurrence.Title;
+            rows.Add(Ui.Row(
+                Ui.Toggle(CalendarIds.Make(CalendarIds.DonePrefix, occurrence.Entry.Id, occurrence.OriginalDay), label, occurrence.Done),
+                Ui.Button(CalendarIds.Make(CalendarIds.OpenPrefix, occurrence.Entry.Id, occurrence.OriginalDay), "Open", UiButtonVariant.Subtle)));
+        }
+
+        if (items.Length > MaxUntimedRows)
+        {
+            rows.Add(Ui.Text($"+{items.Length - MaxUntimedRows} more", UiTextStyle.Caption));
+        }
+
+        return Ui.Column([.. rows]);
+    }
+
+    /// <summary>The month as a host-drawn grid: <paramref name="trim"/> drops trailing weeks that hold no day of the month (widgets); <paramref name="chips"/> adds the titles of the day's entries to each cell (full-size grids).</summary>
+    public static UiMonthGrid MonthGrid(CalendarView view, int anchor, int selected, string idPrefix, bool compact, bool trim, string? title, string? previousId, string? nextId, bool chips = false)
     {
         bool sunday = view.Settings.WeekStartsOnSunday;
         IReadOnlyList<int> days = CalTime.MonthGrid(anchor, sunday);
@@ -162,25 +204,17 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
             days = [.. days.Take(weeks * 7)];
         }
 
-        Dictionary<int, int> counts = view.Between(days[0], days[^1]).GroupBy(o => o.Day).ToDictionary(g => g.Key, g => g.Count());
-        UiMonthCell[] cells = [.. days.Select(day => DayCell(view, idPrefix, day, counts.GetValueOrDefault(day), day == selected, CalTime.SameMonth(day, monthStart)))];
+        ILookup<int, Occurrence> byDay = view.Between(days[0], days[^1]).ToLookup(o => o.Day);
+        UiMonthCell[] cells = [.. days.Select(day => DayCell(view, idPrefix, day, byDay[day].ToArray(), day == selected, CalTime.SameMonth(day, monthStart), chips))];
         return Ui.MonthGrid(WeekdayLabels(days[0], compact), cells, title, previousId, nextId, compact);
-    }
-
-    private static UiMonthGrid WeekStrip(CalendarView view, int first, int selected)
-    {
-        IReadOnlyList<int> days = [.. Enumerable.Range(first, 7)];
-        Dictionary<int, int> counts = view.Between(first, first + 6).GroupBy(o => o.Day).ToDictionary(g => g.Key, g => g.Count());
-        return Ui.MonthGrid(
-            WeekdayLabels(first, compact: false),
-            [.. days.Select(day => DayCell(view, CalendarIds.DayPrefix, day, counts.GetValueOrDefault(day), day == selected, inMonth: true))]);
     }
 
     private static string[] WeekdayLabels(int firstDay, bool compact) =>
         [.. Enumerable.Range(0, 7).Select(i => compact ? CalTime.DayName(firstDay + i)[..2] : CalTime.DayName(firstDay + i))];
 
-    private static UiMonthCell DayCell(CalendarView view, string idPrefix, int day, int count, bool isSelected, bool inMonth)
+    private static UiMonthCell DayCell(CalendarView view, string idPrefix, int day, Occurrence[] items, bool isSelected, bool inMonth, bool chips)
     {
+        int count = items.Length;
         string description = CalTime.LongDate(day) + (count == 0 ? string.Empty : count == 1 ? ", 1 entry" : string.Create(CultureInfo.InvariantCulture, $", {count} entries"));
         return new UiMonthCell(
             idPrefix + day.ToString(CultureInfo.InvariantCulture),
@@ -189,209 +223,8 @@ public sealed class CalendarPage(CalendarStore store, CalendarUiState state, Cal
             IsToday: day == view.Today,
             IsSelected: isSelected,
             IsOutside: !inMonth,
-            Description: description);
+            Tone: UiTone.Accent,
+            Description: description,
+            Chips: chips && count > 0 ? [.. items.Take(MaxChips).Select(o => o.Title)] : null);
     }
-
-    private static IEnumerable<UiNode> DaySection(CalendarView view, CalendarUiState state, int day)
-    {
-        Occurrence[] items = [.. view.Between(day, day)];
-        yield return Ui.Row(
-            Ui.Text(CalTime.LongDate(day) + (day == view.Today ? " (today)" : string.Empty), UiTextStyle.Subtitle),
-            Ui.Text(items.Length == 0 ? "Nothing planned" : items.Length == 1 ? "1 entry" : string.Create(CultureInfo.InvariantCulture, $"{items.Length} entries"), UiTextStyle.Caption));
-        if (items.Length == 0)
-        {
-            bool nothingAtAll = !view.Entries.Any();
-            yield return Ui.Text(
-                nothingAtAll
-                    ? "Your calendar is empty. Plan a focus session and it starts by itself when its time comes."
-                    : "A free day. Plan a focus session for it, or pick another day.",
-                UiTextStyle.Caption);
-            yield return Ui.Button(CalendarIds.EmptyPlan, "Plan a session", nothingAtAll ? UiButtonVariant.Primary : UiButtonVariant.Secondary, UiIcon.Clock);
-            yield break;
-        }
-
-        foreach (Occurrence occurrence in items)
-        {
-            yield return EntryRow(view, state, occurrence);
-        }
-    }
-
-    private static IEnumerable<UiNode> WeekRows(CalendarView view, CalendarUiState state, int first)
-    {
-        IReadOnlyList<Occurrence> all = view.Between(first, first + 6);
-        for (int day = first; day < first + 7; day++)
-        {
-            int current = day;
-            Occurrence[] items = [.. all.Where(o => o.Day == current)];
-            yield return DayHeader(view, day, items.Length);
-            if (items.Length == 0)
-            {
-                yield return Ui.Text("Free", UiTextStyle.Caption);
-            }
-
-            foreach (UiNode row in items.Select(o => EntryRow(view, state, o)))
-            {
-                yield return row;
-            }
-        }
-    }
-
-    private static UiNode DayHeader(CalendarView view, int day, int count)
-    {
-        bool today = day == view.Today;
-        UiText title = Ui.Text(CalTime.LongDate(day), UiTextStyle.Subtitle, today ? UiTone.Accent : UiTone.Neutral);
-        string note = today ? (count == 0 ? "Today" : "Today, " + EntriesText(count)) : count == 0 ? string.Empty : EntriesText(count);
-        return note.Length == 0 ? title : Ui.Row(title, Ui.Text(note, UiTextStyle.Caption));
-    }
-
-    private static string EntriesText(int count) => count == 1 ? "1 entry" : string.Create(CultureInfo.InvariantCulture, $"{count} entries");
-
-    private static IEnumerable<UiNode> AgendaRows(CalendarView view, CalendarUiState state, int from)
-    {
-        Occurrence[] all = [.. view.Between(from, from + AgendaDays - 1)];
-        if (all.Length == 0)
-        {
-            yield return Ui.Text("Nothing planned in these days. Plan a focus session and it shows up here.", UiTextStyle.Caption);
-            yield return Ui.Button(CalendarIds.EmptyPlan, "Plan a session", view.Entries.Any() ? UiButtonVariant.Secondary : UiButtonVariant.Primary, UiIcon.Clock);
-            yield break;
-        }
-
-        int shown = 0;
-        int lastDay = -1;
-        foreach (Occurrence occurrence in all.Take(MaxAgendaRows))
-        {
-            if (occurrence.Day != lastDay)
-            {
-                lastDay = occurrence.Day;
-                int count = all.Count(o => o.Day == occurrence.Day);
-                yield return DayHeader(view, occurrence.Day, count);
-            }
-
-            yield return EntryRow(view, state, occurrence);
-            shown++;
-        }
-
-        if (all.Length > shown)
-        {
-            yield return Ui.Text($"+{all.Length - shown} more", UiTextStyle.Caption);
-        }
-    }
-
-    private static UiNode EntryRow(CalendarView view, CalendarUiState state, Occurrence occurrence)
-    {
-        CalendarEntry entry = occurrence.Entry;
-        string line = view.Line(occurrence);
-        string detail = view.Detail(occurrence);
-        if (entry.Color != 0)
-        {
-            detail = (detail.Length == 0 ? string.Empty : detail + " - ") + CalendarView.ColorName(entry.Color);
-        }
-
-        UiNode main = entry.Kind == EntryKind.Task
-            ? Ui.Toggle(CalendarIds.Make(CalendarIds.DonePrefix, entry.Id, occurrence.OriginalDay), line, occurrence.Done, detail.Length == 0 ? null : detail)
-            : Ui.Column(Ui.Text(line), Ui.Text(detail, UiTextStyle.Caption, ToneOfOutcome(view.OutcomeOf(occurrence))));
-        List<UiNode> row = [main, Ui.Button(CalendarIds.Make(CalendarIds.EditPrefix, entry.Id, occurrence.OriginalDay, occurrence.Day), "Edit", UiButtonVariant.Subtle)];
-        if (entry.Repeat != RepeatKind.Once)
-        {
-            string skipId = CalendarIds.Make(CalendarIds.SkipPrefix, entry.Id, occurrence.OriginalDay);
-            row.Add(Armed(state, skipId, "Skip", "Click again to skip"));
-        }
-
-        string deleteId = CalendarIds.Make(CalendarIds.DeletePrefix, entry.Id, occurrence.Day);
-        row.Add(Armed(state, deleteId, entry.Repeat == RepeatKind.Once ? "Delete" : "Delete all", entry.Repeat == RepeatKind.Once ? "Click again to delete" : "Click again to delete all"));
-        return Ui.Row([.. row]);
-    }
-
-    private static UiButton Armed(CalendarUiState state, string id, string label, string armedLabel) =>
-        state.IsArmed(id)
-            ? Ui.Button(id, armedLabel, UiButtonVariant.Warning, UiIcon.Warning)
-            : Ui.Button(id, label, UiButtonVariant.Subtle);
-
-    private static UiTone ToneOfOutcome(SessionOutcome? outcome) => outcome switch
-    {
-        SessionOutcome.Started => UiTone.Success,
-        SessionOutcome.Missed => UiTone.Warning,
-        SessionOutcome.Failed => UiTone.Danger,
-        _ => UiTone.Neutral,
-    };
-
-    // Closed: two buttons that open the form. Open: kind and repeat chips (they change what the form asks for), the form with one Save button, Cancel.
-    private static UiCard PlanCard(CalendarView view, CalendarUiState state)
-    {
-        string autoStart = view.Settings.AutoStart
-            ? "A session uses your current allowlist and starts by itself when its time comes, unless another session is running. Once started it cannot be shortened."
-            : "Auto-start is off in the settings, so planned sessions will not start by themselves.";
-        if (state.Draft is not { } draft)
-        {
-            return new UiCard(
-                [
-                    Ui.Text(autoStart, UiTextStyle.Caption),
-                    Ui.Row(
-                        Ui.Button(CalendarIds.PlanSession, "Plan a session", UiButtonVariant.Primary, UiIcon.Clock),
-                        Ui.Button(CalendarIds.PlanTask, "Add a task", UiButtonVariant.Secondary, UiIcon.Checkmark)),
-                ],
-                "Plan",
-                "A focus session or a task");
-        }
-
-        bool editing = draft.EditId > 0;
-        bool session = draft.Kind == EntryKind.Session;
-        List<UiNode> body = [];
-        if (session)
-        {
-            body.Add(Ui.Text(autoStart, UiTextStyle.Caption));
-        }
-
-        if (!editing)
-        {
-            body.Add(Ui.Row(
-                Ui.Button(CalendarIds.PlanSession, "Focus session", session ? UiButtonVariant.Secondary : UiButtonVariant.Subtle, UiIcon.Clock),
-                Ui.Button(CalendarIds.PlanTask, "Task", session ? UiButtonVariant.Subtle : UiButtonVariant.Secondary, UiIcon.Checkmark)));
-        }
-
-        body.Add(Ui.Row(
-            Ui.Text("Repeat", UiTextStyle.Caption),
-            RepeatChip("once", "Once", draft.Repeat == RepeatKind.Once),
-            RepeatChip("daily", "Daily", draft.Repeat == RepeatKind.Daily),
-            RepeatChip("weekly", "Weekly", draft.Repeat == RepeatKind.Weekly)));
-
-        List<UiFormField> fields =
-        [
-            new UiTextField(CalendarForm.TitleId, "Title", draft.Title, session ? "Focus session" : "What is it?", CalendarLimits.MaxTitleLength),
-            new UiTextField(CalendarForm.DateId, "Date (yyyy-mm-dd)", CalTime.IsoDate(draft.Day), "2026-03-09", 10),
-            new UiTextField(CalendarForm.TimeId, session ? "Start time (hh:mm)" : "Time (hh:mm, optional)", draft.Time, "09:00", 8),
-            session
-                ? new UiNumberField(CalendarForm.LengthId, "Length (minutes)", Math.Clamp(draft.Length, CalendarLimits.MinSessionMinutes, CalendarLimits.MaxSessionMinutes), CalendarLimits.MinSessionMinutes, CalendarLimits.MaxSessionMinutes, 5)
-                : new UiNumberField(CalendarForm.LengthId, "Duration (minutes, optional)", Math.Clamp(draft.Length, 0, CalendarLimits.MaxTaskMinutes), 0, CalendarLimits.MaxTaskMinutes, 5),
-        ];
-        if (draft.Repeat != RepeatKind.Once)
-        {
-            fields.Add(new UiNumberField(CalendarForm.EveryId, draft.Repeat == RepeatKind.Daily ? "Every N days" : "Every N weeks", draft.Every, 1, CalendarLimits.MaxInterval));
-            if (draft.Repeat == RepeatKind.Weekly)
-            {
-                int mask = draft.Mask != 0 ? draft.Mask : 1 << CalTime.Weekday(draft.Day);
-                for (int i = 0; i < 7; i++)
-                {
-                    fields.Add(new UiCheckboxField(CalendarForm.WeekdayPrefix + i.ToString(CultureInfo.InvariantCulture), CalTime.DayNameByIndex(i), (mask & (1 << i)) != 0));
-                }
-            }
-
-            fields.Add(new UiSelectField(CalendarForm.EndId, "Ends", [new("never", "Never"), new("date", "On the end date"), new("count", "After a number of times")], draft.End switch { EndKind.OnDate => "date", EndKind.AfterCount => "count", _ => "never" }));
-            fields.Add(new UiTextField(CalendarForm.UntilId, "End date (yyyy-mm-dd)", draft.Until, "2026-06-30", 10));
-            fields.Add(new UiNumberField(CalendarForm.CountId, "Number of times", Math.Clamp(draft.Count, 1, CalendarLimits.MaxCount), 1, CalendarLimits.MaxCount));
-        }
-
-        fields.Add(new UiSelectField(CalendarForm.ColorId, "Colour tag", [.. Enumerable.Range(0, CalendarLimits.ColorCount).Select(i => new UiOption(i.ToString(CultureInfo.InvariantCulture), CalendarView.ColorName(i)))], draft.Color.ToString(CultureInfo.InvariantCulture)));
-        if (editing && draft.Repeat != RepeatKind.Once)
-        {
-            fields.Add(new UiSelectField(CalendarForm.ScopeId, "Apply to", [new("occurrence", "This occurrence only"), new("series", "All occurrences")], draft.EditOccurrenceOnly ? "occurrence" : "series"));
-        }
-
-        body.Add(Ui.Form(CalendarForm.FormId, "Save", [.. fields]));
-        body.Add(Ui.Button(CalendarIds.CancelEdit, "Cancel", UiButtonVariant.Secondary, UiIcon.Dismiss));
-        return new UiCard(body, editing ? "Edit entry" : session ? "New session" : "New task", editing ? CalTime.ShortDate(draft.EditShownDay) : CalTime.ShortDate(draft.Day));
-    }
-
-    private static UiButton RepeatChip(string key, string label, bool selected) =>
-        Ui.Button(CalendarIds.RepeatPrefix + key, label, selected ? UiButtonVariant.Secondary : UiButtonVariant.Subtle);
 }
