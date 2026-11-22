@@ -32,6 +32,7 @@ internal sealed class TimeGridSurface : Panel
     private readonly NowLineVisual _nowLine = new();
     private readonly int _todayColumn;
     private readonly TimeSlot? _pendingSlot;
+    private bool _focusingFromPointer;
 
     private TimeGridGeometry _geometry;
     private TimeGridGesture? _gesture;
@@ -61,6 +62,7 @@ internal sealed class TimeGridSurface : Panel
 
         Focusable = true;
         FocusVisualStyle = null;
+        RequestBringIntoView += OnRequestBringIntoView;
         AutomationProperties.SetName(this, "Schedule");
 
         for (int i = 0; i < _blocks.Length; i++)
@@ -227,11 +229,30 @@ internal sealed class TimeGridSurface : Panel
         base.OnDpiChanged(oldDpi, newDpi);
     }
 
+    // Focus raises RequestBringIntoView for the whole surface, which scrolls the page to the surface's top edge and moves the grid under the
+    // pointer mid-gesture. A pointer already points at something visible, so only keyboard focus may scroll.
+    private void OnRequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
+    {
+        if (_focusingFromPointer && ReferenceEquals(e.TargetObject, this))
+        {
+            e.Handled = true;
+        }
+    }
+
     /// <inheritdoc />
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
-        Focus();
+        _focusingFromPointer = true;
+        try
+        {
+            Focus();
+        }
+        finally
+        {
+            _focusingFromPointer = false;
+        }
+
         if (_grid is { Popover: not null, DismissId: { } dismissId })
         {
             _raise(UiAction.Click(dismissId));
