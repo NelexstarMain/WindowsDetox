@@ -1,7 +1,7 @@
 {
   "id": "com.windowsdetox.goals",
   "name": "Goals & Tasks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "WindowsDetox",
   "description": "Plan a few focus tasks for today, set a daily goal and tick them off. Everything stays on this device.",
   "sdkVersion": "1.0",

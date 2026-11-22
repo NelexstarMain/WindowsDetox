@@ -5,6 +5,7 @@
 // at most 90 small records and never touches storage. Storage writes are throttled for the (potentially frequent)
 // blocked-process events and immediate for session events.
 
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -115,9 +116,12 @@ public sealed class PendingSession
 /// <summary>The persisted document.</summary>
 public sealed class InsightsData
 {
+    /// <summary>The schema version this build reads and writes. Newer documents are shown but never overwritten.</summary>
+    public const int CurrentVersion = 1;
+
     /// <summary>Schema version.</summary>
     [JsonPropertyName("v")]
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Recent sessions, oldest first.</summary>
     [JsonPropertyName("s")]
@@ -167,6 +171,12 @@ public sealed class InsightsStore
     /// <summary>Storage key of the privacy setting.</summary>
     public const string RecordNamesKey = "record-names";
 
+    /// <summary>Storage key of the raw text of a document that could not be parsed, kept for manual recovery.</summary>
+    public const string UnreadableKey = "data-unreadable";
+
+    /// <summary>Longest unreadable text that is kept; it bounds how much quota the copy can use.</summary>
+    public const int MaxUnreadableChars = 64 * 1024;
+
     /// <summary>Minimum time between storage writes triggered by blocked attempts.</summary>
     public static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(10);
 
@@ -181,6 +191,8 @@ public sealed class InsightsStore
     private InsightsData _data = new();
     private bool _recordNames = true;
     private bool _dirty;
+    private bool _readOnly;
+    private ITimer? _flushTimer;
     private bool _flushedOnce;
     private long _lastFlush;
     private long _version;
@@ -218,26 +230,37 @@ public sealed class InsightsStore
         }
     }
 
-    /// <summary>Loads persisted data. Missing or corrupt data starts empty.</summary>
+    /// <summary>
+    /// Loads persisted data. Corrupt data starts empty after a copy was kept under <see cref="UnreadableKey"/>; data written
+    /// by a newer format version is shown but the store never writes again (read-only), so a downgrade cannot destroy it.
+    /// </summary>
     public async ValueTask LoadAsync(CancellationToken cancellationToken)
     {
         InsightsData? loaded = null;
+        bool readOnly = false;
         string? json = await _storage.ReadAsync(DataKey, cancellationToken);
         if (json is not null)
         {
             try
             {
                 loaded = JsonSerializer.Deserialize<InsightsData>(json, JsonOptions);
+                if (loaded is { Version: > InsightsData.CurrentVersion })
+                {
+                    readOnly = true;
+                    _logger.Warn($"Recorded data uses format version {loaded.Version}, newer than {InsightsData.CurrentVersion}; it is shown read-only and changes are not saved.");
+                }
             }
             catch (JsonException ex)
             {
                 _logger.Warn($"Recorded data is unreadable and was ignored: {ex.Message}");
+                await KeepUnreadableCopyAsync(json, cancellationToken);
             }
         }
 
         string? names = await _storage.ReadAsync(RecordNamesKey, cancellationToken);
         lock (_gate)
         {
+            _readOnly = readOnly;
             _data = Sanitize(loaded, CurrentDay);
             if (bool.TryParse(names, out bool enabled))
             {
@@ -269,6 +292,7 @@ public sealed class InsightsStore
         bool recorded;
         lock (_gate)
         {
+            int newestBefore = NewestDay();
             PendingSession? pending = _data.Pending;
             recorded = pending is not null && pending.Id == ended.SessionId.ToString("N");
             if (pending is not null && recorded)
@@ -292,7 +316,7 @@ public sealed class InsightsStore
                 }
 
                 _data.Pending = null;
-                Prune();
+                Prune(newestBefore);
             }
         }
 
@@ -309,6 +333,7 @@ public sealed class InsightsStore
         string? name = CleanName(blocked.Process.ImageName);
         lock (_gate)
         {
+            int newestBefore = NewestDay();
             TimeZoneInfo zone = Time.LocalTimeZone;
             DateTimeOffset local = TimeZoneInfo.ConvertTime(blocked.OccurredAt, zone);
             DayRecord day = GetDay(DateOnly.FromDateTime(local.DateTime).DayNumber);
@@ -324,8 +349,8 @@ public sealed class InsightsStore
                 }
             }
 
-            _dirty = true;
-            Prune();
+            MarkDirty();
+            Prune(newestBefore);
         }
 
         await FlushIfDueAsync(cancellationToken);
@@ -337,8 +362,9 @@ public sealed class InsightsStore
     {
         lock (_gate)
         {
+            int newestBefore = NewestDay();
             GetDay(DayOf(pass.OccurredAt)).Passes++;
-            Prune();
+            Prune(newestBefore);
         }
 
         await PersistAsync(cancellationToken);
@@ -353,7 +379,25 @@ public sealed class InsightsStore
             _recordNames = value;
         }
 
-        await _storage.WriteAsync(RecordNamesKey, value ? "true" : "false", cancellationToken);
+        await _writeGate.WaitAsync(cancellationToken);
+        try
+        {
+            // Read the latest value inside the gate so overlapping changes can never leave an older value on disk.
+            bool latest = RecordNames;
+            if (!_readOnly)
+            {
+                await _storage.WriteAsync(RecordNamesKey, latest ? "true" : "false", cancellationToken);
+            }
+        }
+        catch (IOException ex)
+        {
+            _logger.Warn($"The privacy setting could not be saved: {ex.Message}");
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+
         Changed?.Invoke();
     }
 
@@ -365,14 +409,18 @@ public sealed class InsightsStore
         {
             _data = new InsightsData();
             _dirty = false;
+            DisposeFlushTimer();
             version = ++_version;
         }
 
         await _writeGate.WaitAsync(cancellationToken);
         try
         {
-            await _storage.DeleteAsync(DataKey, cancellationToken);
-            _written = version;
+            if (!_readOnly)
+            {
+                await _storage.DeleteAsync(DataKey, cancellationToken);
+                _written = version;
+            }
         }
         finally
         {
@@ -458,10 +506,33 @@ public sealed class InsightsStore
         return created;
     }
 
-    // Callers hold _gate. Retention: 90 days, 30 recent sessions, 120 day records.
-    private void Prune()
+    // A clock that jumps far ahead (dead CMOS battery, bad sync) must not age out the whole history. When today is more than a
+    // full window past the newest day stored before this change, keep the window that ends at that newest day instead; once a
+    // record exists for the new day the gap is gone and normal pruning resumes.
+    private static int OldestKeptDay(int newestStoredDay, int today) =>
+        (today - newestStoredDay > InsightsLimits.RetentionDays ? newestStoredDay : today) - InsightsLimits.RetentionDays + 1;
+
+    // Callers hold _gate. The newest stored day, read before a change adds a record for the (possibly wrong) current day.
+    private int NewestDay() => _data.Days.Count == 0 ? CurrentDay : _data.Days[^1].Day;
+
+    // Callers hold _gate. Every change after a snapshot makes the version differ, so that snapshot cannot clear the flag.
+    private void MarkDirty()
     {
-        int oldest = CurrentDay - InsightsLimits.RetentionDays + 1;
+        _dirty = true;
+        _version++;
+    }
+
+    // Callers hold _gate.
+    private void DisposeFlushTimer()
+    {
+        _flushTimer?.Dispose();
+        _flushTimer = null;
+    }
+
+    // Callers hold _gate. Retention: 90 days, 30 recent sessions, 120 day records.
+    private void Prune(int newestStoredDay)
+    {
+        int oldest = OldestKeptDay(newestStoredDay, CurrentDay);
         _data.Days.RemoveAll(d => d.Day < oldest);
         if (_data.Days.Count > InsightsLimits.MaxDayRecords)
         {
@@ -481,6 +552,11 @@ public sealed class InsightsStore
         lock (_gate)
         {
             due = _dirty && (!_flushedOnce || Time.GetElapsedTime(_lastFlush) >= FlushInterval);
+            if (_dirty && !due && !_readOnly && _flushTimer is null)
+            {
+                // Throttled: make sure the attempt still reaches storage when the interval ends, even if no event follows.
+                _flushTimer = Time.CreateTimer(OnFlushTimer, null, FlushInterval - Time.GetElapsedTime(_lastFlush), Timeout.InfiniteTimeSpan);
+            }
         }
 
         if (due)
@@ -489,15 +565,29 @@ public sealed class InsightsStore
         }
     }
 
+    private void OnFlushTimer(object? state)
+    {
+        lock (_gate)
+        {
+            DisposeFlushTimer();
+        }
+
+        _ = FlushAsync(CancellationToken.None).AsTask();
+    }
+
     private async ValueTask PersistAsync(CancellationToken cancellationToken)
     {
         string json;
         long version;
         lock (_gate)
         {
+            if (_readOnly)
+            {
+                return;
+            }
+
             json = JsonSerializer.Serialize(_data, JsonOptions);
             version = ++_version;
-            _dirty = false;
             _flushedOnce = true;
             _lastFlush = Time.GetTimestamp();
         }
@@ -509,9 +599,17 @@ public sealed class InsightsStore
             {
                 await _storage.WriteAsync(DataKey, json, cancellationToken);
                 _written = version;
+                lock (_gate)
+                {
+                    if (version == _version)
+                    {
+                        _dirty = false;
+                        DisposeFlushTimer();
+                    }
+                }
             }
         }
-        catch (PluginStorageException ex)
+        catch (IOException ex)
         {
             _logger.Warn($"Recorded data could not be saved: {ex.Message}");
             lock (_gate)
@@ -525,6 +623,22 @@ public sealed class InsightsStore
         }
     }
 
+    // Keeps the first unreadable document only: later corruption must not eat the quota again or replace the original evidence.
+    private async ValueTask KeepUnreadableCopyAsync(string raw, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (await _storage.ReadAsync(UnreadableKey, cancellationToken) is null)
+            {
+                await _storage.WriteAsync(UnreadableKey, raw.Length > MaxUnreadableChars ? raw[..MaxUnreadableChars] : raw, cancellationToken);
+            }
+        }
+        catch (IOException ex)
+        {
+            _logger.Warn($"A copy of the unreadable recorded data could not be kept: {ex.Message}");
+        }
+    }
+
     // Loaded data is untrusted: drop or repair anything that violates the invariants the rest of the code relies on.
     private static InsightsData Sanitize(InsightsData? loaded, int today)
     {
@@ -533,7 +647,9 @@ public sealed class InsightsStore
             return new InsightsData();
         }
 
-        int oldest = today - InsightsLimits.RetentionDays + 1;
+        int oldest = OldestKeptDay(
+            (loaded.Days ?? []).Where(d => d is not null && d.Day <= DateOnly.MaxValue.DayNumber).Select(d => d.Day).DefaultIfEmpty(today).Max(),
+            today);
         List<DayRecord> days = [];
         foreach (DayRecord day in (loaded.Days ?? []).Where(d => d is not null && d.Day >= oldest && d.Day <= DateOnly.MaxValue.DayNumber).OrderBy(d => d.Day))
         {

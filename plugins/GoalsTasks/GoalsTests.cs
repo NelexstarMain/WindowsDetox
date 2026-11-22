@@ -1,13 +1,34 @@
 // Tests run by Blocker before the plugin is installed. Only [Fact] and [Theory]+[InlineData]; the clock is FakeTime.
 // FakePluginContext starts at 2026-01-01T09:00:00Z (a Thursday) with UTC as the local time zone.
 
+using System.IO;
 using System.Text.Json;
 using Blocker.Plugin.Testing;
 using Blocker.Sdk;
+using Blocker.Sdk.Diagnostics;
+using Blocker.Sdk.Storage;
 using Blocker.UI.Sdk;
 using Xunit;
 
 namespace GoalsTasks.Tests;
+
+/// <summary>Storage whose writes can be made to fail with a plain <see cref="IOException"/>, like a flaky disk.</summary>
+internal sealed class FlakyStorage(InMemoryPluginStorage inner) : IPluginStorage
+{
+    public bool FailWrites { get; set; }
+
+    public long QuotaBytes => inner.QuotaBytes;
+
+    public ValueTask<string?> ReadAsync(string key, CancellationToken cancellationToken = default) => inner.ReadAsync(key, cancellationToken);
+
+    public ValueTask WriteAsync(string key, string value, CancellationToken cancellationToken = default) =>
+        FailWrites ? throw new IOException("Disk is unavailable.") : inner.WriteAsync(key, value, cancellationToken);
+
+    public ValueTask<bool> DeleteAsync(string key, CancellationToken cancellationToken = default) => inner.DeleteAsync(key, cancellationToken);
+
+    public ValueTask<IReadOnlyList<string>> ListKeysAsync(string? prefix = null, CancellationToken cancellationToken = default) =>
+        inner.ListKeysAsync(prefix, cancellationToken);
+}
 
 /// <summary>Behaviour tests of the Goals &amp; Tasks plugin.</summary>
 public sealed class GoalsTests
@@ -939,6 +960,180 @@ public sealed class GoalsTests
 
         Assert.Null(await ctx.Storage.ReadAsync("default-goal", CancellationToken.None));
         Assert.Null(await ctx.Storage.ReadAsync("data", CancellationToken.None));
+    }
+
+    // ---- store: newer format, quarantine, clock jumps, failed writes, atomic goals ---------------------------------
+
+    [Fact]
+    public async Task Data_of_a_newer_version_is_shown_but_never_overwritten()
+    {
+        string newer = $$"""{"v":2,"n":5,"d":[{"d":{{Jan1}},"t":[{"i":1,"x":"from the future"}],"z":"unknown"}],"extra":true}""";
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", newer, CancellationToken.None);
+        GoalsStore store = await NewStoreAsync(ctx);
+
+        Assert.Equal(["from the future"], store.GetView().Tasks.Select(t => t.Text));
+        Assert.True(await store.AddTaskAsync("edit in memory", CancellationToken.None));
+        await store.SetDefaultGoalAsync(9, CancellationToken.None);
+        await store.FlushAsync(CancellationToken.None);
+
+        Assert.Equal(newer, await ctx.Storage.ReadAsync("data", CancellationToken.None));
+        Assert.Null(await ctx.Storage.ReadAsync("default-goal", CancellationToken.None));
+        Assert.Single(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Unreadable_data_is_copied_to_a_recovery_key_before_starting_empty()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{ not json", CancellationToken.None);
+
+        GoalsStore store = await NewStoreAsync(ctx);
+        await AddAsync(store, "fresh");
+
+        Assert.Equal("{ not json", await ctx.Storage.ReadAsync(GoalsStore.UnreadableKey, CancellationToken.None));
+        Assert.Contains("fresh", Assert.IsType<string>(await ctx.Storage.ReadAsync("data", CancellationToken.None)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_first_unreadable_copy_is_kept_and_a_later_corruption_does_not_replace_it()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{ first", CancellationToken.None);
+        await NewStoreAsync(ctx);
+
+        await ctx.Storage.WriteAsync("data", "{ second", CancellationToken.None);
+        await NewStoreAsync(ctx);
+
+        Assert.Equal("{ first", await ctx.Storage.ReadAsync(GoalsStore.UnreadableKey, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task The_unreadable_copy_is_capped()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", "{" + new string('x', 200_000), CancellationToken.None);
+
+        await NewStoreAsync(ctx);
+
+        string? kept = await ctx.Storage.ReadAsync(GoalsStore.UnreadableKey, CancellationToken.None);
+        Assert.Equal(GoalsStore.MaxUnreadableChars, kept?.Length);
+    }
+
+    [Fact]
+    public async Task A_clock_that_jumps_far_ahead_does_not_delete_the_history_when_loading()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await AddAsync(await NewStoreAsync(ctx), "old task");
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        GoalsStore restarted = await NewStoreAsync(ctx);
+        await AddAsync(restarted, "new task");
+
+        using JsonDocument doc = await StoredAsync(ctx);
+        Assert.Equal(2, doc.RootElement.GetProperty("d").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task A_clock_that_jumps_far_ahead_does_not_delete_the_history_on_the_next_change()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        GoalsStore store = await NewStoreAsync(ctx);
+        await AddAsync(store, "old task");
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        await AddAsync(store, "new task");
+
+        using JsonDocument doc = await StoredAsync(ctx);
+        Assert.Equal(2, doc.RootElement.GetProperty("d").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task History_older_than_the_window_is_pruned_once_the_clock_is_back_to_normal()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        GoalsStore store = await NewStoreAsync(ctx);
+        await AddAsync(store, "old task");
+        ctx.FakeTime.Advance(TimeSpan.FromDays(400));
+        await AddAsync(store, "jumped");
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(1));
+        await AddAsync(store, "next day");
+
+        using JsonDocument doc = await StoredAsync(ctx);
+        Assert.Equal(2, doc.RootElement.GetProperty("d").GetArrayLength());
+        Assert.DoesNotContain("old task", doc.RootElement.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_failed_write_does_not_throw_and_is_retried_by_the_next_flush()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        var storage = new FlakyStorage(ctx.FakeStorage) { FailWrites = true };
+        var store = new GoalsStore(storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+
+        Assert.True(await store.AddTaskAsync("keep me", CancellationToken.None));
+        await store.FlushAsync(CancellationToken.None);   // still failing: must stay dirty and not throw
+        Assert.Null(await ctx.Storage.ReadAsync("data", CancellationToken.None));
+
+        storage.FailWrites = false;
+        await store.FlushAsync(CancellationToken.None);
+
+        Assert.Contains("keep me", Assert.IsType<string>(await ctx.Storage.ReadAsync("data", CancellationToken.None)), StringComparison.Ordinal);
+        Assert.Contains(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task A_failed_default_goal_write_is_logged_instead_of_thrown()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        var storage = new FlakyStorage(ctx.FakeStorage) { FailWrites = true };
+        var store = new GoalsStore(storage, ctx.Time, ctx.Logger);
+        await store.LoadAsync(CancellationToken.None);
+
+        await store.SetDefaultGoalAsync(6, CancellationToken.None);
+
+        Assert.Equal(6, store.DefaultGoal);
+        Assert.Contains(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Overlapping_goal_adjustments_all_count()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        GoalsStore store = await NewStoreAsync(ctx);
+
+        await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => store.AdjustTodayGoalAsync(1, CancellationToken.None).AsTask()));
+        await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => store.AdjustDefaultGoalAsync(1, CancellationToken.None).AsTask()));
+
+        Assert.Equal(GoalsLimits.InitialGoal + 5, store.GetView().Goal);
+        Assert.Equal(GoalsLimits.InitialGoal + 2, store.DefaultGoal);
+        Assert.Equal((GoalsLimits.InitialGoal + 2).ToString(System.Globalization.CultureInfo.InvariantCulture), await ctx.Storage.ReadAsync("default-goal", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Goal_adjustments_stop_at_the_limits()
+    {
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        GoalsStore store = await NewStoreAsync(ctx);
+
+        Assert.True(await store.AdjustTodayGoalAsync(100, CancellationToken.None));
+        Assert.False(await store.AdjustTodayGoalAsync(1, CancellationToken.None));
+        Assert.Equal(GoalsLimits.MaxGoal, store.GetView().Goal);
+    }
+
+    [Fact]
+    public async Task An_exhausted_id_counter_restarts_above_the_highest_id_in_use()
+    {
+        string json = $$"""{"v":1,"n":2147483647,"d":[{"d":{{Jan1}},"t":[{"i":7,"x":"a"},{"i":3,"x":"b"}]}]}""";
+        var ctx = new FakePluginContext(PluginId, AllCapabilities);
+        await ctx.Storage.WriteAsync("data", json, CancellationToken.None);
+        GoalsStore store = await NewStoreAsync(ctx);
+
+        await AddAsync(store, "c", "d");
+
+        Assert.Equal([7, 3, 8, 9], store.GetView().Tasks.Select(t => t.Id));
     }
 
     // ---- formatting -----------------------------------------------------------------------------------------------
