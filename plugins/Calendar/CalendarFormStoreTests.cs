@@ -606,7 +606,7 @@ public class CalendarStoreTests
         var ctx = new FakePluginContext("com.windowsdetox.calendar");
         var store = new CalendarStore(ctx.Storage, ctx.Time, ctx.Logger);
         await store.LoadAsync(Ct);
-        await ctx.Storage.WriteAsync("filler", new string('x', (int)(ctx.Storage.QuotaBytes / 2) - 100), Ct);
+        await ctx.Storage.WriteAsync("filler", new string('x', (int)ctx.Storage.QuotaBytes - 200), Ct);
 
         _ = await store.AddAsync(Kit.Task("a", Kit.D(2026, 1, 5)), Ct);
 

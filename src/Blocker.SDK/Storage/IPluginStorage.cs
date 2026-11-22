@@ -17,6 +17,8 @@ public interface IPluginStorage
     /// <param name="key">Key; see <see cref="PluginStorageKey.IsValid"/>.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The value, or <see langword="null"/> when the key does not exist.</returns>
+    /// <exception cref="ArgumentException">The key is invalid.</exception>
+    /// <exception cref="PluginStorageException">The storage could not be read.</exception>
     ValueTask<string?> ReadAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>Creates or replaces a value.</summary>
@@ -24,19 +26,23 @@ public interface IPluginStorage
     /// <param name="value">Value to store.</param>
     /// <param name="cancellationToken">Cancels the write.</param>
     /// <returns>A task that completes when the value is durable.</returns>
-    /// <exception cref="PluginStorageException">The quota would be exceeded.</exception>
+    /// <exception cref="ArgumentException">The key is invalid, or the value contains an unpaired UTF-16 surrogate.</exception>
+    /// <exception cref="PluginStorageException">The quota would be exceeded or the storage could not be written.</exception>
     ValueTask WriteAsync(string key, string value, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes a value.</summary>
     /// <param name="key">Key to delete.</param>
     /// <param name="cancellationToken">Cancels the delete.</param>
     /// <returns><see langword="true"/> when the key existed.</returns>
+    /// <exception cref="ArgumentException">The key is invalid.</exception>
+    /// <exception cref="PluginStorageException">The storage could not be read or written.</exception>
     ValueTask<bool> DeleteAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>Lists keys, optionally filtered by an ordinal prefix, in ordinal order.</summary>
     /// <param name="prefix">Prefix filter, or <see langword="null"/> for all keys.</param>
     /// <param name="cancellationToken">Cancels the listing.</param>
     /// <returns>Matching keys.</returns>
+    /// <exception cref="PluginStorageException">The storage could not be read.</exception>
     ValueTask<IReadOnlyList<string>> ListKeysAsync(string? prefix = null, CancellationToken cancellationToken = default);
 }
 
@@ -66,17 +72,25 @@ public static partial class PluginStorageKey
         }
     }
 
-    [GeneratedRegex("^[a-z0-9_-][a-z0-9._-]*$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[a-z0-9_-][a-z0-9._-]*\\z", RegexOptions.CultureInvariant)]
     private static partial Regex KeyPattern();
 }
 
-/// <summary>Thrown when a storage operation fails, for example because the quota is exhausted.</summary>
+/// <summary>Thrown when a storage operation fails, for example because the quota is exhausted or the file is unreadable.</summary>
 public sealed class PluginStorageException : IOException
 {
     /// <summary>Creates the exception.</summary>
     /// <param name="message">Error description.</param>
     public PluginStorageException(string message)
         : base(message)
+    {
+    }
+
+    /// <summary>Creates the exception with the failure that caused it.</summary>
+    /// <param name="message">Error description; must not contain host paths.</param>
+    /// <param name="innerException">The underlying failure.</param>
+    public PluginStorageException(string message, Exception innerException)
+        : base(message, innerException)
     {
     }
 }

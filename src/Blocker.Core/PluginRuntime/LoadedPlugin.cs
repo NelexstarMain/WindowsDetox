@@ -113,7 +113,6 @@ internal sealed class LoadedPlugin
         }
 
         await Task.WhenAll(loops).ConfigureAwait(false);
-        Storage.Dispose();
     }
 
     private void OnExtensionAdded(ExtensionEntry entry)

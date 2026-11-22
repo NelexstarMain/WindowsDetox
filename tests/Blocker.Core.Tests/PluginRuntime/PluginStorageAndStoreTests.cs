@@ -4,6 +4,7 @@ using Blocker.Core.Tests.Security;
 using Blocker.Sdk;
 using Blocker.Sdk.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Blocker.Core.Tests.PluginRuntime;
 
@@ -15,8 +16,11 @@ public sealed class PluginStorageAndStoreTests
 
     private readonly MockFileSystem _mock = new();
 
-    private FileBackedPluginStorage Open(long quota = FileBackedPluginStorage.DefaultQuotaBytes) =>
-        new(_mock, StoragePath, NullLogger.Instance, quota);
+    private FileBackedPluginStorage Open(long quota = FileBackedPluginStorage.DefaultQuotaBytes, TimeProvider? time = null) =>
+        new(_mock, StoragePath, NullLogger.Instance, quota, time);
+
+    private IEnumerable<string> BadFiles() =>
+        _mock.Directory.GetFiles("/data/com.test.p", "storage.json.*.bad").Select(_mock.Path.GetFileName).Order(StringComparer.Ordinal).Select(f => f!);
 
     // ---- storage ----
 
@@ -46,6 +50,7 @@ public sealed class PluginStorageAndStoreTests
     [InlineData("Upper")]
     [InlineData(".hidden")]
     [InlineData("a/b")]
+    [InlineData("abc\n")]
     public async Task Invalid_keys_are_rejected(string key)
     {
         using FileBackedPluginStorage storage = Open();
@@ -57,9 +62,9 @@ public sealed class PluginStorageAndStoreTests
     [Fact]
     public async Task The_quota_counts_keys_and_values_and_a_rejected_write_changes_nothing()
     {
-        using FileBackedPluginStorage storage = Open(quota: 40);
-        await storage.WriteAsync("k", "123456789", Ct); // (1 + 9) * 2 = 20 bytes
-        await storage.WriteAsync("k", "1234567890123456789", Ct); // replacing: (1 + 19) * 2 = 40 bytes, exactly the quota
+        using FileBackedPluginStorage storage = Open(quota: 20);
+        await storage.WriteAsync("k", "123456789", Ct); // 1 + 9 = 10 bytes
+        await storage.WriteAsync("k", "1234567890123456789", Ct); // replacing: 1 + 19 = 20 bytes, exactly the quota
 
         PluginStorageException ex = await Assert.ThrowsAsync<PluginStorageException>(() => storage.WriteAsync("other", "x", Ct).AsTask());
 
@@ -89,17 +94,93 @@ public sealed class PluginStorageAndStoreTests
         Assert.Equal("3", await storage.ReadAsync("a", Ct));
     }
 
-    [Fact]
-    public async Task A_damaged_file_starts_empty_and_is_replaced_by_the_next_write()
+    [Theory]
+    [InlineData("&&", "j")]
+    [InlineData("żż", "j")]
+    [InlineData("😀", "j")]
+    public async Task The_quota_counts_the_json_escaped_utf8_bytes_that_are_written(string value, string other)
     {
-        _mock.AddFile(StoragePath, new MockFileData("{not json"));
+        // "&&" is written as \u0026\u0026: 1 + 12 = 13 bytes, so a second entry no longer fits in 20 bytes.
+        using FileBackedPluginStorage storage = Open(quota: 20);
+        await storage.WriteAsync("k", value, Ct);
+
+        await Assert.ThrowsAsync<PluginStorageException>(() => storage.WriteAsync(other, value, Ct).AsTask());
+
+        Assert.True(_mock.FileInfo.New(StoragePath).Length <= 20 + "{\"k\":\"\"}".Length);
+    }
+
+    // Attribute arguments cannot carry unpaired surrogates (metadata is UTF-8), so they come from a member.
+    public static TheoryData<string> LoneSurrogates => ["\ud800", "a\udc00b"];
+
+    [Theory]
+    [MemberData(nameof(LoneSurrogates))]
+    public async Task A_value_with_a_lone_surrogate_is_rejected_and_nothing_is_written(string value)
+    {
         using FileBackedPluginStorage storage = Open();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => storage.WriteAsync("k", value, Ct).AsTask());
+
+        Assert.Null(await storage.ReadAsync("k", Ct));
+        Assert.False(_mock.File.Exists(StoragePath));
+    }
+
+    [Fact]
+    public async Task A_damaged_file_is_set_aside_and_storage_starts_empty()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 22, 10, 30, 5, TimeSpan.Zero));
+        _mock.AddFile(StoragePath, new MockFileData("{not json"));
+        using FileBackedPluginStorage storage = Open(time: time);
 
         Assert.Empty(await storage.ListKeysAsync(null, Ct));
         await storage.WriteAsync("a", "1", Ct);
 
+        Assert.Equal(["storage.json.20261122103005.bad"], BadFiles());
+        Assert.Equal("{not json", _mock.File.ReadAllText("/data/com.test.p/storage.json.20261122103005.bad"));
         using FileBackedPluginStorage reopened = Open();
         Assert.Equal("1", await reopened.ReadAsync("a", Ct));
+    }
+
+    [Fact]
+    public async Task Only_the_three_newest_damaged_copies_are_kept()
+    {
+        foreach (string stamp in new[] { "20260101000000", "20260102000000", "20260103000000" })
+        {
+            _mock.AddFile($"{StoragePath}.{stamp}.bad", new MockFileData("old"));
+        }
+
+        _mock.AddFile(StoragePath, new MockFileData("[1,"));
+        using FileBackedPluginStorage storage = Open(time: new FakeTimeProvider(new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        _ = await storage.ListKeysAsync(null, Ct);
+
+        Assert.Equal(["storage.json.20260102000000.bad", "storage.json.20260103000000.bad", "storage.json.20260201000000.bad"], BadFiles());
+    }
+
+    [Fact]
+    public async Task A_read_failure_is_a_storage_exception_without_host_paths_and_keeps_the_inner_exception()
+    {
+        _mock.AddFile(StoragePath, new MockFileData("{}") { AllowedFileShare = FileShare.None });
+        using FileBackedPluginStorage storage = Open();
+
+        PluginStorageException ex = await Assert.ThrowsAsync<PluginStorageException>(() => storage.ReadAsync("a", Ct).AsTask());
+
+        Assert.DoesNotContain("/data", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("storage.json", ex.Message, StringComparison.Ordinal);
+        Assert.IsAssignableFrom<IOException>(ex.InnerException);
+        Assert.Empty(BadFiles());
+    }
+
+    [Fact]
+    public async Task A_write_failure_keeps_the_inner_exception()
+    {
+        var faulty = new FaultyFileSystem(_mock);
+        using var storage = new FileBackedPluginStorage(faulty, StoragePath, NullLogger.Instance);
+        faulty.FailStreams = true;
+
+        PluginStorageException ex = await Assert.ThrowsAsync<PluginStorageException>(() => storage.WriteAsync("a", "1", Ct).AsTask());
+
+        Assert.IsType<SimulatedCrashException>(ex.InnerException);
+        Assert.DoesNotContain("/data", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,6 +193,40 @@ public sealed class PluginStorageAndStoreTests
     }
 
     // ---- store ----
+
+    [Fact]
+    public async Task OpenStorage_returns_one_shared_instance_per_plugin()
+    {
+        var store = new PluginStore(_mock, "/plugins", "/data");
+        FileBackedPluginStorage first = store.OpenStorage(Id, NullLogger.Instance, quotaBytes: 20);
+        FileBackedPluginStorage second = store.OpenStorage(Id, NullLogger.Instance, quotaBytes: 20);
+
+        await first.WriteAsync("a", "123456789", Ct); // 10 of 20 bytes
+        Assert.Equal("123456789", await second.ReadAsync("a", Ct));
+        await second.WriteAsync("b", "12345678", Ct); // 9 more bytes
+        PluginStorageException ex = await Assert.ThrowsAsync<PluginStorageException>(() => first.WriteAsync("c", "12", Ct).AsTask());
+
+        Assert.Same(first, second);
+        Assert.Contains("quota", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(["a", "b"], await first.ListKeysAsync(null, Ct));
+        Assert.NotSame(first, store.OpenStorage(new PluginId("com.test.q"), NullLogger.Instance));
+    }
+
+    [Fact]
+    public async Task Remove_drops_the_cached_storage_so_a_reinstall_starts_empty()
+    {
+        var store = new PluginStore(_mock, "/plugins", "/data");
+        await store.InstallAsync(Id, new byte[] { 1 }, enabled: true, Ct);
+        FileBackedPluginStorage before = store.OpenStorage(Id, NullLogger.Instance);
+        await before.WriteAsync("a", "1", Ct);
+
+        Assert.True(store.Remove(Id));
+        await store.InstallAsync(Id, new byte[] { 1 }, enabled: true, Ct);
+        FileBackedPluginStorage after = store.OpenStorage(Id, NullLogger.Instance);
+
+        Assert.NotSame(before, after);
+        Assert.Empty(await after.ListKeysAsync(null, Ct));
+    }
 
     [Fact]
     public async Task Installed_plugins_are_listed_with_their_enabled_flag()
@@ -157,6 +272,23 @@ public sealed class PluginStorageAndStoreTests
         Assert.Empty(await store.ListAsync(Ct));
         Assert.False(_mock.Directory.Exists("/data/com.test.p"));
         Assert.False(store.Remove(Id));
+    }
+
+    [Fact]
+    public async Task A_failed_remove_leaves_the_plugin_listed_so_it_can_be_retried()
+    {
+        var store = new PluginStore(_mock, "/plugins", "/data");
+        await store.InstallAsync(Id, new byte[] { 1 }, enabled: true, Ct);
+        _mock.AddFile(store.StoragePath(Id), new MockFileData("{}") { AllowedFileShare = FileShare.None });
+        _mock.File.SetAttributes(store.StoragePath(Id), FileAttributes.ReadOnly);
+
+        _ = Assert.ThrowsAny<Exception>(() => store.Remove(Id));
+
+        Assert.Equal([new StoredPlugin(Id, true)], await store.ListAsync(Ct));
+        Assert.True(_mock.File.Exists(store.StoragePath(Id)));
+        _mock.File.SetAttributes(store.StoragePath(Id), FileAttributes.Normal);
+        Assert.True(store.Remove(Id));
+        Assert.Empty(await store.ListAsync(Ct));
     }
 
     [Fact]

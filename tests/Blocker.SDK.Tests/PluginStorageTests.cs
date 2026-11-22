@@ -22,6 +22,7 @@ public class PluginStorageTests
     [InlineData("has space")]
     [InlineData("slash/key")]
     [InlineData("ключ")]
+    [InlineData("abc\n")]
     public void IsValid_InvalidKey_ReturnsFalse(string? key) => Assert.False(PluginStorageKey.IsValid(key));
 
     [Fact]

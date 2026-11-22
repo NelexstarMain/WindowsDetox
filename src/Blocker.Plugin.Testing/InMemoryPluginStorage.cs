@@ -4,8 +4,8 @@ namespace Blocker.Plugin.Testing;
 
 /// <summary>
 /// In-memory <see cref="IPluginStorage"/> enforcing the production rules: keys are validated with
-/// <see cref="PluginStorageKey.ThrowIfInvalid"/> and the quota counts <c>(key length + value length) * 2</c>
-/// bytes (UTF-16) per entry.
+/// <see cref="PluginStorageKey.ThrowIfInvalid"/>, values with unpaired UTF-16 surrogates are rejected with
+/// <see cref="ArgumentException"/> and the quota counts the UTF-8 size of the JSON-escaped key and value per entry.
 /// </summary>
 public sealed class InMemoryPluginStorage : IPluginStorage
 {
@@ -55,6 +55,7 @@ public sealed class InMemoryPluginStorage : IPluginStorage
         cancellationToken.ThrowIfCancellationRequested();
         PluginStorageKey.ThrowIfInvalid(key);
         ArgumentNullException.ThrowIfNull(value);
+        PluginStorageSize.ThrowIfMalformed(value, nameof(value));
         lock (_items)
         {
             long previous = _items.TryGetValue(key, out string? old) ? Size(key, old) : 0;
@@ -99,5 +100,5 @@ public sealed class InMemoryPluginStorage : IPluginStorage
         }
     }
 
-    private static long Size(string key, string value) => ((long)key.Length + value.Length) * 2;
+    private static long Size(string key, string value) => PluginStorageSize.Of(key, value);
 }

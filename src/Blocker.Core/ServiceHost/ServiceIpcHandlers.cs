@@ -411,6 +411,9 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
     [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} removed.")]
     private static partial void LogPluginRemoved(ILogger logger, string pluginId);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Deleting the files of plugin {PluginId} failed.")]
+    private static partial void LogPluginRemoveFailed(ILogger logger, string pluginId, Exception exception);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Reading the manifest of installed plugin {PluginId} failed.")]
     private static partial void LogManifestUnreadable(ILogger logger, string pluginId);
 }

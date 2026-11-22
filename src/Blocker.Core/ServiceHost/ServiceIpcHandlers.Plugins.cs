@@ -129,7 +129,8 @@ internal sealed partial class ServiceIpcHandlers
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                return Failed($"The plugin was disabled but its files could not be deleted: {ex.Message}");
+                LogPluginRemoveFailed(logger, id.Value, ex);
+                return Failed("The plugin was disabled but its files could not be deleted. Close programs that use them and try again.");
             }
 
             Forget(id);
