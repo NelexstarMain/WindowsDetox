@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Developer tool, not part of the product: renders the real WPF shell and the bundled plugins with fake data to PNG files so
+       the UI can be reviewed on Linux under Wine (see eng/render.sh). Never packaged, never part of the installer. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Blocker.UI.Render</RootNamespace>
+    <AssemblyName>Blocker.UI.Render</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The app executable is referenced only for its internal view models and pages (NETSDK1151). -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Blocker.UI\Blocker.UI.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.UI.Controls\Blocker.UI.Controls.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.Plugin.Testing\Blocker.Plugin.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.Contracts\Blocker.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+  <!-- The bundled plugins are plain source folders compiled by Roslyn at install time; here they are compiled in directly. -->
+  <ItemGroup>
+    <Compile Include="..\..\plugins\Calendar\*.cs" Exclude="..\..\plugins\Calendar\*Tests.cs" LinkBase="Plugins\Calendar" />
+    <Compile Include="..\..\plugins\GoalsTasks\*.cs" Exclude="..\..\plugins\GoalsTasks\*Tests.cs" LinkBase="Plugins\GoalsTasks" />
+    <Compile Include="..\..\plugins\FocusInsights\*.cs" Exclude="..\..\plugins\FocusInsights\*Tests.cs" LinkBase="Plugins\FocusInsights" />
+    <Content Include="..\..\plugins\*\plugin.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" LinkBase="plugins" />
+    <Content Include="scenarios.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Resource Include="..\..\src\Blocker.UI\Assets\app.ico" Link="Assets\app.ico" />
+  </ItemGroup>
+</Project>

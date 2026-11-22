@@ -15,6 +15,9 @@
     <Project Path="src/Blocker.UI.SDK/Blocker.UI.SDK.csproj" />
     <Project Path="src/Blocker.Watchdog/Blocker.Watchdog.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Blocker.UI.Render/Blocker.UI.Render.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Blocker.Core.Tests/Blocker.Core.Tests.csproj" />
     <Project Path="tests/Blocker.Platform.Windows.Tests/Blocker.Platform.Windows.Tests.csproj" />

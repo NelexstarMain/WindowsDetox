@@ -31,6 +31,30 @@ jobs:
         if: runner.os == 'Linux'
         run: dotnet list WindowsDetox.slnx package --vulnerable --include-transitive
 
+  renders:
+    # Screenshots of the real UI with fake data, rendered under Wine (see .claude/skills/ui-render/SKILL.md). A review aid, not a gate:
+    # Ubuntu's Wine 9 is unverified for WPF on .NET 10 (Wine 10 works; the script runs Wine under `env -i` because a large
+    # environment crashes it), so a failure here must not turn the workflow red.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Install Wine, Xvfb and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends wine64 xvfb python3-fonttools fonts-inter fonts-liberation fonts-jetbrains-mono fonts-dejavu-core
+      - name: Render
+        run: eng/render.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-renders
+          path: artifacts/renders
+          retention-days: 30
+
   installer:
     runs-on: windows-latest
     permissions:
