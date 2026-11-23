@@ -66,6 +66,15 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding State}" Value="Disabled">
+                                                    <Setter Property="Opacity" Value="0.6" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Name}" VerticalAlignment="Center" />
                                         <Border VerticalAlignment="Center">
