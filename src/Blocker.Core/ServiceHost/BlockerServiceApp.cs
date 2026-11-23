@@ -208,6 +208,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             _ = ports.FileSystem.Directory.CreateDirectory(directory);
         }
 
+        ProtectDataRoot(ports, paths, loggers.CreateLogger<BlockerServiceApp>());
+
         string installId = InstallIdStore.LoadOrCreate(ports.FileSystem, paths.InstallIdPath);
         var secure = new SecureFileStore(ports.FileSystem, ports.SecretProtector, new HmacKeyStore(ports.FileSystem, ports.SecretProtector, paths.HmacKeyPath));
         var scanCache = new AppScanCache(secure, paths.AppScanCachePath);
@@ -223,6 +225,18 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         {
             await app.DisposeAsync().ConfigureAwait(false);
             throw;
+        }
+    }
+
+    private static void ProtectDataRoot(BlockerServicePorts ports, BlockerPaths paths, ILogger logger)
+    {
+        try
+        {
+            ports.ProtectDataRoot?.Invoke(paths);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            logger.LogError(ex, "Protecting the data root {Path} failed; sealed state stays readable and writable to whoever the parent directory allows.", paths.DataRoot);
         }
     }
 

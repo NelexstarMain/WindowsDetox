@@ -52,6 +52,7 @@ internal static class WindowsServicePorts
             AppScanner = new AppInventoryScanner(),
             ChangePlanner = new WindowsChangePlanner(CriticalImageNames()),
             CreateChangeHandlers = installId => CreateChangeHandlers(installId, paths),
+            ProtectDataRoot = ProtectDataRoot,
             ServicePipeFactory = new SecurePipeListenerFactory(),
             ServiceIdentityResolver = new WindowsCallerIdentityResolver(
                 paths.InstallDirectory,
@@ -103,6 +104,10 @@ internal static class WindowsServicePorts
             DevMode = devMode,
         };
     }
+
+    /// <summary>Gives the data root and the plugins directory their protected DACLs.</summary>
+    /// <param name="paths">File locations.</param>
+    public static void ProtectDataRoot(BlockerPaths paths) => DataRootDirectory.Protect(paths.DataRoot, paths.PluginsDirectory);
 
     /// <summary>Creates the change handlers of the journal; also used by the offline commands.</summary>
     /// <param name="installId">Ownership marker of this installation.</param>

@@ -119,7 +119,13 @@ public sealed class NtfsDenyWriteChangeHandler : IReversibleChangeHandler
         NtfsDenyOriginalState original = ChangeGuard.FromJson(originalStateJson, ChangesJsonContext.Default.NtfsDenyOriginalState, nameof(originalStateJson));
         if (_acl.HasDenyAces(snapshot.Sddl))
         {
-            _store.WriteSddl(path, original.Sddl);
+            // The journal can be forged: a recorded DACL that would newly let an unprivileged account modify the install or data directory
+            // (and so plant code that runs as SYSTEM) is never written back. Dropping only our own deny ACEs is the rollback that remains.
+            string withoutDenies = _acl.RemoveDenyAces(snapshot.Sddl).Sddl;
+            string restored = DaclInspector.GrantsNothingDangerousToUnprivileged(original.Sddl, DaclInspector.FileModify, withoutDenies)
+                ? original.Sddl
+                : withoutDenies;
+            _store.WriteSddl(path, restored);
         }
 
         return ValueTask.CompletedTask;

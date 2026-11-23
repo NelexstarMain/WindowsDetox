@@ -8,6 +8,9 @@ namespace Blocker.Platform.Windows.Processes;
 /// <summary>
 /// DPAPI with <see cref="DataProtectionScope.LocalMachine"/> and fixed application entropy: any process on this machine that knows the entropy
 /// can decrypt, but the data cannot be moved to another machine. The entropy only separates our blobs from other DPAPI users; it is not a secret.
+/// The secrecy of the HMAC key therefore rests on the protected DACL of the data root (<c>DataRootSecurity</c>), not on this call. A per-install
+/// entropy file would live in that same directory and add nothing beyond that DACL, while changing the entropy would orphan every sealed file
+/// and the key the watchdog reads, so it is deliberately not used.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class DpapiSecretProtector : ISecretProtector

@@ -248,6 +248,9 @@ internal sealed class ServiceHostHarness : IAsyncDisposable
 
     public BlockerServiceApp App { get; set; } = null!;
 
+    /// <summary>Gets or sets the data root protection of the next started service.</summary>
+    public Action<BlockerPaths>? ProtectDataRoot { get; set; }
+
     public static async Task<ServiceHostHarness> StartAsync(bool devMode = false, Action<ServiceHostHarness>? arrange = null)
     {
         var harness = new ServiceHostHarness(devMode);
@@ -343,6 +346,7 @@ internal sealed class ServiceHostHarness : IAsyncDisposable
         DevMode = _devMode,
         ServicePipeName = PipeName,
         BreakGlassIterations = 1_000,
+        ProtectDataRoot = ProtectDataRoot,
     };
 
     /// <summary>A network time source that agrees with its peers and advances with the monotonic clock.</summary>
