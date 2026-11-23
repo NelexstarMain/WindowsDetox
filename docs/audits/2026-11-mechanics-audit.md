@@ -38,6 +38,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M1 — Critical — Forged rollback journal executes arbitrary service-DACL changes as SYSTEM (standard user to SYSTEM)
 
+- **Status:** Fixed in 9509947.
 - **Where:** `src/Blocker.Platform.Windows/Changes/ServiceDaclChangeHandler.cs:85` (`RestoreAsync` writes the journal's `Sddl` for any service name),
   `ChangeGuard.cs:40` (`RequireServiceName` only checks syntax), `src/Blocker.Core/Journal/RollbackJournal.cs:111,243` (journal file is deleted after every
   successful rollback, so it does not exist while idle), `src/Blocker.Platform.Windows/Processes/DpapiSecretProtector.cs:15,23` (LocalMachine scope, constant
@@ -66,6 +67,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M2 — High — A copy of any program placed in a user-writable folder under `%SystemRoot%` named like a critical process is never blocked or killed
 
+- **Status:** Fixed in 8ca0f10.
 - **Where:** `src/Blocker.Core/Policy/CriticalProcesses.cs:66-91` (name in `SystemNames` plus *any* path under the Windows directory), used by
   `EnforcementPolicy.cs:230-233` (critical is decided *before* the bypass-tool and allowlist checks), `EnforcementCoordinator.Processes.cs:186-187`
   (`trusted` skips hashing) and `Win32ProcessController.cs:246` (the "second line of defence" calls the same function).
@@ -83,6 +85,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M3 — High — Parent-process spoofing turns any blocked launcher into an "allowlisted parent"
 
+- **Status:** Fixed in ebc7149.
 - **Where:** `src/Blocker.Platform.Windows/Processes/EtwProcessMonitor.cs:151-156` (uses the payload `ParentProcessID`), `src/Blocker.Core/Policy/ProcessTree.cs:435-441`
   (`ResolveParentLocked`), `EnforcementPolicy.cs:258-261` (`InheritedFromAllowed`). `ProcessInfo` has no creator field; `EnumerateRunning` uses
   `th32ParentProcessID`, which is equally spoofable.
@@ -99,6 +102,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M4 — High — No reconciliation and no health check: one lost ETW event is a permanent bypass of that process
 
+- **Status:** Fixed in de2e7cf (periodic reconcile every 5 s through `TimeProvider`, monitor restart on `Completion`/`Fault`, `ProtectionDegraded` while it stays down). Not done: the lock-free ETW callback queue from fix item (3); the reconcile covers a dropped event, but a full queue can still block the ETW thread. Verify on VM: kill the `Blocker-ProcessMonitor` trace session during a session; it is restarted within about 5 s and a process started meanwhile is blocked.
 - **Where:** `EtwProcessMonitor.cs:129-139` (loop death only sets `Fault`; `Completion`/`Fault` have no consumer in the repo), `EnforcementCoordinator.Processes.cs:62-84`
   (the monitor thread is blocked with `GetResult()` when the 4096-item queue is full — the kernel then drops events anyway, so "never drop" is not true),
   `EnforcementCoordinator.cs:343,519` (`EnforceRunningAsync` runs only at bring-up and after a pass).
@@ -113,6 +117,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M5 — High — Head-of-line blocking in the single-consumer pipeline (hash, signature, plugin interceptor have no hard budget)
 
+- **Status:** Deferred: the bounded, partitioned decision workers with a fail-closed budget restructure the single-consumer pipeline (ordering parent before child, `DecideAsync`, hashing) and need their own change and review. M4 reconciliation shortens the window of a stalled consumer but does not remove head-of-line blocking.
 - **Where:** `EnforcementCoordinator.Processes.cs:86-114` (one consumer), `:185-194` (`HashAsync` of the whole image, `IsMicrosoftSigned`, `TryGetPackage`, interceptor up to
   `InterceptorBudget` 100 ms per allowed process), `FileHasher.cs:53-56` (no size or time limit, `FileShare.ReadWrite`).
 - **Scenario:** the user first launches a process whose image is slow to read (multi-GB file, SMB share, removable disk, OneDrive/Files-On-Demand placeholder that triggers a
@@ -126,6 +131,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M6 — Medium — During the first (daylight-saving) pass of the repeated hour no ETW-reported process can be terminated
 
+- **Status:** Fixed in 74ab216 (`ProcessStartTimeResolver`: `GetProcessTimes` key, payload only as fallback, exit reuses the start key). Verify on VM: set the clock into the repeated DST hour (for example 2026-10-25 02:30 first pass, Central European time) and block a process that the ETW monitor reports.
 - **Where:** `EtwProcessMonitor.cs:14-17` (documented limitation), `:188-194` (`local.ToFileTime()`), `Win32ProcessController.cs:240` (`ticks != startTimeTicks` → `false`).
 - **Scenario:** at the end of DST (for example the last Sunday of October in Poland) TraceEvent hands out `CreateTime` as a local `DateTime`; for the first occurrence of
   the repeated 01:00-02:00 hour `ToFileTime()` resolves to standard time, so the start-time key is one hour late. `TryTerminate` compares it to `GetProcessTimes` and refuses.
@@ -138,6 +144,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M7 — Medium — If the rollback at session end fails once, nothing retries until the service restarts
 
+- **Status:** Fixed in 4b79381 (background retry 10 s doubling to 5 min, cancelled by a new session or disposal, `EnforcementCoordinator.CleanupPending` and `SessionStatusDto.CleanupPending`; the UI does not show the flag yet). Verify on VM: hold an IFEO key open with a handle at session end and release it; the redirects disappear without a service restart.
 - **Where:** `EnforcementCoordinator.cs:533-558` (`TeardownAsync`), `:591-609` (`RollbackAllGuardedAsync` only logs and notifies "Blocker retries when the service restarts"),
   retry exists only in `RecoverOnStartupAsync` → `RollbackLeftoversAsync` (`:611-631`); the session-time `ResumeAsync` retry (`:505-510`) is gone once the runtime is torn down.
 - **Scenario:** at expiry an AV scanner holds a policy key or the install-directory ACL write fails transiently. The session is over (`session.bin` cleared) but IFEO redirects stay
@@ -227,6 +234,7 @@ Items marked **(Windows)** were reasoned from documented Windows behavior and sh
 
 ### M14 — Medium — The installer ignores unexpected `--uninstall` exit codes and then deletes the files, the data directory and the uninstall entry
 
+- **Status:** Fixed in 0f182dd (`ServiceUninstallCheck`: only exit code 0 proceeds). Not fixed: staging the update into a new directory and swapping. Verify on VM: make `Blocker.Service.exe --uninstall` fail (stop the SCM service from stopping) and confirm Setup aborts with files, data directory and the Add/Remove entry intact.
 - **Where:** `SetupEngine.cs:98-109` (install/update path) and `:138-149` (uninstall path) handle only exit codes 3 and 4; `ServiceCommands.cs:88-92` returns `Failed (1)` for any
   exception (service did not stop in 30 s, DPAPI failure, missing handler...) and `BadArguments (2)`/`NotAdministrator (5)` for others; `SetupEngine.cs:162` then runs
   `DeleteTree(InstallDirectory) | DeleteTree(DataDirectory)`.
