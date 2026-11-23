@@ -706,7 +706,7 @@ internal sealed class UiVisualBuilder
         var box = new Border { Width = width, Height = height, CornerRadius = new CornerRadius(2) };
         if (intensity <= 0)
         {
-            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x26, 0x2A, 0x36)));
+            box.Background = Frozen(new SolidColorBrush(Color.FromRgb(0x24, 0x27, 0x1E)));
         }
         else
         {
