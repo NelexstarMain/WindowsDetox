@@ -12,8 +12,9 @@ namespace Blocker.Platform.Windows.Processes;
 /// Requires SYSTEM or Administrator (ETW session creation). Events are raised synchronously on the single ETW processing thread, so handlers must be cheap.
 /// </summary>
 /// <remarks>
-/// Limitation: the provider reports <c>CreateTime</c> as a FILETIME that TraceEvent converts to a local <see cref="DateTime"/>;
-/// converting back is exact except for the one repeated hour at the end of daylight saving time, where the identity key can be off by one hour.
+/// The provider reports <c>CreateTime</c> as a FILETIME that TraceEvent converts to a local <see cref="DateTime"/>, which is ambiguous in the
+/// repeated hour at the end of daylight saving time. The start-time key therefore comes from <c>GetProcessTimes</c> (see
+/// <see cref="ProcessStartTimeResolver"/>); the payload is only the fallback.
 /// </remarks>
 [SupportedOSPlatform("windows10.0.19041")]
 public sealed class EtwProcessMonitor : IProcessMonitor
@@ -27,6 +28,7 @@ public sealed class EtwProcessMonitor : IProcessMonitor
     private static readonly Guid KernelProcessProvider = new("22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716");
 
     private readonly NtPathConverter _paths;
+    private readonly ProcessStartTimeResolver _startTimes = new(ProcessNative.TryGetStartTicks);
     private readonly Lock _gate = new();
     private TraceEventSession? _session;
     private Task _processing = Task.CompletedTask;
@@ -157,16 +159,18 @@ public sealed class EtwProcessMonitor : IProcessMonitor
         switch ((int)data.ID)
         {
             case ProcessStartEventId:
+                int started = ReadInt(data, "ProcessID");
                 Raise(ProcessStarted, new ProcessStartedEventArgs(new ProcessInfo(
-                    ReadInt(data, "ProcessID"),
+                    started,
                     ReadInt(data, "ParentProcessID"),
                     ReadInt(data, "SessionID"),
                     _paths.Convert(data.PayloadByName("ImageName") as string ?? string.Empty) ?? string.Empty,
-                    ReadFileTime(data, "CreateTime"),
+                    _startTimes.ResolveStart(started, ReadFileTime(data, "CreateTime")),
                     data.ProcessID))); // the event header names the process that issued the create, which the new process cannot choose
                 break;
             case ProcessStopEventId:
-                Raise(ProcessExited, new ProcessExitedEventArgs(ReadInt(data, "ProcessID"), ReadFileTime(data, "CreateTime")));
+                int exited = ReadInt(data, "ProcessID");
+                Raise(ProcessExited, new ProcessExitedEventArgs(exited, _startTimes.ResolveExit(exited, ReadFileTime(data, "CreateTime"))));
                 break;
         }
     }
