@@ -95,6 +95,17 @@ jobs:
           $pipes
           if (-not ($pipes -like '*WindowsDetox.Service')) { throw 'service pipe is not listening (see the service log above)' }
           if (Select-String -Path "$env:ProgramData\WindowsDetox\logs\*" -Pattern '\[Critical\]' -Quiet) { throw 'the service logged a critical error' }
+      - name: End-to-end smoke test (session)
+        # Starts a real session on the installed service (tools/Blocker.SmokeTest), checks the enforcement, ends it and checks the rollback.
+        # The runner's user is an elevated administrator. The step runs in bash on purpose: while the session is active the service kills
+        # cmd, powershell and pwsh (bypass tools), which would end the step's own shell, whereas Git's bash.exe is allowlisted by the tool.
+        # The published tool is self-contained, so nothing needs `dotnet` while the session runs.
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish tools/Blocker.SmokeTest -c Release -o artifacts/smoke -v quiet -nologo
+          artifacts/smoke/Blocker.SmokeTest.exe
       - name: Screenshot app
         if: always()
         continue-on-error: true
@@ -131,7 +142,18 @@ jobs:
           name: screenshots
           path: shots/
           retention-days: 30
+      - name: Upload service logs
+        # Before the uninstall step, which removes the data root. Runs after a failed smoke test too: the log holds the real exception.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: C:\ProgramData\WindowsDetox\logs
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Uninstall (quiet) and check nothing is left
+        # always(): a failed smoke test must not leave the installation (or a stuck session's leftovers) behind unchecked.
+        if: always()
         shell: pwsh
         run: |
           Get-Process Blocker.UI, Blocker.Stub -ErrorAction SilentlyContinue | Stop-Process -Force
