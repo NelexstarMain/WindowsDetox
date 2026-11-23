@@ -94,7 +94,8 @@ public sealed record StartSessionRequest(
 /// <param name="Errors">Why it did not.</param>
 /// <param name="SessionId">Id of the new session.</param>
 /// <param name="BreakGlassCode">One-time recovery code; delivered exactly once, never stored in plain text.</param>
-public sealed record StartSessionResponse(bool Success, IReadOnlyList<string> Errors, Guid? SessionId, string? BreakGlassCode);
+/// <param name="Warnings">Protections that could not be applied although the session started; null from an older service.</param>
+public sealed record StartSessionResponse(bool Success, IReadOnlyList<string> Errors, Guid? SessionId, string? BreakGlassCode, IReadOnlyList<string>? Warnings = null);
 
 /// <summary>Outcome of an emergency-pass request; mirrors the service's result type.</summary>
 public enum EmergencyPassOutcome

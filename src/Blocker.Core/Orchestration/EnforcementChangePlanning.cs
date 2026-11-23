@@ -4,7 +4,11 @@ namespace Blocker.Core.Orchestration;
 /// <param name="Kind">Journal handler kind (<c>ifeo</c>, <c>regpolicy</c>, <c>servicedacl</c>, <c>ntfsdeny</c>).</param>
 /// <param name="Target">Handler-specific target.</param>
 /// <param name="DesiredStateJson">Desired state in the handler's JSON format.</param>
-public sealed record PlannedChange(string Kind, string Target, string DesiredStateJson);
+/// <param name="BestEffort">
+/// True for hardening that must not decide whether a session can start (it may be refused by security software or a protected key):
+/// a failure to apply it is logged and reported as a warning instead of rolling the session back.
+/// </param>
+public sealed record PlannedChange(string Kind, string Target, string DesiredStateJson, bool BestEffort = false);
 
 /// <summary>Everything the platform needs to plan the changes of one session.</summary>
 /// <param name="ProxyPort">Port of the running filter proxy (for the browser PAC policies).</param>

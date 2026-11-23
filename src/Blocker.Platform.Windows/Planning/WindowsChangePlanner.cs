@@ -11,6 +11,8 @@ namespace Blocker.Platform.Windows.Planning;
 /// <item><c>ntfsdeny</c>: deny ACEs on every protected directory.</item>
 /// <item><c>servicedacl</c>: the restricted DACL of both services.</item>
 /// </list>
+/// <c>ifeo</c>, <c>ntfsdeny</c> and <c>servicedacl</c> are best-effort: ETW monitoring and reconcile still kill a redirected process, and the other two only
+/// harden the install against tampering, so a refused write must not stop the session. <c>regpolicy</c> is required: without the PAC policy browsers bypass the web filter.
 /// Image names the IFEO handler would refuse (not a simple <c>name.exe</c>, or critical) are left out rather than failing the whole session start.
 /// </summary>
 public sealed class WindowsChangePlanner : IEnforcementChangePlanner
@@ -36,7 +38,7 @@ public sealed class WindowsChangePlanner : IEnforcementChangePlanner
         {
             if (IsRedirectable(name))
             {
-                plan.Add(new PlannedChange("ifeo", name, ifeoState));
+                plan.Add(new PlannedChange("ifeo", name, ifeoState, BestEffort: true));
             }
         }
 
@@ -45,13 +47,13 @@ public sealed class WindowsChangePlanner : IEnforcementChangePlanner
         string denyState = ChangeGuard.ToJson(new NtfsDenyDesiredState(), ChangesJsonContext.Default.NtfsDenyDesiredState);
         foreach (string directory in input.ProtectedDirectories.Select(d => WindowsPath.Normalize(d, nameof(input))).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            plan.Add(new PlannedChange("ntfsdeny", directory, denyState));
+            plan.Add(new PlannedChange("ntfsdeny", directory, denyState, BestEffort: true));
         }
 
         string daclState = ChangeGuard.ToJson(new ServiceDaclDesiredState(), ChangesJsonContext.Default.ServiceDaclDesiredState);
         foreach (string service in input.ServiceNames.Select(n => ChangeGuard.RequireServiceName(n, nameof(input))).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            plan.Add(new PlannedChange("servicedacl", service, daclState));
+            plan.Add(new PlannedChange("servicedacl", service, daclState, BestEffort: true));
         }
 
         return plan;

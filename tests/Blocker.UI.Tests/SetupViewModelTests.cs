@@ -217,6 +217,23 @@ public sealed class SetupViewModelTests
     }
 
     [Fact]
+    public async Task Start_with_warnings_shows_them_without_blocking_the_dashboard()
+    {
+        SetupViewModel vm = Create();
+        _connection.On<StartSessionRequest, StartSessionResponse>(
+            IpcMethods.SessionStart,
+            _ => new StartSessionResponse(true, [], Guid.NewGuid(), "ABCD-1234", ["Windows refused some extra protections: game.exe."]));
+        AppPage? page = null;
+        _navigator.NavigationRequested += (_, p) => page = p;
+
+        await vm.StartSessionCommand.ExecuteAsync(null);
+
+        Assert.Equal(AppPage.Dashboard, page);
+        Assert.Empty(vm.StartErrors);
+        Assert.Contains(_snackbar.Shown, s => s.Severity == NotificationSeverity.Warning && s.Message.Contains("game.exe", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Refused_start_shows_the_errors_and_never_a_code()
     {
         SetupViewModel vm = Create();

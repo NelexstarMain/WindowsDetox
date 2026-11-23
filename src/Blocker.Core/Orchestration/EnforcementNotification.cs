@@ -28,5 +28,8 @@ public sealed record EnforcementNotification(EnforcementNotificationKind Kind, s
 /// <param name="Errors">Why the start was refused or rolled back.</param>
 public sealed record StartEnforcedSessionResult(bool Started, Guid? SessionId, string? BreakGlassCode, IReadOnlyList<string> Errors)
 {
+    /// <summary>Protections that could not be applied while the session still started (never retried within the session); empty when everything was applied.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
     internal static StartEnforcedSessionResult Failed(IReadOnlyList<string> errors) => new(false, null, null, errors);
 }

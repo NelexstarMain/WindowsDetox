@@ -227,6 +227,12 @@ internal sealed partial class SetupViewModel : ServiceViewModel
             await _appDialogs.ShowBreakGlassCodeAsync(code, CancellationToken.None);
         }
 
+        if (response.Warnings is { Count: > 0 } warnings)
+        {
+            // The session runs; a snackbar does not block the way to the dashboard.
+            Snackbar.Show("Session started with reduced protection", string.Join(' ', warnings), NotificationSeverity.Warning, TimeSpan.FromSeconds(20));
+        }
+
         _navigator.GoTo(AppPage.Dashboard);
     }
 

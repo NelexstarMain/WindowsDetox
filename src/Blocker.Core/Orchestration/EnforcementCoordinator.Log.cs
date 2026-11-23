@@ -13,6 +13,9 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Error, Message = "Bringing up protections failed at: {Step}.")]
     private static partial void LogBringUpFailed(ILogger logger, string step, Exception exception);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Best-effort protection skipped, the session continues: {Step}.")]
+    private static partial void LogBestEffortSkipped(ILogger logger, Exception exception, string step);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "{Step} failed.")]
     private static partial void LogStepFailed(ILogger logger, Exception exception, string step);
 

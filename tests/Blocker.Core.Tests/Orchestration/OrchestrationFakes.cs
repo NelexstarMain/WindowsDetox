@@ -254,7 +254,10 @@ internal sealed class FakeBrowserFirewall(List<string> log) : IBrowserFirewall
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
-/// <summary>Plans one <c>fake</c> change per IFEO name, then the PAC port, services and directories, so tests can see exactly what the coordinator passed in.</summary>
+/// <summary>
+/// Plans one <c>fake</c> change per IFEO name, then the PAC port, services and directories, so tests can see exactly what the coordinator passed in.
+/// Like the Windows planner, IFEO, service and directory changes are best-effort and the PAC change is required.
+/// </summary>
 internal sealed class FakePlanner : IEnforcementChangePlanner
 {
     public List<SessionPlanInput> Inputs { get; } = [];
@@ -270,14 +273,15 @@ internal sealed class FakePlanner : IEnforcementChangePlanner
 
         Inputs.Add(input);
         List<PlannedChange> plan = [];
-        plan.AddRange(input.IfeoImageNames.Select(static n => Change($"ifeo:{n}")));
-        plan.Add(Change($"pac:{input.ProxyPort}"));
-        plan.AddRange(input.ServiceNames.Select(static n => Change($"service:{n}")));
-        plan.AddRange(input.ProtectedDirectories.Select(static d => Change($"dir:{d}")));
+        plan.AddRange(input.IfeoImageNames.Select(static n => Change($"ifeo:{n}", bestEffort: true)));
+        plan.Add(Change($"pac:{input.ProxyPort}", bestEffort: false));
+        plan.AddRange(input.ServiceNames.Select(static n => Change($"service:{n}", bestEffort: true)));
+        plan.AddRange(input.ProtectedDirectories.Select(static d => Change($"dir:{d}", bestEffort: true)));
         return plan;
     }
 
-    private static PlannedChange Change(string target) => new("fake", target, $$"""{"target":"{{target.Replace("\\", "\\\\", StringComparison.Ordinal)}}"}""");
+    private static PlannedChange Change(string target, bool bestEffort) =>
+        new("fake", target, $$"""{"target":"{{target.Replace("\\", "\\\\", StringComparison.Ordinal)}}"}""", bestEffort);
 }
 
 /// <summary>An in-memory session store whose writes can be made to fail.</summary>

@@ -36,6 +36,14 @@ public sealed class WindowsChangePlannerTests
     }
 
     [Fact]
+    public void Only_the_browser_policies_are_required_the_hardening_changes_are_best_effort()
+    {
+        IReadOnlyList<PlannedChange> plan = new WindowsChangePlanner().PlanSessionChanges(Input());
+
+        Assert.All(plan, static c => Assert.Equal(c.Kind != "regpolicy", c.BestEffort));
+    }
+
+    [Fact]
     public void Every_image_name_redirects_to_the_stub_and_names_are_sorted_and_distinct()
     {
         IReadOnlyList<PlannedChange> plan = new WindowsChangePlanner().PlanSessionChanges(Input(names: ["Zoom.exe", "game.exe", "GAME.EXE", "chat.exe"]));

@@ -46,6 +46,7 @@ public sealed partial class EnforcementCoordinator(
     internal static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan GracefulCloseBudget = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ReapplyBackoff = TimeSpan.FromSeconds(10);
+    private const int MaxListedSkippedTargets = 5;
 
     /// <summary>How often an active session re-checks the running processes against the monitor's events.</summary>
     internal static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(5);
@@ -111,7 +112,7 @@ public sealed partial class EnforcementCoordinator(
             {
                 await policyStore.SaveAsync(policy, cancellationToken).ConfigureAwait(false);
                 await BeginAsync(runtime, strict: true, cancellationToken).ConfigureAwait(false);
-                return new StartEnforcedSessionResult(true, started.SessionId, started.BreakGlassCode, []);
+                return new StartEnforcedSessionResult(true, started.SessionId, started.BreakGlassCode, []) { Warnings = runtime.Warnings };
             }
             catch (Exception ex)
             {
@@ -345,6 +346,10 @@ public sealed partial class EnforcementCoordinator(
 
             Degrade(runtime, error);
         }
+        else
+        {
+            ReportSkippedProtections(runtime);
+        }
 
         if (_monitorStarted)
         {
@@ -380,6 +385,7 @@ public sealed partial class EnforcementCoordinator(
             }
 
             runtime.ProtectionApplied = false;
+            runtime.SkippedTargets = [];
             step = "Rolling back earlier changes";
             RollbackReport reset = await journal.RollbackAllAsync(cancellationToken).ConfigureAwait(false);
             if (!reset.Complete)
@@ -401,10 +407,20 @@ public sealed partial class EnforcementCoordinator(
                 _settings.StubExecutablePath,
                 _settings.ResolveProtectedDirectories(),
                 _settings.ServiceNames));
+            List<string> skipped = [];
             foreach (PlannedChange change in plan)
             {
                 step = $"Applying '{change.Kind}' to '{change.Target}'";
-                await journal.ApplyAsync(change.Kind, change.Target, change.DesiredStateJson, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await journal.ApplyAsync(change.Kind, change.Target, change.DesiredStateJson, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (change.BestEffort && IsAccessFault(ex))
+                {
+                    // The journal has already undone the failed apply (or kept the entry Pending for the next rollback), so nothing is half applied.
+                    LogBestEffortSkipped(logger, ex, step);
+                    skipped.Add(change.Target);
+                }
             }
 
             if (runtime.Browsers.Count > 0)
@@ -415,6 +431,7 @@ public sealed partial class EnforcementCoordinator(
 
             runtime.ProtectionApplied = true;
             runtime.Degraded = false;
+            runtime.SkippedTargets = skipped;
             return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -422,6 +439,31 @@ public sealed partial class EnforcementCoordinator(
             LogBringUpFailed(logger, step, ex);
             return string.Create(CultureInfo.InvariantCulture, $"{step} failed: {ex.GetType().Name} (0x{ex.HResult:X8}): {ex.Message}");
         }
+    }
+
+    /// <summary>The ways Windows refuses a write to a protected key, directory or service; anything else is a bug and stays fatal.</summary>
+    private static bool IsAccessFault(Exception exception) =>
+        exception is UnauthorizedAccessException or IOException or System.ComponentModel.Win32Exception or System.Security.SecurityException;
+
+    /// <summary>
+    /// Tells the user that best-effort changes were refused. They are not retried within the session: the process monitor and the
+    /// reconcile pass still stop the programs an IFEO redirect would have caught.
+    /// </summary>
+    private void ReportSkippedProtections(SessionRuntime runtime)
+    {
+        IReadOnlyList<string> skipped = runtime.SkippedTargets;
+        if (skipped.Count == 0)
+        {
+            runtime.Warnings = [];
+            return;
+        }
+
+        string listed = string.Join(", ", skipped.Take(MaxListedSkippedTargets));
+        string more = skipped.Count > MaxListedSkippedTargets ? string.Create(CultureInfo.InvariantCulture, $" (+{skipped.Count - MaxListedSkippedTargets} more)") : string.Empty;
+        string warning = $"Windows refused some extra protections: {listed}{more}. The session still blocks apps and websites, but these are not hardened.";
+        runtime.Warnings = [warning];
+        runtime.Degraded = true;
+        Notify(EnforcementNotificationKind.ProtectionDegraded, warning);
     }
 
     private void EnsureProxy(SessionRuntime runtime)
@@ -550,6 +592,10 @@ public sealed partial class EnforcementCoordinator(
         if (error is not null)
         {
             Degrade(runtime, error);
+        }
+        else
+        {
+            ReportSkippedProtections(runtime);
         }
     }
 
@@ -768,6 +814,12 @@ public sealed partial class EnforcementCoordinator(
         public bool ProtectionApplied { get; set; }
 
         public bool Degraded { get; set; }
+
+        /// <summary>Targets of best-effort changes the last bring-up could not apply.</summary>
+        public IReadOnlyList<string> SkippedTargets { get; set; } = [];
+
+        /// <summary>User-visible description of <see cref="SkippedTargets"/>; empty when nothing was skipped.</summary>
+        public IReadOnlyList<string> Warnings { get; set; } = [];
 
         public long RetryStamp { get; set; }
 

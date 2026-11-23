@@ -207,7 +207,7 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             LogSessionStarted(logger, result.SessionId);
         }
 
-        return new StartSessionResponse(result.Started, result.Errors, result.SessionId, result.BreakGlassCode);
+        return new StartSessionResponse(result.Started, result.Errors, result.SessionId, result.BreakGlassCode, result.Warnings);
     }
 
     private async ValueTask<EmergencyPassResponse> UseEmergencyPassAsync(IpcRequestContext context, EmptyDto request, CancellationToken cancellationToken)
