@@ -656,22 +656,47 @@
     <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
     <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
     <!-- WPF-UI draws navigation items from its own template (a Template setter in an item style is ignored), so the states are
-         themed through its resource keys: pointer-over lifts to the card surface, the selected item to the raised one, and the
-         selection indicator is the accent bar at the item's left edge. -->
-    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#98AD4A" />
-    <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#161813" />
-    <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1F221B" />
-    <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F221B" />
-    <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#ECEEE6" />
-    <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#ECEEE6" />
+         themed through its resource keys and the style's own triggers. The rail is monochrome on purpose: muted grey at rest, lighter
+         under the pointer with a faint neutral fill, near-white and medium weight when active. No accent colour, no indicator bar. -->
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="Transparent" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#0DFFFFFF" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#8A8A8A" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#C4C4C4" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#F4F4F4" />
+    <SolidColorBrush x:Key="Blocker.Nav.Muted" Color="#8A8A8A" />
+    <SolidColorBrush x:Key="Blocker.Nav.Active" Color="#F4F4F4" />
+
+    <Style x:Key="Blocker.FocusVisual.Nav">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-2"
+                               RadiusX="8"
+                               RadiusY="8"
+                               SnapsToDevicePixels="True"
+                               Stroke="#6E6E6E"
+                               StrokeThickness="1" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <!-- Keyed and set explicitly on each item: NavigationView brings its own item style, which would win over an implicit one. -->
     <Style x:Key="Blocker.NavItem" TargetType="ui:NavigationViewItem">
-        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+        <Setter Property="Foreground" Value="{StaticResource Blocker.Nav.Muted}" />
+        <Setter Property="FontWeight" Value="Normal" />
         <!-- The pane offsets items 6 px from the left; the right margin keeps the highlight inside the pane edge by the same amount. -->
         <Setter Property="Margin" Value="0,0,10,2" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual.Nav}" />
+        <Style.Triggers>
+            <Trigger Property="IsActive" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Blocker.Nav.Active}" />
+                <Setter Property="FontWeight" Value="Medium" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ============================== Task tick box ============================== -->
