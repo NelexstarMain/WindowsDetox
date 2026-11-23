@@ -170,7 +170,7 @@ internal sealed class TimeGridElement : Grid
     {
         var label = new TextBlock { Text = day.Label, HorizontalAlignment = HorizontalAlignment.Center, FontSize = 11, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
         label.SetResourceReference(FrameworkElement.StyleProperty, "Blocker.Text.Caption");
-        label.SetResourceReference(TextBlock.ForegroundProperty, day.IsToday ? "Blocker.Accent.Bar" : "Blocker.Text.Secondary");
+        label.SetResourceReference(TextBlock.ForegroundProperty, day.IsToday ? "Blocker.Accent.Text" : "Blocker.Text.Secondary");
 
         var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         stack.Children.Add(label);
