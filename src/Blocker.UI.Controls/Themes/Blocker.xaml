@@ -55,6 +55,14 @@
     <SolidColorBrush x:Key="Blocker.Success" Color="{StaticResource Blocker.Success.Color}" />
     <SolidColorBrush x:Key="Blocker.Success.Soft" Color="{StaticResource Blocker.Success.Soft.Color}" />
 
+    <!-- Calendar blocks: solid fills with their own text colour. Accent is the lifted brand olive, Neutral a slate for everything else. -->
+    <Color x:Key="Blocker.Event.Accent.Color">#98AD4A</Color>
+    <Color x:Key="Blocker.Event.OnLight.Color">#14180A</Color>
+    <Color x:Key="Blocker.Event.Neutral.Color">#3B4559</Color>
+    <SolidColorBrush x:Key="Blocker.Event.Accent" Color="{StaticResource Blocker.Event.Accent.Color}" />
+    <SolidColorBrush x:Key="Blocker.Event.OnLight" Color="{StaticResource Blocker.Event.OnLight.Color}" />
+    <SolidColorBrush x:Key="Blocker.Event.Neutral" Color="{StaticResource Blocker.Event.Neutral.Color}" />
+
     <!-- Brand logo: four wedges, sage. -->
     <Color x:Key="Blocker.Logo.Color">#BFD0B4</Color>
     <SolidColorBrush x:Key="Blocker.Logo.Brush" Color="{StaticResource Blocker.Logo.Color}" />
