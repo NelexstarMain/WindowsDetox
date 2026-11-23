@@ -523,7 +523,12 @@ Blocker.UI.Sdk.UiToggle.IsOn.get -> bool
 Blocker.UI.Sdk.UiToggle.IsOn.init -> void
 Blocker.UI.Sdk.UiToggle.Label.get -> string!
 Blocker.UI.Sdk.UiToggle.Label.init -> void
+Blocker.UI.Sdk.UiToggle.Style.get -> Blocker.UI.Sdk.UiToggleStyle
+Blocker.UI.Sdk.UiToggle.Style.init -> void
 Blocker.UI.Sdk.UiToggle.UiToggle(string! Id, string! Label, bool IsOn, string? Description = null) -> void
+Blocker.UI.Sdk.UiToggleStyle
+Blocker.UI.Sdk.UiToggleStyle.Checkbox = 1 -> Blocker.UI.Sdk.UiToggleStyle
+Blocker.UI.Sdk.UiToggleStyle.Switch = 0 -> Blocker.UI.Sdk.UiToggleStyle
 Blocker.UI.Sdk.UiTone
 Blocker.UI.Sdk.UiTone.Accent = 1 -> Blocker.UI.Sdk.UiTone
 Blocker.UI.Sdk.UiTone.Danger = 4 -> Blocker.UI.Sdk.UiTone
@@ -711,6 +716,7 @@ static Blocker.UI.Sdk.Ui.BarChart(string! title, params Blocker.UI.Sdk.UiDataPoi
 static Blocker.UI.Sdk.Ui.Button(string! id, string! label, Blocker.UI.Sdk.UiButtonVariant variant = Blocker.UI.Sdk.UiButtonVariant.Secondary, Blocker.UI.Sdk.UiIcon? icon = null) -> Blocker.UI.Sdk.UiButton!
 static Blocker.UI.Sdk.Ui.Card(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
 static Blocker.UI.Sdk.Ui.Card(string! title, params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiCard!
+static Blocker.UI.Sdk.Ui.Checkbox(string! id, string! label, bool isOn) -> Blocker.UI.Sdk.UiToggle!
 static Blocker.UI.Sdk.Ui.Column(params Blocker.UI.Sdk.UiNode![]! children) -> Blocker.UI.Sdk.UiStack!
 static Blocker.UI.Sdk.Ui.DonutChart(string! title, params Blocker.UI.Sdk.UiDataPoint![]! slices) -> Blocker.UI.Sdk.UiDonutChart!
 static Blocker.UI.Sdk.Ui.Form(string! id, string! submitLabel, params Blocker.UI.Sdk.UiFormField![]! fields) -> Blocker.UI.Sdk.UiForm!

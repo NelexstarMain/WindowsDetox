@@ -607,6 +607,78 @@
         <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
     </Style>
 
+    <!-- ============================== Task tick box ============================== -->
+    <!-- A UiToggle with the Checkbox style: a square box in front of the label. Ticked is the lifted accent with a dark tick, as the
+         calendar blocks; the label next to it is drawn by Blocker.Text.TaskLabel. -->
+    <Style x:Key="Blocker.Check.Task" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="Box"
+                                Width="20"
+                                Height="20"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                BorderBrush="{DynamicResource Blocker.Border.Strong}"
+                                BorderThickness="1.5"
+                                CornerRadius="6">
+                            <Path x:Name="Tick"
+                                  Data="M 5,10 L 8.5,13.5 L 14.5,6.5"
+                                  Stroke="{DynamicResource Blocker.Event.OnLight}"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Visibility="Collapsed" />
+                        </Border>
+                        <ContentPresenter Grid.Column="1"
+                                          Margin="12,0,0,0"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource Blocker.Accent.Text}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Text}" />
+                            <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The label of a task row: struck through and muted once its tick box is ticked. -->
+    <Style x:Key="Blocker.Text.TaskLabel" TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Body}">
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=CheckBox}}" Value="True">
+                <Setter Property="TextDecorations" Value="Strikethrough" />
+                <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Muted}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Minimal overlay scrollbars: a thin rounded thumb that thickens and brightens on hover; no arrows, no track. -->
     <Style x:Key="Blocker.ScrollBar.Thumb" TargetType="Thumb">
         <Setter Property="Focusable" Value="False" />

@@ -113,6 +113,13 @@ public static class Ui
     /// <returns>The toggle.</returns>
     public static UiToggle Toggle(string id, string label, bool isOn, string? description = null) => new(id, label, isOn, description);
 
+    /// <summary>Creates a toggle drawn as a tick box in front of its label (to-do style list rows).</summary>
+    /// <param name="id">Unique element id.</param>
+    /// <param name="label">Label.</param>
+    /// <param name="isOn">Current state.</param>
+    /// <returns>The toggle.</returns>
+    public static UiToggle Checkbox(string id, string label, bool isOn) => new(id, label, isOn) { Style = UiToggleStyle.Checkbox };
+
     /// <summary>Creates a form.</summary>
     /// <param name="id">Unique element id.</param>
     /// <param name="submitLabel">Submit button text.</param>

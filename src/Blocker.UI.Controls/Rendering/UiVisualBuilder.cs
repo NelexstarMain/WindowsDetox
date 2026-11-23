@@ -163,9 +163,8 @@ internal sealed class UiVisualBuilder
         }
 
         var panel = new StackPanel();
-        foreach (UiNode child in children)
+        foreach (FrameworkElement element in BuildSequence(children, insideCard))
         {
-            FrameworkElement element = Build(child, insideCard);
             if (panel.Children.Count > 0)
             {
                 element.Margin = new Thickness(0, gap, 0, 0);
@@ -175,6 +174,47 @@ internal sealed class UiVisualBuilder
         }
 
         return panel;
+    }
+
+    // Consecutive task rows become one list (no gaps, a hairline between rows), so the caller's spacing applies around the list.
+    private IEnumerable<FrameworkElement> BuildSequence(IReadOnlyList<UiNode> children, bool insideCard)
+    {
+        int index = 0;
+        while (index < children.Count)
+        {
+            if (_flat || !IsChecklistRow(children[index]))
+            {
+                yield return Build(children[index++], insideCard);
+                continue;
+            }
+
+            var list = new StackPanel();
+            while (index < children.Count && IsChecklistRow(children[index]))
+            {
+                list.Children.Add(ChecklistRow(Build(children[index++], insideCard)));
+            }
+
+            yield return ChecklistGroup(list);
+        }
+    }
+
+    private static bool IsChecklistRow(UiNode node) => node is UiToggle { Style: UiToggleStyle.Checkbox }
+        or UiStack { Orientation: UiOrientation.Horizontal, Children: [UiToggle { Style: UiToggleStyle.Checkbox }, ..] };
+
+    private static Border ChecklistRow(FrameworkElement content)
+    {
+        var row = new Border { Child = content, Padding = new Thickness(8, 6, 8, 6), MinHeight = 44, BorderThickness = new Thickness(0, 0, 0, 1), Background = Brushes.Transparent };
+        row.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Subtle");
+        row.MouseEnter += (_, _) => row.SetResourceReference(Border.BackgroundProperty, "Blocker.Bg.Raised");
+        row.MouseLeave += (_, _) => row.Background = Brushes.Transparent;
+        return row;
+    }
+
+    private static Border ChecklistGroup(Panel list)
+    {
+        var group = new Border { Child = list, BorderThickness = new Thickness(0, 1, 0, 0) };
+        group.SetResourceReference(Border.BorderBrushProperty, "Blocker.Border.Subtle");
+        return group;
     }
 
     // A row is a grid so trailing controls form a column: the first child takes the free width when it is text or a toggle, the rest
@@ -275,9 +315,8 @@ internal sealed class UiVisualBuilder
         }
 
         bool first = true;
-        foreach (UiNode child in card.Children)
+        foreach (FrameworkElement element in BuildSequence(card.Children, insideCard: true))
         {
-            FrameworkElement element = Build(child, insideCard: true);
             if (!first || hasHeader)
             {
                 element.Margin = new Thickness(0, first ? 16 : _flat ? FlatContentGap : CardContentGap, 0, 0);
@@ -1109,6 +1148,11 @@ internal sealed class UiVisualBuilder
 
     private FrameworkElement BuildToggle(UiToggle node)
     {
+        if (node.Style == UiToggleStyle.Checkbox)
+        {
+            return BuildTickBox(node);
+        }
+
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1133,6 +1177,27 @@ internal sealed class UiVisualBuilder
         toggle.Unchecked += (_, _) => _raise(UiAction.Toggle(id, false));
         row.Children.Add(toggle);
         return row;
+    }
+
+    private FrameworkElement BuildTickBox(UiToggle node)
+    {
+        var label = Styled(new TextBlock { Text = node.Label }, "Blocker.Text.TaskLabel");
+        object content = label;
+        if (!string.IsNullOrEmpty(node.Description))
+        {
+            TextBlock description = Caption(node.Description);
+            description.Margin = new Thickness(0, 2, 0, 0);
+            description.TextTrimming = TextTrimming.CharacterEllipsis;
+            content = new StackPanel { Children = { label, description } };
+        }
+
+        var box = Styled(new CheckBox { IsChecked = node.IsOn, Content = content }, "Blocker.Check.Task");
+        AutomationProperties.SetName(box, node.Label);
+        AutomationProperties.SetAutomationId(box, node.Id);
+        string id = node.Id;
+        box.Checked += (_, _) => _raise(UiAction.Toggle(id, true));
+        box.Unchecked += (_, _) => _raise(UiAction.Toggle(id, false));
+        return box;
     }
 
     private FrameworkElement BuildForm(UiForm form)
@@ -1195,7 +1260,8 @@ internal sealed class UiVisualBuilder
 
             compactRow = null;
             var group = new StackPanel { Margin = new Thickness(0, top, 0, 0) };
-            if (!labelled)
+            bool inlineComposer = form.Fields.Count == 1 && field is UiTextField { Placeholder: { Length: > 0 } } && form.FooterAction is null;
+            if (!labelled && !inlineComposer)
             {
                 TextBlock label = Caption(field.Label);
                 label.Margin = new Thickness(0, 0, 0, 6);
