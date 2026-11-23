@@ -369,6 +369,14 @@ internal sealed class TimeGridSurface : Panel
         return block;
     }
 
+    // The tone shows as a bar on the block's left edge over a dark tint, like the month chips, instead of a loud solid fill.
+    private static Border CreateToneBar(UiTone tone)
+    {
+        var bar = new Border { Width = 3, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(6, 0, 0, 6), IsHitTestVisible = false };
+        bar.SetResourceReference(Border.BackgroundProperty, ToneMap.FillKey(tone));
+        return bar;
+    }
+
     private static Rect ToRect(RectD r) => new(r.X, r.Y, Math.Max(r.Width, 0), Math.Max(r.Height, 0));
 
     private static void MeasureGhost(GhostVisual ghost, RectD rect)
@@ -522,8 +530,8 @@ internal sealed class TimeGridSurface : Panel
             _selected = ev.IsSelected;
             IsHitTestVisible = false;
             CornerRadius = new CornerRadius(6);
-            SetResourceReference(BackgroundProperty, EventFillKey(ev.Tone));
-            string textKey = ev.Tone == UiTone.Neutral ? "Blocker.Text.Primary" : "Blocker.Event.OnLight";
+            SetResourceReference(BackgroundProperty, ToneMap.SoftKey(ev.Tone));
+            const string textKey = "Blocker.Text.Primary";
 
             _title = CreateLabel(ev.Title, 12, FontWeights.SemiBold, textKey);
             _detail = CreateLabel(_time, 11, FontWeights.Normal, textKey);
@@ -543,13 +551,14 @@ internal sealed class TimeGridSurface : Panel
             _oneLine.Visibility = Visibility.Collapsed;
             UpdateOneLineTime();
 
-            var texts = new StackPanel { Margin = new Thickness(8, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
+            var texts = new StackPanel { Margin = new Thickness(10, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
             texts.Children.Add(_oneLine);
             texts.Children.Add(_title);
             texts.Children.Add(_detail);
 
             var content = new Grid();
             content.Children.Add(texts);
+            content.Children.Add(CreateToneBar(ev.Tone));
             if (ev.IsSelected)
             {
                 // The ring is its own overlay so it stays crisp on every fill colour and does not shift the text.
@@ -604,13 +613,6 @@ internal sealed class TimeGridSurface : Panel
             SetZIndex(this, _selected ? 10 : 0);
         }
 
-        private static string EventFillKey(UiTone tone) => tone switch
-        {
-            UiTone.Accent => "Blocker.Event.Accent",
-            UiTone.Neutral => "Blocker.Event.Neutral",
-            _ => ToneMap.FillKey(tone),
-        };
-
         private static void SetVisible(UIElement element, bool visible) =>
             element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
 
@@ -635,18 +637,19 @@ internal sealed class TimeGridSurface : Panel
         public GhostVisual()
         {
             IsHitTestVisible = false;
-            var fill = new Border { CornerRadius = new CornerRadius(6), Opacity = 0.85 };
-            fill.SetResourceReference(Border.BackgroundProperty, "Blocker.Event.Accent");
+            var fill = new Border { CornerRadius = new CornerRadius(6) };
+            fill.SetResourceReference(Border.BackgroundProperty, ToneMap.SoftKey(UiTone.Accent));
             Children.Add(fill);
+            Children.Add(CreateToneBar(UiTone.Accent));
 
-            _title = CreateLabel(NoTitle, 12, FontWeights.SemiBold, "Blocker.Event.OnLight");
-            _detail = CreateLabel(string.Empty, 11, FontWeights.Normal, "Blocker.Event.OnLight");
-            _oneLine = CreateLabel(string.Empty, 12, FontWeights.SemiBold, "Blocker.Event.OnLight");
+            _title = CreateLabel(NoTitle, 12, FontWeights.SemiBold, "Blocker.Text.Primary");
+            _detail = CreateLabel(string.Empty, 11, FontWeights.Normal, "Blocker.Text.Primary");
+            _oneLine = CreateLabel(string.Empty, 12, FontWeights.SemiBold, "Blocker.Text.Primary");
             _oneLine.Inlines.Add(new Run(NoTitle));
             _oneLine.Inlines.Add(_oneLineTime);
             _oneLine.Visibility = Visibility.Collapsed;
 
-            var texts = new StackPanel { Margin = new Thickness(8, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
+            var texts = new StackPanel { Margin = new Thickness(10, 3, 6, 3), VerticalAlignment = VerticalAlignment.Top };
             texts.Children.Add(_oneLine);
             texts.Children.Add(_title);
             texts.Children.Add(_detail);
