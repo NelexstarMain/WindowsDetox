@@ -210,13 +210,16 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal">
-                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Domains" VerticalAlignment="Center" />
-                        <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
-                            <ContentControl.ToolTip>
-                                <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}" Content="Websites you can keep using during a session. Use *.example.com for subdomains." />
-                            </ContentControl.ToolTip>
-                        </ContentControl>
+                    <StackPanel Grid.Row="0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Domains" VerticalAlignment="Center" />
+                            <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
+                                <ContentControl.ToolTip>
+                                    <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}" Content="Websites you can keep using during a session. Use *.example.com for subdomains." />
+                                </ContentControl.ToolTip>
+                            </ContentControl>
+                        </StackPanel>
+                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,0" Text="{Binding Domains.Count, StringFormat='{}{0} allowed'}" />
                     </StackPanel>
                     <Grid Grid.Row="1" Margin="0,16,0,0">
                         <Grid.ColumnDefinitions>
