@@ -20,6 +20,10 @@ internal sealed partial class SmokeScenario
     private const int SessionMinutes = 15;
     private const string ProbeArguments = "-t 127.0.0.1";
 
+    // A different binary from the blocked probes, so that equal file hashes can never let the allowlist confuse them. waitfor.exe blocks without
+    // a console or network (it waits for a signal nobody sends, up to the timeout), so the allowlisted probe stays alive for the whole session.
+    private const string AllowedProbeArguments = "/t 900 SmokeProbeSignal";
+
     private static readonly string[] Domains = ["example.com"];
 
     private readonly StepReport _report;
@@ -210,17 +214,18 @@ internal sealed partial class SmokeScenario
 
     private void PrepareProbes()
     {
-        string ping = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "ping.exe");
-        foreach (string probe in new[] { _probeAllowed, _probeScanned, _probeUnscanned })
+        string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        File.Copy(Path.Combine(system, "waitfor.exe"), _probeAllowed, overwrite: true);
+        foreach (string probe in new[] { _probeScanned, _probeUnscanned })
         {
-            File.Copy(ping, probe, overwrite: true);
+            File.Copy(Path.Combine(system, "ping.exe"), probe, overwrite: true);
         }
 
-        _launcher.Register("allowed", _probeAllowed, ProbeArguments);
+        _launcher.Register("allowed", _probeAllowed, AllowedProbeArguments);
         _launcher.Register("scanned", _probeScanned, ProbeArguments);
         _launcher.Register("unscanned", _probeUnscanned, ProbeArguments);
         _probesReady = true;
-        _report.Pass("probe-setup", $"copies of ping.exe at {_probeAllowed}, {_probeScanned}, {_probeUnscanned}; three Task Scheduler tasks registered to start them outside this tool's process tree");
+        _report.Pass("probe-setup", $"copy of waitfor.exe at {_probeAllowed} (allowed) and copies of ping.exe at {_probeScanned}, {_probeUnscanned} (blocked), so no two probes share a hash; three Task Scheduler tasks registered to start them outside this tool's process tree");
     }
 
     private async Task ScanAppsAsync()

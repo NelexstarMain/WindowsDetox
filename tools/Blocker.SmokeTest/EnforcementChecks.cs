@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Security.AccessControl;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Blocker.Contracts;
 using Blocker.Core.ServiceHost;
 using Blocker.Sdk.Session;
@@ -168,8 +169,31 @@ internal sealed partial class SmokeScenario
                 ? "the allowlisted probe never started (so the two blocked probes below are inconclusive)"
                 : $"allowlisted probe started after {allowed.FirstSeen.Value.TotalSeconds:0.0}s and {(allowed.DiedAfterSeen ? "was killed" : "stayed alive")}");
         _report.Info(_launcher.Describe("allowed"));
+        PrintProbeLogLines(allowed, scanned, unscanned);
         EvaluateBlockedProbe("probe-etw-kill", "unscanned", "not in the scan: only the ETW process monitor can stop it", unscanned, allowed, launchedAt);
         EvaluateBlockedProbe("probe-ifeo-block", "scanned", "in the scan: IFEO redirects it to the block screen, the ETW monitor is the backup", scanned, allowed, launchedAt);
+    }
+
+    /// <summary>The service log lines written since the session started that name a probe or one of its pids: what the coordinator decided about them.</summary>
+    private void PrintProbeLogLines(params ProbeWatch[] probes)
+    {
+        string[] names = [.. probes.Select(static p => p.ImageName)];
+        int[] pids = [.. probes.SelectMany(static p => p.Pids)];
+        Regex pidPattern = new(@"\bpid " + (pids.Length == 0 ? "-1" : "(?:" + string.Join('|', pids) + ")") + @"\b", RegexOptions.CultureInvariant);
+        try
+        {
+            string[] lines = [.. SystemState.ReadNewestLog(_paths.LogsDirectory).Lines.Skip(_logLinesAtStart)
+                .Where(l => names.Any(n => l.Contains(n, StringComparison.OrdinalIgnoreCase)) || pidPattern.IsMatch(l))];
+            _report.Info($"service log lines about the probes (names {string.Join(", ", names)}; pids {string.Join(", ", pids)}): {lines.Length}");
+            foreach (string line in lines.Take(60))
+            {
+                _report.Info($"  log: {line}");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _report.Info($"the service log could not be read: {ex.Message}");
+        }
     }
 
     private void EvaluateBlockedProbe(string name, string key, string role, ProbeWatch probe, ProbeWatch control, DateTime launchedAt)
@@ -291,6 +315,13 @@ internal sealed partial class SmokeScenario
     /// <summary>Follows one probe program by image name: when it was first and last seen alive and since when it has been gone.</summary>
     private sealed class ProbeWatch(string imageName)
     {
+        private readonly HashSet<int> _pids = [];
+
+        public string ImageName { get; } = imageName;
+
+        /// <summary>Gets every process id seen running under the probe's image name.</summary>
+        public IReadOnlyCollection<int> Pids => _pids;
+
         public bool Alive { get; private set; }
 
         public TimeSpan? FirstSeen { get; private set; }
@@ -304,7 +335,19 @@ internal sealed partial class SmokeScenario
 
         public void Poll(TimeSpan now)
         {
-            Alive = IsRunning(imageName);
+            Alive = false;
+            foreach (Process process in Process.GetProcessesByName(ImageName))
+            {
+                using (process)
+                {
+                    if (!process.HasExited)
+                    {
+                        Alive = true;
+                        _pids.Add(process.Id);
+                    }
+                }
+            }
+
             if (Alive)
             {
                 FirstSeen ??= now;
