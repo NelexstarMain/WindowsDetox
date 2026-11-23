@@ -233,7 +233,7 @@ public sealed class CoordinatorEmergencyPassTests
         Assert.Equal(
             [
                 new EnforcementNotification(EnforcementNotificationKind.PassEnded, "The emergency pass ended; the session is enforced again."),
-                new EnforcementNotification(EnforcementNotificationKind.ProtectionDegraded, "Some protections could not be applied and will be retried: wfp down"),
+                new EnforcementNotification(EnforcementNotificationKind.ProtectionDegraded, "Some protections could not be applied and will be retried: Enabling the browser firewall failed: IOException (0x80131620): wfp down"),
             ],
             h.Notifications);
 

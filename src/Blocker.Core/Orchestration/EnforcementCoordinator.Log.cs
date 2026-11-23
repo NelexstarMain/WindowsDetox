@@ -10,8 +10,8 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Error, Message = "Starting the enforced session failed; rolling back.")]
     private static partial void LogSessionStartFailed(ILogger logger, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Bringing up protections failed.")]
-    private static partial void LogBringUpFailed(ILogger logger, Exception exception);
+    [LoggerMessage(Level = LogLevel.Error, Message = "Bringing up protections failed at: {Step}.")]
+    private static partial void LogBringUpFailed(ILogger logger, string step, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "{Step} failed.")]
     private static partial void LogStepFailed(ILogger logger, Exception exception, string step);

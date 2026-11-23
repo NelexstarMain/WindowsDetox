@@ -110,7 +110,7 @@ public sealed class CoordinatorLifecycleTests
         StartEnforcedSessionResult result = await h.StartAsync();
 
         int port = h.Proxies.Single().Port;
-        Assert.Equal(new StartEnforcedSessionResult(false, null, null, ["The session could not be enforced and was rolled back: registry denied"]), result, new ResultComparer());
+        Assert.Equal(new StartEnforcedSessionResult(false, null, null, [$"The session could not be enforced and was rolled back: Applying 'fake' to 'pac:{port}' failed: IOException (0x80131620): registry denied"]), result, new ResultComparer());
         Assert.Empty(h.JournalHarness.System.Values);
         Assert.Equal([$"pac:{port}", "ifeo:taskmgr.exe", "ifeo:game.exe", "ifeo:cmd.exe"], h.JournalHarness.System.RestoreLog);
         Assert.False(await h.Journal.HasPendingChangesAsync(Ct));
@@ -140,7 +140,7 @@ public sealed class CoordinatorLifecycleTests
 
         StartEnforcedSessionResult result = await h.StartAsync();
 
-        Assert.Equal(["The session could not be enforced and was rolled back: no plan"], result.Errors);
+        Assert.Equal(["The session could not be enforced and was rolled back: Planning the session changes failed: InvalidOperationException (0x80131509): no plan"], result.Errors);
         Assert.Empty(h.JournalHarness.System.Values);
         Assert.Empty(h.JournalHarness.System.RestoreLog);
         Assert.False(h.Coordinator.IsSessionActive);
@@ -155,7 +155,7 @@ public sealed class CoordinatorLifecycleTests
 
         StartEnforcedSessionResult result = await h.StartAsync();
 
-        Assert.Equal(["The session could not be enforced and was rolled back: wfp unavailable"], result.Errors);
+        Assert.Equal(["The session could not be enforced and was rolled back: Enabling the browser firewall failed: InvalidOperationException (0x80131509): wfp unavailable"], result.Errors);
         Assert.Empty(h.JournalHarness.System.Values);
         Assert.Equal(7, h.JournalHarness.System.RestoreLog.Count);
         Assert.False(h.Firewall.IsEnabled);
@@ -171,7 +171,7 @@ public sealed class CoordinatorLifecycleTests
 
         StartEnforcedSessionResult result = await h.StartAsync();
 
-        Assert.Equal(["The session could not be enforced and was rolled back: etw busy"], result.Errors);
+        Assert.Equal(["The session could not be enforced and was rolled back: Starting the process monitor failed: InvalidOperationException (0x80131509): etw busy"], result.Errors);
         Assert.Empty(h.JournalHarness.System.Values);
         Assert.Equal(0, h.Monitor.Handlers);
         Assert.False(h.Coordinator.IsSessionActive);
@@ -192,6 +192,21 @@ public sealed class CoordinatorLifecycleTests
         Assert.Empty(h.JournalHarness.System.Values);
         Assert.False(h.Coordinator.IsSessionActive);
         Assert.Null(await h.Sessions.LoadAsync(Ct));
+    }
+
+    [Fact]
+    public async Task Start_FailedChange_NamesTheStepTargetAndErrorType()
+    {
+        await using var h = new OrchestrationHarness();
+        h.JournalHarness.System.ApplyFault = target => target.StartsWith("pac:", StringComparison.Ordinal) ? new UnauthorizedAccessException() : null;
+
+        StartEnforcedSessionResult result = await h.StartAsync();
+
+        Assert.False(result.Started);
+        string error = Assert.Single(result.Errors);
+        Assert.Contains("Applying 'fake' to 'pac:", error, StringComparison.Ordinal);
+        Assert.Contains("UnauthorizedAccessException (0x80070005)", error, StringComparison.Ordinal);
+        Assert.Empty(h.JournalHarness.System.Values);
     }
 
     [Fact]

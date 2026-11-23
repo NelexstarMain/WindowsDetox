@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Threading.Channels;
 using Blocker.Core.Abstractions;
 using Blocker.Core.Journal;
@@ -361,6 +362,8 @@ public sealed partial class EnforcementCoordinator(
     /// </summary>
     private async ValueTask<string?> BringUpAsync(SessionRuntime runtime, bool protect, CancellationToken cancellationToken)
     {
+        // Named in the error text, so a user who only sees the UI message can still tell which protection failed.
+        string step = "Starting the process monitor";
         try
         {
             if (!runtime.MonitorAttached)
@@ -377,6 +380,7 @@ public sealed partial class EnforcementCoordinator(
             }
 
             runtime.ProtectionApplied = false;
+            step = "Rolling back earlier changes";
             RollbackReport reset = await journal.RollbackAllAsync(cancellationToken).ConfigureAwait(false);
             if (!reset.Complete)
             {
@@ -388,7 +392,9 @@ public sealed partial class EnforcementCoordinator(
                 return null;
             }
 
+            step = "Starting the web filter proxy";
             EnsureProxy(runtime);
+            step = "Planning the session changes";
             IReadOnlyList<PlannedChange> plan = planner.PlanSessionChanges(new SessionPlanInput(
                 runtime.Proxy!.Port,
                 runtime.IfeoImageNames,
@@ -397,11 +403,13 @@ public sealed partial class EnforcementCoordinator(
                 _settings.ServiceNames));
             foreach (PlannedChange change in plan)
             {
+                step = $"Applying '{change.Kind}' to '{change.Target}'";
                 await journal.ApplyAsync(change.Kind, change.Target, change.DesiredStateJson, cancellationToken).ConfigureAwait(false);
             }
 
             if (runtime.Browsers.Count > 0)
             {
+                step = "Enabling the browser firewall";
                 await firewall.EnableAsync(runtime.Browsers, cancellationToken).ConfigureAwait(false);
             }
 
@@ -411,8 +419,8 @@ public sealed partial class EnforcementCoordinator(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            LogBringUpFailed(logger, ex);
-            return ex.Message;
+            LogBringUpFailed(logger, step, ex);
+            return string.Create(CultureInfo.InvariantCulture, $"{step} failed: {ex.GetType().Name} (0x{ex.HResult:X8}): {ex.Message}");
         }
     }
 
