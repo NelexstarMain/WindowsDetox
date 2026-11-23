@@ -22,7 +22,10 @@ public sealed partial class EnforcementCoordinator
     private readonly Lock _stubGate = new();
     private readonly Dictionary<string, long> _stubLaunches = new(StringComparer.Ordinal);
 
-    private readonly record struct WorkItem(ProcessInfo? Started, ProcessKey Exited);
+    /// <param name="Started">The process to decide, or <see langword="null"/> for an exit.</param>
+    /// <param name="Exited">The process that exited.</param>
+    /// <param name="Reconciled">The process was found by <see cref="ReconcileAsync"/>, not reported by the monitor.</param>
+    private readonly record struct WorkItem(ProcessInfo? Started, ProcessKey Exited, bool Reconciled = false);
 
     private readonly record struct BlockDecision(ProcessInfo Process, ProcessVerdict Verdict, ProcessDescriptor Descriptor);
 
@@ -121,10 +124,92 @@ public sealed partial class EnforcementCoordinator
             return;
         }
 
-        if (await DecideAsync(runtime, process, force: false, cancellationToken).ConfigureAwait(false) is { } decision)
+        if (await DecideAsync(runtime, process, force: false, cancellationToken, item.Reconciled).ConfigureAwait(false) is { } decision)
         {
             await BlockAsync(runtime, decision, graceful: false, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// The monitor's second chance: restarts it when its event delivery ended and queues every running process the tree does not know, so a
+    /// lost event (an overrun ETW buffer, a stopped session) is a delay of one interval, not a bypass for the rest of the session. The same
+    /// consumer decides them, in start order, so reconciled and reported processes never race.
+    /// </summary>
+    private async ValueTask ReconcileAsync(SessionRuntime runtime, CancellationToken cancellationToken)
+    {
+        await EnsureMonitorRunningAsync(runtime, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<ProcessInfo> running;
+        try
+        {
+            running = monitor.EnumerateRunning();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogStepFailed(logger, ex, "Enumerating running processes");
+            return;
+        }
+
+        int queued = 0;
+        foreach (ProcessInfo process in running.Where(p => !runtime.Tree.TryGetNode(ProcessKey.Of(p), out _)).OrderBy(static p => p.StartTimeTicks))
+        {
+            if (!TryEnqueueReconciled(runtime, process))
+            {
+                break; // the queue is full; the next interval continues
+            }
+
+            queued++;
+        }
+
+        if (queued > 0)
+        {
+            LogReconciled(logger, queued);
+        }
+    }
+
+    private async ValueTask EnsureMonitorRunningAsync(SessionRuntime runtime, CancellationToken cancellationToken)
+    {
+        if (!_monitorStarted || !monitor.Completion.IsCompleted)
+        {
+            return;
+        }
+
+        LogMonitorStopped(logger, monitor.Fault);
+        try
+        {
+            await monitor.StartAsync(cancellationToken).ConfigureAwait(false);
+            runtime.MonitorDown = false;
+            LogMonitorRestarted(logger);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogStepFailed(logger, ex, "Restarting the process monitor");
+            if (!runtime.MonitorDown)
+            {
+                runtime.MonitorDown = true;
+                Notify(EnforcementNotificationKind.ProtectionDegraded, "Process monitoring stopped and could not be restarted yet; running programs are still checked every few seconds.");
+            }
+        }
+    }
+
+    private static bool TryEnqueueReconciled(SessionRuntime runtime, ProcessInfo process)
+    {
+        runtime.Work.Add();
+        bool queued;
+        try
+        {
+            queued = runtime.Queue.Writer.TryWrite(new WorkItem(process, default, Reconciled: true));
+        }
+        catch (Exception ex) when (ex is ChannelClosedException or ObjectDisposedException)
+        {
+            queued = false; // the runtime is being torn down
+        }
+
+        if (!queued)
+        {
+            runtime.Work.Done();
+        }
+
+        return queued;
     }
 
     /// <summary>
@@ -174,7 +259,7 @@ public sealed partial class EnforcementCoordinator
     }
 
     /// <summary>Decides one process and records it in the tree; returns a decision only when it must be blocked right now.</summary>
-    private async ValueTask<BlockDecision?> DecideAsync(SessionRuntime runtime, ProcessInfo process, bool force, CancellationToken cancellationToken)
+    private async ValueTask<BlockDecision?> DecideAsync(SessionRuntime runtime, ProcessInfo process, bool force, CancellationToken cancellationToken, bool reconciled = false)
     {
         SessionPhase phase = session.Snapshot.Phase;
         if (phase == SessionPhase.Idle || (!force && runtime.Tree.TryGetNode(ProcessKey.Of(process), out _)))
@@ -191,7 +276,7 @@ public sealed partial class EnforcementCoordinator
         bool trusted = process.SessionId == 0 || runtime.Critical.IsCritical(image);
         string? sha256 = trusted || image.Length == 0 ? null : await HashAsync(image, cancellationToken).ConfigureAwait(false);
         string? package = trusted ? null : TryGetPackage(process.ProcessId);
-        var facts = new ProcessFacts(process, sha256, false, package, runtime.Tree.ParentAllowsInheritance(process));
+        var facts = new ProcessFacts(process, sha256, false, package, runtime.Tree.ParentAllowsInheritance(process, requireLiveParent: reconciled));
         ProcessVerdict core = runtime.Decision.Decide(facts);
         if (core is { Kind: VerdictKind.Block, Reason: VerdictReason.NotAllowlisted } && IsBaselinePath(image) && IsMicrosoftSigned(image))
         {

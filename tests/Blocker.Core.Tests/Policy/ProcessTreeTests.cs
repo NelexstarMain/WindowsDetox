@@ -116,6 +116,18 @@ public sealed class ProcessTreeTests
     }
 
     [Fact]
+    public void A_live_parent_can_be_required_for_snapshot_found_children()
+    {
+        var tree = new ProcessTree();
+        tree.Add(P(10, 4, 100), allowsInheritance: true);
+        Assert.True(tree.ParentAllowsInheritance(P(11, 10, 200), requireLiveParent: true));
+
+        tree.MarkExited(10, 100);
+
+        Assert.False(tree.ParentAllowsInheritance(P(11, 10, 200), requireLiveParent: true));
+    }
+
+    [Fact]
     public void Eviction_removes_exited_nodes_first_in_exit_order()
     {
         var tree = new ProcessTree(maxNodes: 3);

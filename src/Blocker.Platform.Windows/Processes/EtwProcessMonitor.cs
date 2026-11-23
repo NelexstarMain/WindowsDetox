@@ -48,10 +48,11 @@ public sealed class EtwProcessMonitor : IProcessMonitor
     /// <inheritdoc/>
     public event EventHandler<ProcessExitedEventArgs>? ProcessExited;
 
-    /// <summary>Completes when the ETW processing loop ended (disposal, or the session was stopped externally). Check <see cref="Fault"/> afterwards.</summary>
+    /// <inheritdoc/>
+    /// <remarks>Completes when the ETW processing loop ended (disposal, or the session was stopped externally). Check <see cref="Fault"/> afterwards.</remarks>
     public Task Completion => _processing;
 
-    /// <summary>Exception that terminated the processing loop, or null.</summary>
+    /// <inheritdoc/>
     public Exception? Fault => Volatile.Read(ref _fault);
 
     /// <summary>Most recent exception thrown by an event handler (handlers are isolated so one bad subscriber cannot stop monitoring).</summary>
@@ -66,7 +67,15 @@ public sealed class EtwProcessMonitor : IProcessMonitor
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_session is not null)
             {
-                throw new InvalidOperationException("The process monitor is already started.");
+                if (!_processing.IsCompleted)
+                {
+                    throw new InvalidOperationException("The process monitor is already started.");
+                }
+
+                // The loop ended (a fault, or someone stopped the session): replace the dead session.
+                _session.Dispose();
+                _session = null;
+                Volatile.Write(ref _fault, null);
             }
 
             using (var stale = TraceEventSession.GetActiveSession(SessionName))

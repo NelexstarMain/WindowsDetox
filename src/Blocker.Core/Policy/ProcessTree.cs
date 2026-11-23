@@ -101,12 +101,20 @@ public sealed class ProcessTree(int maxNodes = 16384)
     }
 
     /// <summary>True when the child's resolved parent allows inheritance. Feeds <see cref="ProcessFacts.ParentAllowsInheritance"/>.</summary>
-    public bool ParentAllowsInheritance(ProcessInfo child)
+    /// <param name="child">The process.</param>
+    /// <param name="requireLiveParent">
+    /// Also require that the parent has not exited. For a process found by a snapshot, whose claimed parent cannot be verified, an exited parent
+    /// is one more reason not to believe the claim (the start-time guard only catches a reused pid, not a dead parent).
+    /// </param>
+    public bool ParentAllowsInheritance(ProcessInfo child, bool requireLiveParent = false)
     {
         ArgumentNullException.ThrowIfNull(child);
         lock (_gate)
         {
-            return ResolveParentLocked(child) is { } parent && _nodes.TryGetValue(parent, out ProcessNode node) && node.AllowsInheritance;
+            return ResolveParentLocked(child) is { } parent
+                && _nodes.TryGetValue(parent, out ProcessNode node)
+                && node.AllowsInheritance
+                && !(requireLiveParent && node.Exited);
         }
     }
 

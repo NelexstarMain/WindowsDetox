@@ -11,8 +11,14 @@ public interface IProcessMonitor : IAsyncDisposable
     /// <summary>Raised when a process exits.</summary>
     event EventHandler<ProcessExitedEventArgs>? ProcessExited;
 
-    /// <summary>Starts monitoring.</summary>
+    /// <summary>Starts monitoring. Called again after <see cref="Completion"/> completed, it restarts a monitor that stopped.</summary>
     Task StartAsync(CancellationToken cancellationToken);
+
+    /// <summary>Completes when event delivery ended (the session was stopped, or the processing loop died). Not completed while monitoring runs.</summary>
+    Task Completion { get; }
+
+    /// <summary>The exception that ended event delivery, or <see langword="null"/> (also while monitoring runs).</summary>
+    Exception? Fault { get; }
 
     /// <summary>Snapshot of processes running right now (used at session start and to seed the process tree).</summary>
     IReadOnlyList<ProcessInfo> EnumerateRunning();

@@ -22,11 +22,38 @@ internal sealed class FakeProcessMonitor : IProcessMonitor
 
     public int Handlers => (ProcessStarted?.GetInvocationList().Length ?? 0) + (ProcessExited?.GetInvocationList().Length ?? 0);
 
+    private TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task Completion => _completion.Task;
+
+    public Exception? Fault { get; private set; }
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         StartCalls++;
-        return StartFault is { } fault ? Task.FromException(fault) : Task.CompletedTask;
+        if (StartFault is { } fault)
+        {
+            return Task.FromException(fault);
+        }
+
+        if (_completion.Task.IsCompleted)
+        {
+            _completion = new(TaskCreationOptions.RunContinuationsAsynchronously); // a restart
+            Fault = null;
+        }
+
+        return Task.CompletedTask;
     }
+
+    /// <summary>Event delivery ends (the ETW session died): <see cref="Completion"/> completes.</summary>
+    public void Stop(Exception? fault = null)
+    {
+        Fault = fault;
+        _completion.TrySetResult();
+    }
+
+    /// <summary>The process starts but the monitor never reports it (a lost ETW event): it only shows up in the snapshot.</summary>
+    public void SpawnUnreported(ProcessInfo process) => Running.Add(process);
 
     public IReadOnlyList<ProcessInfo> EnumerateRunning()
     {

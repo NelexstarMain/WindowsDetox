@@ -46,6 +46,9 @@ public sealed partial class EnforcementCoordinator(
     internal static readonly TimeSpan GracefulCloseBudget = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ReapplyBackoff = TimeSpan.FromSeconds(10);
 
+    /// <summary>How often an active session re-checks the running processes against the monitor's events.</summary>
+    internal static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(5);
+
     private EnforcementSettings _settings = Validated(settings);
     private readonly Func<int, CancellationToken, Task<bool>> _closeGracefully =
         closeGracefully ?? ((pid, ct) => controller.TryCloseGracefullyAsync(pid, GracefulCloseBudget, ct));
@@ -343,6 +346,7 @@ public sealed partial class EnforcementCoordinator(
             await EnforceRunningAsync(runtime, graceful: false, cancellationToken).ConfigureAwait(false);
         }
 
+        runtime.ReconcileStamp = time.GetTimestamp();
         runtime.Consumer = ConsumeAsync(runtime);
         runtime.TickLoop = RunTickLoopAsync(runtime);
     }
@@ -517,6 +521,14 @@ public sealed partial class EnforcementCoordinator(
         if (enforce)
         {
             await EnforceRunningAsync(runtime, graceful: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (ReferenceEquals(_runtime, runtime)
+            && session.Snapshot.Phase == SessionPhase.Active
+            && time.GetElapsedTime(runtime.ReconcileStamp) >= ReconcileInterval)
+        {
+            runtime.ReconcileStamp = time.GetTimestamp();
+            await ReconcileAsync(runtime, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -733,6 +745,10 @@ public sealed partial class EnforcementCoordinator(
         public bool Degraded { get; set; }
 
         public long RetryStamp { get; set; }
+
+        public long ReconcileStamp { get; set; }
+
+        public bool MonitorDown { get; set; }
 
         public void Dispose() => Stop.Dispose();
     }
