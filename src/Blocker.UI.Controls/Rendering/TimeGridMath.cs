@@ -112,8 +112,11 @@ internal static class TimeGridMath
     /// <summary>Smallest distance between the popover card and the control edge.</summary>
     public const double PopoverMargin = 8;
 
-    /// <summary>Space kept free at the right of a day column so busy days can still be clicked to create a block.</summary>
-    public const double ColumnRightGap = 6;
+    /// <summary>Space between a block and each side of its day column, so a block fills the column with the same small margin on both sides.</summary>
+    public const double ColumnInset = 2;
+
+    /// <summary>Space between neighbouring lanes of overlapping blocks.</summary>
+    public const double LaneGutter = 2;
 
     /// <summary>Gets the full height of the 24-hour content.</summary>
     public static double ContentHeight => HourHeight * 24;
@@ -196,14 +199,15 @@ internal static class TimeGridMath
     /// <param name="slot">Day and time range.</param>
     /// <param name="column">Lane among overlapping blocks.</param>
     /// <param name="columns">Number of lanes.</param>
-    /// <returns>The block rectangle, one pixel inset so neighbours do not touch.</returns>
+    /// <returns>The block rectangle, inset by <see cref="ColumnInset"/> on both sides, lanes separated by <see cref="LaneGutter"/>.</returns>
     public static RectD BlockRect(in TimeGridGeometry geometry, TimeSlot slot, int column, int columns)
     {
         double columnWidth = geometry.ColumnWidth;
-        double usable = Math.Max(0, columnWidth - ColumnRightGap);
-        double laneWidth = usable / Math.Max(columns, 1);
+        int lanes = Math.Max(columns, 1);
+        double usable = Math.Max(0, columnWidth - (2 * ColumnInset) - ((lanes - 1) * LaneGutter));
+        double laneWidth = usable / lanes;
         double height = Math.Max(MinEventHeight, geometry.YOf(slot.End - slot.Start) - 2);
-        return new RectD(geometry.ColumnX(slot.Day) + 1 + (column * laneWidth), geometry.YOf(slot.Start) + 1, Math.Max(0, laneWidth - 1), height);
+        return new RectD(geometry.ColumnX(slot.Day) + ColumnInset + (column * (laneWidth + LaneGutter)), geometry.YOf(slot.Start) + 1, laneWidth, height);
     }
 
     /// <summary>Gets whether a block of the given height has room for a second text line.</summary>

@@ -76,7 +76,9 @@ public sealed class TimeGridMathTests
         RectD wide = TimeGridMath.BlockRect(Week, new TimeSlot(2, 540, 600), 0, 1);
         RectD second = TimeGridMath.BlockRect(Week, new TimeSlot(2, 540, 600), 1, 2);
 
-        Assert.Equal(56 + 200 + 1, wide.X, 6);
+        Assert.Equal(56 + 200 + TimeGridMath.ColumnInset, wide.X, 6);
+        Assert.Equal(Week.ColumnX(3) - TimeGridMath.ColumnInset, wide.Right, 6);
+        Assert.Equal(TimeGridMath.LaneGutter, second.X - (wide.X + wide.Width), 6);
         Assert.Equal((540 * 0.8) + 1, wide.Y, 6);
         Assert.Equal(48 - 2, wide.Height, 6);
         Assert.True(second.X > wide.X + (wide.Width / 2) - 1);
