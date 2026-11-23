@@ -509,8 +509,8 @@ internal sealed class TimeGridSurface : Panel
 
         private readonly TextBlock _title;
         private readonly TextBlock _detail;
-        private readonly TextBlock _oneLine;
-        private readonly Run _oneLineTime = new() { FontWeight = FontWeights.Normal };
+        private readonly Grid _oneLine = new();
+        private readonly TextBlock _oneLineTime;
         private readonly string? _baseDetail;
         private readonly bool _selected;
         private string _time;
@@ -529,9 +529,17 @@ internal sealed class TimeGridSurface : Panel
             _detail = CreateLabel(_time, 11, FontWeights.Normal, textKey);
             _detail.Opacity = DetailOpacity;
 
-            _oneLine = CreateLabel(string.Empty, 12, FontWeights.SemiBold, textKey);
-            _oneLine.Inlines.Add(new Run(ev.Title));
-            _oneLine.Inlines.Add(_oneLineTime);
+            // The title gives way to the time: a short block keeps its start readable and cuts the title instead.
+            _oneLineTime = CreateLabel(string.Empty, 11, FontWeights.Normal, textKey);
+            _oneLineTime.TextTrimming = TextTrimming.None;
+            _oneLineTime.Opacity = DetailOpacity;
+            _oneLineTime.Margin = new Thickness(6, 0, 0, 0);
+            _oneLineTime.VerticalAlignment = VerticalAlignment.Center;
+            _oneLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _oneLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(_oneLineTime, 1);
+            _oneLine.Children.Add(CreateLabel(ev.Title, 12, FontWeights.SemiBold, textKey));
+            _oneLine.Children.Add(_oneLineTime);
             _oneLine.Visibility = Visibility.Collapsed;
             UpdateOneLineTime();
 
@@ -609,7 +617,7 @@ internal sealed class TimeGridSurface : Panel
         private void UpdateOneLineTime()
         {
             string start = TimeGridMath.StartOf(_time);
-            _oneLineTime.Text = start.Length == 0 ? string.Empty : ", " + start;
+            _oneLineTime.Text = start;
         }
     }
 
