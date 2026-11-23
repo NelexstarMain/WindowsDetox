@@ -28,7 +28,7 @@ public interface IProcessMonitor : IAsyncDisposable
 /// <param name="ProcessId">Process id.</param>
 /// <param name="ParentProcessId">Parent process id as the process claims it. A process can choose its parent (<c>PROC_THREAD_ATTRIBUTE_PARENT_PROCESS</c>), so never trust it for inheritance when <paramref name="CreatorProcessId"/> is known.</param>
 /// <param name="SessionId">Terminal-services session id (0 = services).</param>
-/// <param name="ImagePath">Full image path (may be empty if not resolvable).</param>
+/// <param name="ImagePath">Full image path. Empty when the source could not name it; the coordinator then asks <see cref="IProcessController.TryGetImagePath"/> and leaves a process that stays unnamed alone.</param>
 /// <param name="StartTimeTicks">Process creation time as FILETIME ticks (identity together with the pid).</param>
 /// <param name="CreatorProcessId">
 /// The process that really created this one (the process id in the header of the creation event), or <see langword="null"/> when the source cannot
@@ -64,6 +64,12 @@ public interface IProcessController
 
     /// <summary>Package family name of a packaged (Store) process, or null.</summary>
     string? GetPackageFamilyName(int processId);
+
+    /// <summary>
+    /// Win32 image path of a live process, asked of the system by pid. Returns null when the process exited, the (pid, start time) pair no longer
+    /// identifies it (pid reuse), or its image cannot be read.
+    /// </summary>
+    string? TryGetImagePath(int processId, long startTimeTicks);
 }
 
 /// <summary>Launches executables inside the active interactive user session (from Session 0).</summary>

@@ -107,6 +107,11 @@ internal sealed class FakeProcessController : IProcessController
 
     public Dictionary<int, string> Packages { get; } = [];
 
+    /// <summary>What the system would answer for a pid; a pid that is not listed cannot be resolved (exited or protected).</summary>
+    public Dictionary<int, string> Images { get; } = [];
+
+    public string? TryGetImagePath(int processId, long startTimeTicks) => Images.GetValueOrDefault(processId);
+
     public Exception? TerminateFault { get; set; }
 
     public bool TryTerminate(int processId, long startTimeTicks)

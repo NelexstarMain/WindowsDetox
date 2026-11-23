@@ -55,6 +55,16 @@ public sealed class WindowsProcessSmokeTests
     }
 
     [Fact]
+    public void Controller_ResolvesTheImageOfALiveProcess_OnlyForItsOwnStartTime()
+    {
+        var controller = new Win32ProcessController(static _ => false);
+
+        Assert.Equal(Environment.ProcessPath, controller.TryGetImagePath(Environment.ProcessId, CurrentStartTicks()), ignoreCase: true);
+        Assert.Null(controller.TryGetImagePath(Environment.ProcessId, CurrentStartTicks() + 1));
+        Assert.Null(controller.TryGetImagePath(int.MaxValue - 3, 1));
+    }
+
+    [Fact]
     public void Controller_ReturnsFalseForUnknownProcess() =>
         Assert.False(new Win32ProcessController(static _ => false).TryTerminate(int.MaxValue - 3, 1));
 

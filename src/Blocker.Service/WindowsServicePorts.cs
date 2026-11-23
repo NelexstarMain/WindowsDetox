@@ -44,7 +44,7 @@ internal static class WindowsServicePorts
         {
             FileSystem = new FileSystem(),
             SecretProtector = new DpapiSecretProtector(),
-            ProcessMonitor = new EtwProcessMonitor(),
+            ProcessMonitor = new EtwProcessMonitor(loggers.CreateLogger<EtwProcessMonitor>()),
             ProcessController = new Win32ProcessController(critical.IsCritical),
             UserSessionLauncher = new WtsUserSessionLauncher(),
             SignatureVerifier = new AuthenticodeVerifier(),

@@ -721,6 +721,8 @@ public sealed partial class EnforcementCoordinator(
     }
 
     /// <summary>Per-session state; the coordinator swaps it atomically so late callbacks of an ended session cannot touch the next one.</summary>
+    private const int MaxUnnamedReported = 1024;
+
     private sealed class SessionRuntime(
         DomainMatcher domains,
         CriticalProcesses critical,
@@ -764,6 +766,22 @@ public sealed partial class EnforcementCoordinator(
         public long ReconcileStamp { get; set; }
 
         public bool MonitorDown { get; set; }
+
+        private readonly HashSet<ProcessKey> _unnamedReported = [];
+
+        /// <summary>True the first time this process is reported as unnamed, so a process that stays unreadable is logged once, not every reconcile interval.</summary>
+        public bool FirstUnnamedReport(ProcessKey key)
+        {
+            lock (_unnamedReported)
+            {
+                if (_unnamedReported.Count >= MaxUnnamedReported)
+                {
+                    _unnamedReported.Clear(); // bounded: forgetting only repeats a log line
+                }
+
+                return _unnamedReported.Add(key);
+            }
+        }
 
         public void Dispose() => Stop.Dispose();
     }

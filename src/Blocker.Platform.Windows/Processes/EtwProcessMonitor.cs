@@ -4,6 +4,8 @@ using Blocker.Core.Ports;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Session;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Blocker.Platform.Windows.Processes;
 
@@ -17,7 +19,7 @@ namespace Blocker.Platform.Windows.Processes;
 /// <see cref="ProcessStartTimeResolver"/>); the payload is only the fallback.
 /// </remarks>
 [SupportedOSPlatform("windows10.0.19041")]
-public sealed class EtwProcessMonitor : IProcessMonitor
+public sealed partial class EtwProcessMonitor : IProcessMonitor
 {
     /// <summary>Name of the real-time ETW session.</summary>
     public const string SessionName = "Blocker-ProcessMonitor";
@@ -27,7 +29,11 @@ public sealed class EtwProcessMonitor : IProcessMonitor
     private const int ProcessStopEventId = 2;
     private static readonly Guid KernelProcessProvider = new("22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716");
 
+    private static readonly TimeSpan UnusableImageLogInterval = TimeSpan.FromSeconds(10);
+
     private readonly NtPathConverter _paths;
+    private readonly ILogger _logger;
+    private readonly ReportThrottle _unusableImageThrottle = new(UnusableImageLogInterval);
     private readonly ProcessStartTimeResolver _startTimes = new(ProcessNative.TryGetStartTicks);
     private readonly Lock _gate = new();
     private TraceEventSession? _session;
@@ -37,12 +43,17 @@ public sealed class EtwProcessMonitor : IProcessMonitor
     private bool _disposed;
 
     /// <summary>Creates a monitor using the real DOS device table for path conversion.</summary>
-    public EtwProcessMonitor()
-        : this(DosDevices.CreateConverter())
+    /// <param name="logger">Receives diagnostics about events the monitor cannot fully interpret; none when null.</param>
+    public EtwProcessMonitor(ILogger? logger = null)
+        : this(DosDevices.CreateConverter(), logger)
     {
     }
 
-    internal EtwProcessMonitor(NtPathConverter paths) => _paths = paths;
+    internal EtwProcessMonitor(NtPathConverter paths, ILogger? logger = null)
+    {
+        _paths = paths;
+        _logger = logger ?? NullLogger.Instance;
+    }
 
     /// <inheritdoc/>
     public event EventHandler<ProcessStartedEventArgs>? ProcessStarted;
@@ -164,7 +175,7 @@ public sealed class EtwProcessMonitor : IProcessMonitor
                     started,
                     ReadInt(data, "ParentProcessID"),
                     ReadInt(data, "SessionID"),
-                    _paths.Convert(data.PayloadByName("ImageName") as string ?? string.Empty) ?? string.Empty,
+                    ReadImagePath(data, started),
                     _startTimes.ResolveStart(started, ReadFileTime(data, "CreateTime")),
                     data.ProcessID))); // the event header names the process that issued the create, which the new process cannot choose
                 break;
@@ -174,6 +185,33 @@ public sealed class EtwProcessMonitor : IProcessMonitor
                 break;
         }
     }
+
+    /// <summary>
+    /// The DOS image path of a start event, or empty when the payload has none or it cannot be converted. Empty is a valid answer: the consumer
+    /// resolves the image by pid (<see cref="IProcessController.TryGetImagePath"/>), so this never guesses from a half-usable value.
+    /// </summary>
+    private string ReadImagePath(TraceEvent data, int processId)
+    {
+        object? raw = data.PayloadByName("ImageName");
+        string image = raw is string { Length: > 0 } nt ? _paths.Convert(nt) ?? string.Empty : string.Empty;
+        if (image.Length == 0 && _unusableImageThrottle.TryAcquire(out int suppressed))
+        {
+            LogUnusableImage(
+                _logger,
+                processId,
+                raw is null ? "<missing>" : $"{raw.GetType().Name} '{raw}'",
+                string.Join(',', data.PayloadNames),
+                data.Version,
+                suppressed);
+        }
+
+        return image;
+    }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "ETW process-start event for pid {ProcessId} has no usable ImageName (raw value: {RawImageName}; payload fields: {PayloadFields}; event version {Version}); the image is resolved by pid instead. {Suppressed} similar report(s) were suppressed in the last interval.")]
+    private static partial void LogUnusableImage(ILogger logger, int processId, string rawImageName, string payloadFields, int version, int suppressed);
 
     private void Raise<T>(EventHandler<T>? handlers, T args)
         where T : EventArgs

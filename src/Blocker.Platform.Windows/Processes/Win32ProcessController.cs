@@ -67,6 +67,18 @@ public sealed class Win32ProcessController : IProcessController
         throw new Win32Exception(error);
     }
 
+    /// <inheritdoc/>
+    public string? TryGetImagePath(int processId, long startTimeTicks)
+    {
+        using var process = ProcessNative.Open(processId, PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION);
+        if (process.IsInvalid || !ProcessNative.TryGetStartTicks(process, out var ticks) || ticks != startTimeTicks)
+        {
+            return null;
+        }
+
+        return ProcessNative.TryGetImagePath(process) is { Length: > 0 } image ? image : null;
+    }
+
     /// <summary>Posts WM_CLOSE to the visible top-level windows of the process and waits for it to exit. Must run in the user session; false when there is no window or the timeout elapsed.</summary>
     public async Task<bool> TryCloseGracefullyAsync(int processId, TimeSpan timeout, CancellationToken cancellationToken)
     {

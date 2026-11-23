@@ -267,6 +267,26 @@ public sealed partial class EnforcementCoordinator
             return null;
         }
 
+        if (string.IsNullOrEmpty(process.ImagePath) && process.SessionId != 0)
+        {
+            // Trade-off, deliberately fail-open for this one case: a process we cannot name is skipped, not killed as NotAllowlisted. The event
+            // source (ETW) sometimes reports no usable image, and deciding on an empty path killed allowlisted programs and system helpers. What
+            // the system can name by pid is decided normally; the rest has exited (nothing to kill) or is protected (the controller could not
+            // terminate it anyway). It is not recorded in the tree, so the reconcile pass, which applies this same rule, judges it again.
+            if (TryResolveImage(process) is not { } resolved)
+            {
+                if (runtime.FirstUnnamedReport(ProcessKey.Of(process)))
+                {
+                    LogUnnamedSkipped(logger, process.ProcessId, process.SessionId);
+                }
+
+                return null;
+            }
+
+            LogImageResolved(logger, process.ProcessId, resolved);
+            process = process with { ImagePath = resolved };
+        }
+
         if (process.CreatorProcessId is { } creator && creator != process.ParentProcessId)
         {
             LogParentMismatch(logger, process.ProcessId, process.ParentProcessId, creator);
@@ -411,6 +431,19 @@ public sealed partial class EnforcementCoordinator
         {
             LogStepFailed(logger, ex, "Hashing an image");
             return null; // fail closed: no hash, no hash-based allow
+        }
+    }
+
+    private string? TryResolveImage(ProcessInfo process)
+    {
+        try
+        {
+            return controller.TryGetImagePath(process.ProcessId, process.StartTimeTicks) is { Length: > 0 } image ? image : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogStepFailed(logger, ex, "Resolving an image path by process id");
+            return null;
         }
     }
 

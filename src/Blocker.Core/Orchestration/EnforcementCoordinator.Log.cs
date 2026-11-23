@@ -64,6 +64,12 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Information, Message = "Blocked {Image} (pid {ProcessId}, {Reason}, terminated: {Terminated}).")]
     private static partial void LogBlocked(ILogger logger, string image, int processId, VerdictReason reason, bool terminated);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Process {ProcessId} (session {SessionId}) has no readable image path and is left alone this time; the next reconcile pass judges it again if it is still running.")]
+    private static partial void LogUnnamedSkipped(ILogger logger, int processId, int sessionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "The monitor reported no image path for process {ProcessId}; the system named it {Image}.")]
+    private static partial void LogImageResolved(ILogger logger, int processId, string image);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "No user is logged on; the block screen for a blocked process was not shown.")]
     private static partial void LogNoUserSession(ILogger logger);
 
