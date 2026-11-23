@@ -76,7 +76,7 @@
 
             <!-- Summary and the single primary action. -->
             <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
-            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,58,0,0">
+            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,78,0,0">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Summary" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="34" FontWeight="Light" Margin="0,12,0,0" Text="{Binding DurationText}" />
