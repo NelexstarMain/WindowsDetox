@@ -26,8 +26,8 @@
     <!-- Accent as text: the brand olive lifted to 7.7:1 on the raised surface and 5.8:1 on Accent.Soft (Accent itself is a fill, 3:1 only). -->
     <Color x:Key="Blocker.Accent.Text.Color">#98AD4A</Color>
     <Color x:Key="Blocker.Accent.Soft.Color">#252C15</Color>
-    <Color x:Key="Blocker.Warning.Color">#F5A524</Color>
-    <Color x:Key="Blocker.Warning.Soft.Color">#2EF5A524</Color>
+    <Color x:Key="Blocker.Warning.Color">#F08C3A</Color>
+    <Color x:Key="Blocker.Warning.Soft.Color">#2EF08C3A</Color>
     <Color x:Key="Blocker.Danger.Color">#F87171</Color>
     <Color x:Key="Blocker.Danger.Soft.Color">#2EF87171</Color>
     <Color x:Key="Blocker.Success.Color">#BFD0B4</Color>
@@ -381,6 +381,22 @@
         <Setter Property="Background" Value="#181A15" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+    </Style>
+
+    <!-- The way out of a session: an orange outlined pill on a faint orange tint, stronger under the pointer or finger. It stays
+         lighter than the filled accent buttons, so it reads as a deliberate warning action, not the main one. -->
+    <Style x:Key="Blocker.Button.ExitPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
+        <Setter Property="Background" Value="#1AF08C3A" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Warning}" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Warning}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#33F08C3A" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="#4DF08C3A" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="Blocker.Button.PrimaryPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
