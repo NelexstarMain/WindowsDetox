@@ -103,7 +103,7 @@
                     <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="{Binding ClockText}" HorizontalAlignment="Center"
                                AutomationProperties.Name="Time remaining in session" />
                     <ProgressBar Width="460" Height="4" Margin="0,20,0,28" Minimum="0" Maximum="1"
-                                 Value="{Binding ProgressRatio, Mode=OneWay}" Background="#16181F"
+                                 Value="{Binding ProgressRatio, Mode=OneWay}" Background="{DynamicResource Blocker.Bg.Raised}"
                                  Foreground="{DynamicResource Blocker.Accent.Bar}" BorderThickness="0" />
 
                     <Border Margin="0,0,0,24" Padding="14,10" CornerRadius="6" BorderThickness="1" HorizontalAlignment="Center"
