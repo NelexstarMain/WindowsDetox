@@ -141,7 +141,8 @@ public static class CalendarPopover
             fields.Add(new UiSelectField(CalendarForm.KindId, "Kind", [new("session", "Focus session"), new("task", "Task")], draft.Kind == EntryKind.Task ? "task" : "session") { Style = UiFieldStyle.Chips });
         }
 
-        fields.Add(new UiNoteField(CalendarForm.WhenId, "Date and repeat", WhenText(draft), RepeatText(draft.Repeat), UiIcon.Clock));
+        // Date only: a form cannot redraw a summary while Start, End or Repeat are edited, so those fields below stay the one source of the time.
+        fields.Add(new UiNoteField(CalendarForm.WhenId, "Date", CalTime.LongDate(draft.Day), Icon: UiIcon.Clock));
         fields.Add(new UiTextField(CalendarForm.TimeId, "Start", draft.Time, "09:00", 8) { Style = UiFieldStyle.Compact });
         fields.Add(new UiTextField(CalendarForm.ToId, "End", draft.To, "10:00", 8) { Style = UiFieldStyle.Compact });
         fields.Add(new UiSelectField(
@@ -177,20 +178,6 @@ public static class CalendarPopover
 
         return Ui.Column([.. body]);
     }
-
-    // "Wednesday 25 November · 13:15 – 15:45": the range of the draft as it was opened, the fields below are the editable truth.
-    private static string WhenText(CalendarDraft draft)
-    {
-        string date = CalTime.LongDate(draft.Day);
-        return draft.Time.Length == 0 ? date : draft.To.Length == 0 ? $"{date} · {draft.Time}" : $"{date} · {draft.Time} – {draft.To}";
-    }
-
-    private static string RepeatText(RepeatKind repeat) => repeat switch
-    {
-        RepeatKind.Daily => "Every day",
-        RepeatKind.Weekly => "Every week",
-        _ => "Does not repeat",
-    };
 
     // Everything the model has beyond title, time and repeat. The repeat fields are always listed: a form cannot react to its own select.
     private static IEnumerable<UiFormField> MoreFields(CalendarDraft draft)

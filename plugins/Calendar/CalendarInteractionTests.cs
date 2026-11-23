@@ -31,7 +31,7 @@ public class CalendarCreateTests
             form.Fields.Select(f => f.Style));
         Assert.Equal("Add title", PageTree.Field<UiTextField>(popover, CalendarForm.TitleId).Placeholder);
         Assert.Equal(CalendarIds.More, form.FooterAction?.Id);
-        Assert.Equal(new UiNoteField(CalendarForm.WhenId, "Date and repeat", "Friday 2 January · 10:00 – 11:30", "Does not repeat", UiIcon.Clock), PageTree.Field<UiNoteField>(popover, CalendarForm.WhenId));
+        Assert.Equal(new UiNoteField(CalendarForm.WhenId, "Date", "Friday 2 January", Icon: UiIcon.Clock), PageTree.Field<UiNoteField>(popover, CalendarForm.WhenId));
         Assert.Equal("Focus session", PageTree.Field<UiTextField>(popover, CalendarForm.TitleId).Value);
         UiSelectField kind = PageTree.Field<UiSelectField>(popover, CalendarForm.KindId);
         Assert.Equal(["session", "task"], kind.Options.Select(o => o.Value));
