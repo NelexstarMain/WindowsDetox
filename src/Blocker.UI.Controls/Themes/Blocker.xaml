@@ -546,12 +546,17 @@
                                     HorizontalAlignment="Left"
                                     Margin="3,0,0,0" />
                         </Border>
-                        <ContentPresenter Margin="12,0,0,0"
+                        <ContentPresenter x:Name="Label"
+                                          Margin="12,0,0,0"
                                           VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}"
                                           Content="{TemplateBinding Content}" />
                     </StackPanel>
                     <ControlTemplate.Triggers>
+                        <!-- A switch without a label must not reserve the label gap, or it sits short of the right edge its row aligns to. -->
+                        <Trigger Property="Content" Value="{x:Null}">
+                            <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Track" Property="Background" Value="{DynamicResource Blocker.Accent}" />
                             <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
