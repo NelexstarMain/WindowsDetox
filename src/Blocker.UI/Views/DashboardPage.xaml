@@ -106,7 +106,7 @@
                                  Value="{Binding ProgressRatio, Mode=OneWay}" Background="#16181F"
                                  Foreground="{DynamicResource Blocker.Accent.Bar}" BorderThickness="0" />
 
-                    <Border Margin="0,0,0,24" Padding="14,10" CornerRadius="4" BorderThickness="1" HorizontalAlignment="Center"
+                    <Border Margin="0,0,0,24" Padding="14,10" CornerRadius="6" BorderThickness="1" HorizontalAlignment="Center"
                             Visibility="{Binding IsPassActive, Converter={StaticResource BoolToVisible}}">
                         <Border.Style>
                             <Style TargetType="Border">

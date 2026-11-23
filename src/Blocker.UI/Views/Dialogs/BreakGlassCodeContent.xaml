@@ -6,7 +6,7 @@
     <StackPanel MinWidth="420">
         <TextBlock Style="{DynamicResource Blocker.Text.Body}"
                    Text="Ends the session early. Shown once; save it now." />
-        <Border Margin="0,16,0,0" Padding="16" CornerRadius="4"
+        <Border Margin="0,16,0,0" Padding="16" CornerRadius="6"
                 Background="{DynamicResource Blocker.Bg.Base}"
                 BorderBrush="{DynamicResource Blocker.Border.Strong}" BorderThickness="1">
             <TextBox Text="{Binding Code, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
