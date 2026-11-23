@@ -162,3 +162,23 @@ jobs:
             gh release create latest-build --target "$GITHUB_SHA" --title "Windows Detox (latest build)" --notes "$notes" --latest
           fi
           gh release upload latest-build out/WindowsDetox-Setup.exe out/WindowsDetox-Setup.exe.sha256 --clobber
+      - name: Publish a versioned release the first time a new version is built
+        # Bumping <Version> in Blocker.Setup (and Blocker.UI) is the release trigger; an existing v<Version> release is never touched.
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Blocker.Setup/Blocker.Setup.csproj | head -n 1)
+          tag="v${version}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "release $tag already exists"
+            exit 0
+          fi
+          notes="docs/releases/${tag}.md"
+          if [ ! -f "$notes" ]; then
+            printf 'Windows Detox %s, built from %s at %s.\n\nUnsigned installer: Windows SmartScreen may warn (More info, Run anyway).\n' "$version" "$GITHUB_REF_NAME" "${GITHUB_SHA::7}" > "$RUNNER_TEMP/notes.md"
+            notes="$RUNNER_TEMP/notes.md"
+          fi
+          gh release create "$tag" out/WindowsDetox-Setup.exe out/WindowsDetox-Setup.exe.sha256 --target "$GITHUB_SHA" --title "Windows Detox $version" --notes-file "$notes" --latest
