@@ -281,12 +281,17 @@ public sealed record UiButton(string Id, string Label, UiButtonVariant Variant =
     public bool IconOnly { get; init; }
 }
 
-/// <summary>An on/off switch. Changes are delivered as <see cref="UiActionKind.Toggle"/> with value <c>"true"</c>/<c>"false"</c>.</summary>
+/// <summary>An on/off switch, or a tick box in list rows. Changes are delivered as <see cref="UiActionKind.Toggle"/> with value <c>"true"</c>/<c>"false"</c>.</summary>
 /// <param name="Id">Element id, unique within the tree.</param>
 /// <param name="Label">Label.</param>
 /// <param name="IsOn">Current state.</param>
 /// <param name="Description">Optional explanatory text.</param>
-public sealed record UiToggle(string Id, string Label, bool IsOn, string? Description = null) : UiNode;
+public sealed record UiToggle(string Id, string Label, bool IsOn, string? Description = null) : UiNode
+{
+    /// <summary>Gets how the toggle is drawn; the state and the delivered action are the same in every style.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public UiToggleStyle Style { get; init; }
+}
 
 /// <summary>A form. Submission is delivered as <see cref="UiActionKind.Submit"/> with all field values.</summary>
 /// <param name="Id">Element id, unique within the tree.</param>

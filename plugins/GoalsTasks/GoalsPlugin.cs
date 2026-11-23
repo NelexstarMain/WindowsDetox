@@ -78,9 +78,9 @@ public abstract class GoalsContribution : IUiContribution
             && int.TryParse(elementId.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out id);
     }
 
-    /// <summary>The "done" toggle of a task. It has no caption in either state, so ticking a task never changes the height of its row.</summary>
+    /// <summary>The tick box of a task. It has no caption in either state besides the task text, so ticking never changes the height of its row.</summary>
     protected static UiToggle DoneToggle(TaskItem task) =>
-        Ui.Toggle(DoneIdPrefix + task.Id.ToString(CultureInfo.InvariantCulture), task.Text, task.Done);
+        Ui.Checkbox(DoneIdPrefix + task.Id.ToString(CultureInfo.InvariantCulture), task.Text, task.Done);
 }
 
 /// <summary>The Goals page. Requires "ui.page".</summary>
@@ -171,7 +171,7 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
         List<UiNode> body = [];
         if (v.Tasks.Count < GoalsLimits.MaxTasksPerDay)
         {
-            body.Add(Ui.Form(AddFormId, "Add", new UiTextField(AddFieldId, "New task", string.Empty, "What will you focus on?", GoalsLimits.MaxTaskLength)));
+            body.Add(Ui.Form(AddFormId, "Add", new UiTextField(AddFieldId, "New task", string.Empty, "Add a task for today", GoalsLimits.MaxTaskLength)));
         }
         else
         {
@@ -180,7 +180,9 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
 
         if (v.Tasks.Count == 0)
         {
-            body.Add(Ui.Text("No tasks yet. Add your first one above.", UiTextStyle.Caption));
+            body.Add(Ui.Column(
+                Ui.Text("Nothing planned for today"),
+                Ui.Text("Add the one to three things that matter, then tick them off here.", UiTextStyle.Caption)));
         }
 
         foreach (TaskItem task in v.Tasks)

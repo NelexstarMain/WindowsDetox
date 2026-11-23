@@ -24,7 +24,7 @@
         </Grid.RowDefinitions>
 
         <!-- Full-height sidebar surface; the navigation pane sits on top of it. -->
-        <Border Grid.Column="0" Grid.RowSpan="3" Background="{DynamicResource Blocker.Bg.Base}"
+        <Border Grid.Column="0" Grid.RowSpan="3" Background="{DynamicResource Blocker.Bg.Canvas}"
                 BorderBrush="{DynamicResource Blocker.Border.Subtle}" BorderThickness="0,0,1,0" />
 
         <!-- Workspace canvas with a faint logo watermark. -->
@@ -34,11 +34,11 @@
                   Margin="0,0,-50,-70" IsHitTestVisible="False" />
         </Grid>
 
-        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="22,4,12,0">
-            <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}"
-                  Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center" />
-            <TextBlock Text="Windows Detox" FontFamily="{DynamicResource Blocker.Font.Ui}" FontSize="13.5" FontWeight="SemiBold"
-                       Foreground="{DynamicResource Blocker.Text.Primary}" Margin="10,0,0,0" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,4,12,0">
+            <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{StaticResource Blocker.Nav.Muted}"
+                  Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" />
+            <TextBlock Text="Windows Detox" FontFamily="{DynamicResource Blocker.Font.Ui}" FontSize="13.5" FontWeight="Medium"
+                       Foreground="{StaticResource Blocker.Nav.Muted}" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
 
         <Border Grid.Column="1" Grid.Row="1" Padding="24,8" Background="{DynamicResource Blocker.Warning.Soft}"

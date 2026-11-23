@@ -96,7 +96,7 @@ internal sealed class BarChartElement : ChartElementBase
         Brush muted = ThemeBrush("Blocker.Text.Muted", Color.FromRgb(0x85, 0x8B, 0x9A));
         Brush secondary = ThemeBrush("Blocker.Text.Secondary", Color.FromRgb(0x9A, 0xA0, 0xAE));
         Brush primary = ThemeBrush("Blocker.Text.Primary", Color.FromRgb(0xEE, 0xF0, 0xF4));
-        Brush accent = ThemeBrush("Blocker.Accent", Color.FromRgb(0x5F, 0x6F, 0x2E));
+        Brush accent = ThemeBrush("Blocker.Chart.Series1", Color.FromRgb(0x7C, 0x91, 0x3D));
         Typeface mono = MonoFace();
         Typeface ui = UiFace();
         Pen grid = HairPen();
@@ -152,7 +152,7 @@ internal sealed class BarChartElement : ChartElementBase
             if (i % labelEvery == 0)
             {
                 double room = (slot * labelEvery) - 2;
-                FormattedText category = Text(AxisLabels.Fit(point.Label, room, text => Text(text, ui, secondary).Width), ui, secondary, room);
+                FormattedText category = Text(AxisLabels.Fit(point.Label, room, text => Text(text, ui, muted).Width), ui, muted, room);
                 dc.DrawText(category, new Point(left + (i * slot) + ((slot - category.Width) / 2), bottom + 6));
             }
         }
@@ -223,7 +223,7 @@ internal sealed class LineChartElement : ChartElementBase
         int labelEvery = Math.Max(1, (int)Math.Ceiling(56 / step));
         for (int i = 0; i < labelSource.Points.Count; i += labelEvery)
         {
-            FormattedText category = Text(labelSource.Points[i].Label, ui, secondary, step * labelEvery);
+            FormattedText category = Text(labelSource.Points[i].Label, ui, muted, step * labelEvery);
             double cx = Math.Clamp(X(i) - (category.Width / 2), left, Math.Max(left, width - category.Width));
             dc.DrawText(category, new Point(cx, bottom + 6));
         }

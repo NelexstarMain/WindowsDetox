@@ -14,7 +14,8 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" Margin="0,0,0,24" />
+                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" />
+                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,24" Text="Choose how long the next session runs and how emergency exits work." />
 
                 <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24">
                     <StackPanel>
@@ -75,7 +76,7 @@
 
             <!-- Summary and the single primary action. -->
             <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
-            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,58,0,0">
+            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,78,0,0">
                 <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Summary" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="34" FontWeight="Light" Margin="0,12,0,0" Text="{Binding DurationText}" />

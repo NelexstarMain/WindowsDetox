@@ -120,7 +120,7 @@ internal sealed class NavigationBinder
     {
         var line = new FrameworkElementFactory(typeof(Border));
         line.SetValue(FrameworkElement.HeightProperty, 1.0);
-        line.SetValue(FrameworkElement.MarginProperty, new Thickness(14, 6, 14, 6));
+        line.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 8, 10, 8));
         line.SetResourceReference(Border.BackgroundProperty, "Blocker.Border.Subtle");
         return new NavigationViewItemSeparator
         {

@@ -464,7 +464,7 @@ public sealed class GoalsTests
         UiPage page = await RenderPageAsync(ctx);
         await AddViaPageAsync(ctx, "fresh");
 
-        Assert.True(HasText(page, "No tasks yet. Add your first one above."));
+        Assert.True(HasText(page, "Nothing planned for today"));
         Assert.Equal(["fresh"], (await NewStoreAsync(ctx)).GetView().Tasks.Select(t => t.Text));
     }
 
@@ -516,7 +516,7 @@ public sealed class GoalsTests
         UiTextField field = Assert.IsType<UiTextField>(Assert.Single(Single<UiForm>(page).Fields));
         Assert.Equal((GoalsPage.AddFieldId, GoalsLimits.MaxTaskLength), (field.Id, field.MaxLength));
         Assert.Equal("Add", Single<UiForm>(page).SubmitLabel);
-        Assert.True(HasText(page, "No tasks yet. Add your first one above."));
+        Assert.True(HasText(page, "Nothing planned for today"));
         Assert.Empty(Descendants(page).OfType<UiToggle>());
         Assert.DoesNotContain(Descendants(page).OfType<UiButton>(), b => b.Id == GoalsPage.ClearButtonId);
         Assert.Empty(Descendants(page).OfType<UiBarChart>());
@@ -536,7 +536,7 @@ public sealed class GoalsTests
         Assert.True(UiTreeValidator.Validate(page).IsValid);
         UiToggle[] toggles = [.. Descendants(page).OfType<UiToggle>()];
         Assert.Equal(
-            [new UiToggle("goals-done-1", "Write report", false), new UiToggle("goals-done-2", "Call mum", true)],
+            [Ui.Checkbox("goals-done-1", "Write report", false), Ui.Checkbox("goals-done-2", "Call mum", true)],
             toggles);
         Assert.Equal(["goals-del-1", "goals-del-2"], Descendants(page).OfType<UiButton>().Where(b => b.Id.StartsWith("goals-del-", StringComparison.Ordinal)).Select(b => b.Id));
         Assert.Equal("Clear completed", Button(page, GoalsPage.ClearButtonId).Label);
@@ -918,7 +918,7 @@ public sealed class GoalsTests
 
         Assert.Empty((await NewStoreAsync(ctx)).GetView().Tasks);
         Assert.Equal("Reset today", Button(await RenderSettingsAsync(ctx), GoalsSettings.ResetButtonId).Label);
-        Assert.True(HasText(await RenderPageAsync(ctx), "No tasks yet. Add your first one above."));
+        Assert.True(HasText(await RenderPageAsync(ctx), "Nothing planned for today"));
     }
 
     [Fact]

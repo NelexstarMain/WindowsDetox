@@ -13,9 +13,12 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Style="{DynamicResource Blocker.Text.Title}" Text="Allowlist" Margin="0,0,0,24" />
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Allowlist" />
+            <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,0" Text="Apps and websites that stay open while a session runs." />
+        </StackPanel>
 
-        <Border Grid.Row="1" Margin="0,0,0,16" Padding="16,8" CornerRadius="4" BorderThickness="1"
+        <Border Grid.Row="1" Margin="0,0,0,16" Padding="16,8" CornerRadius="6" BorderThickness="1"
                 Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
                 Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
             <StackPanel Orientation="Horizontal">

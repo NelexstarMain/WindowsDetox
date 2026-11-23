@@ -13,17 +13,13 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" VerticalAlignment="Center" />
-                    <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
-                        <ContentControl.ToolTip>
-                            <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
-                                     Content="Download the starter template, describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed." />
-                        </ContentControl.ToolTip>
-                    </ContentControl>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,0" Text="{Binding AdminNote}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}">
+                    <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}"
+                            ToolTip="Describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed.">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="ArrowDownload24" Margin="0,0,8,0" />
                             <TextBlock Text="Download starter template (.zip)" />
@@ -38,7 +34,7 @@
                 </StackPanel>
             </Grid>
 
-            <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="4" BorderThickness="1"
+            <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="6" BorderThickness="1"
                     Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
                     Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
                 <StackPanel Orientation="Horizontal">
@@ -48,7 +44,6 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,0,0,16" Text="{Binding AdminNote}" />
             <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,16" Foreground="{DynamicResource Blocker.Accent}"
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" AutomationProperties.Name="Working" />
 
@@ -109,7 +104,7 @@
                                                 <Border>
                                                     <Border.Style>
                                                         <Style TargetType="Border" BasedOn="{StaticResource App.Chip}">
-                                                            <Setter Property="Padding" Value="8,2" />
+                                                            <Setter Property="Padding" Value="10,3" />
                                                             <Setter Property="Margin" Value="0,0,6,6" />
                                                             <Setter Property="BorderThickness" Value="1" />
                                                             <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
@@ -124,7 +119,7 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <ui:SymbolIcon Symbol="Warning24" FontSize="12" Margin="0,0,4,0" Foreground="{DynamicResource Blocker.Warning}"
                                                                        Visibility="{Binding IsPrivacySensitive, Converter={StaticResource BoolToVisible}}" />
-                                                        <TextBlock Text="{Binding Label}" Style="{StaticResource App.ChipText}" FontSize="11" Foreground="{DynamicResource Blocker.Text.Secondary}" ToolTip="{Binding Name}" />
+                                                        <TextBlock Text="{Binding Label}" Style="{StaticResource App.ChipText}" FontSize="12" Foreground="{DynamicResource Blocker.Text.Secondary}" ToolTip="{Binding Name}" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>

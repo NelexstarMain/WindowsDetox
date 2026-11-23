@@ -77,6 +77,16 @@ public enum UiButtonVariant
     Subtle,
 }
 
+/// <summary>How a <see cref="UiToggle"/> is drawn.</summary>
+public enum UiToggleStyle
+{
+    /// <summary>A switch at the right end of the row, for settings.</summary>
+    Switch,
+
+    /// <summary>A tick box in front of the label; a ticked label is struck through. For to-do style list rows.</summary>
+    Checkbox,
+}
+
 /// <summary>Horizontal alignment of a table column.</summary>
 public enum UiAlignment
 {
