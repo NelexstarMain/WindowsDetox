@@ -1232,6 +1232,7 @@ internal sealed class UiVisualBuilder
         if (inlineControl is not null)
         {
             // One field and its button share a line: the field takes the width, the button stays at its right end.
+            stack.HorizontalAlignment = HorizontalAlignment.Stretch;
             var line = new Grid();
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
