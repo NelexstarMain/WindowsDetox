@@ -192,7 +192,7 @@ public sealed class GoalsPage(GoalsStore store) : GoalsContribution(store), IUiP
 
         if (v.Done > 0)
         {
-            body.Add(Ui.Button(ClearButtonId, "Clear completed", UiButtonVariant.Subtle, UiIcon.Checkmark));
+            body.Add(Ui.Button(ClearButtonId, "Clear completed", UiButtonVariant.Secondary, UiIcon.Checkmark));
         }
 
         // The inner row is the only child of the outer one, so it keeps its natural width and the buttons sit next to the label.
