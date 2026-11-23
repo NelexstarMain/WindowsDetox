@@ -74,15 +74,15 @@ public sealed class TimeGridMathTests
     public void Block_rect_places_events_in_their_day_and_lane()
     {
         RectD wide = TimeGridMath.BlockRect(Week, new TimeSlot(2, 540, 600), 0, 1);
+        RectD first = TimeGridMath.BlockRect(Week, new TimeSlot(2, 540, 600), 0, 2);
         RectD second = TimeGridMath.BlockRect(Week, new TimeSlot(2, 540, 600), 1, 2);
 
         Assert.Equal(56 + 200 + TimeGridMath.ColumnInset, wide.X, 6);
         Assert.Equal(Week.ColumnX(3) - TimeGridMath.ColumnInset, wide.Right, 6);
-        Assert.Equal(TimeGridMath.LaneGutter, second.X - (wide.X + wide.Width), 6);
+        Assert.Equal(TimeGridMath.LaneGutter, second.X - (first.X + first.Width), 6);
         Assert.Equal((540 * 0.8) + 1, wide.Y, 6);
         Assert.Equal(48 - 2, wide.Height, 6);
-        Assert.True(second.X > wide.X + (wide.Width / 2) - 1);
-        Assert.True(second.Right <= Week.ColumnX(3));
+        Assert.Equal(wide.Right, second.Right, 6);
     }
 
     [Fact]

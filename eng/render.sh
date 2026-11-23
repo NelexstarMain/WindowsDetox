@@ -48,6 +48,7 @@ publish_ms=0
 if [ "$stale" = 1 ]; then
   echo "publish harness"
   start=$(now_ms)
+  mkdir -p "$repo/artifacts"
   # ReadyToRun would add about a minute for a second of startup; the harness is a developer tool.
   dotnet publish tools/Blocker.UI.Render -c Release -r win-x64 --self-contained -p:EnableWindowsTargeting=true \
     -p:PublishReadyToRun=false --disable-build-servers -o "$harness" -v quiet -nologo > "$repo/artifacts/render-publish.log" 2>&1 \
