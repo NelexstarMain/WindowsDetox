@@ -41,8 +41,8 @@ public sealed class CalendarSettingsSection(CalendarStore store, CalendarUiState
         [
             Ui.Text("Planned sessions start by themselves when their time comes, using your saved allowlist. A started session cannot be shortened.", UiTextStyle.Caption),
             Ui.Toggle(CalendarIds.SetAuto, "Start planned sessions automatically", s.AutoStart, s.AutoStart ? "On" : "Off: sessions are shown but never started"),
-            Ui.Toggle(CalendarIds.SetWeek, "Week starts on Sunday", s.WeekStartsOnSunday, s.WeekStartsOnSunday ? "Sunday" : "Monday"),
-            Ui.Toggle(CalendarIds.Set24h, "24-hour clock", s.Use24Hour, s.Use24Hour ? "09:30" : "9:30 AM"),
+            Ui.Toggle(CalendarIds.SetWeek, "Week starts on Sunday", s.WeekStartsOnSunday, s.WeekStartsOnSunday ? "Weeks start on Sunday" : "Weeks start on Monday"),
+            Ui.Toggle(CalendarIds.Set24h, "24-hour clock", s.Use24Hour, s.Use24Hour ? "Times show as 09:30" : "Times show as 9:30 AM"),
             Ui.Row(
                 Ui.Text($"Default session length: {CalTime.Length(s.DefaultSessionMinutes)}"),
                 new UiButton(CalendarIds.SetLengthDown, "Length -15 min", UiButtonVariant.Secondary, IsEnabled: s.DefaultSessionMinutes > CalendarLimits.MinSessionMinutes, ShortLabel: "\u2212"),
