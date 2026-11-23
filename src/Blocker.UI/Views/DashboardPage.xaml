@@ -76,8 +76,11 @@
                                Text="Only allowlisted apps and websites stay open until the timer reaches zero." />
                 </StackPanel>
 
+                <!-- The hero: the clock and the session controls on one surface, so the widgets below read as a second tier. -->
+                <Border Style="{DynamicResource Blocker.CardBorder}" Padding="24,32" Margin="0,16,0,0">
+                <Grid>
                 <!-- Idle: one action, one shortcut. -->
-                <StackPanel HorizontalAlignment="Center" Margin="0,32,0,24"
+                <StackPanel HorizontalAlignment="Center"
                             Visibility="{Binding IsIdle, Converter={StaticResource BoolToVisible}}">
                     <!-- No session: a muted zero clock that keeps the layout of the running state (the dashes of the placeholder text get spaced out by the tabular digits). -->
                     <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="00:00:00" Foreground="{DynamicResource Blocker.Text.Muted}"
@@ -95,7 +98,7 @@
                 </StackPanel>
 
                 <!-- Running: clock, progress, pass countdown and the exits. -->
-                <StackPanel HorizontalAlignment="Center" Margin="0,32,0,24"
+                <StackPanel HorizontalAlignment="Center"
                             Visibility="{Binding IsSessionRunning, Converter={StaticResource BoolToVisible}}">
                     <TextBlock Style="{DynamicResource Blocker.Text.Clock}" Text="{Binding ClockText}" HorizontalAlignment="Center"
                                AutomationProperties.Name="Time remaining in session" />
@@ -156,6 +159,9 @@
                                TextAlignment="Center" Text="{Binding EmergencyHint}"
                                Visibility="{Binding EmergencyHint, Converter={StaticResource HasTextToVisible}}" />
                 </StackPanel>
+
+                </Grid>
+                </Border>
 
                 <!-- Plugin widgets the user chose. -->
                 <Grid Margin="0,24,0,16" Visibility="{Binding Board.HasAvailable, Converter={StaticResource BoolToVisible}}">
@@ -256,10 +262,10 @@
                                     </Style>
                                 </Grid.Style>
 
-                                <Border CornerRadius="12" Background="{DynamicResource Blocker.Bg.Raised}" />
+                                <Border CornerRadius="8" Background="{DynamicResource Blocker.Bg.Card}" BorderThickness="1" BorderBrush="{DynamicResource Blocker.Border.Subtle}" />
 
                                 <!-- Hover outline: fades in and out instead of switching. -->
-                                <Border CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Blocker.Border.Strong}"
+                                <Border CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Blocker.Border.Strong}"
                                         IsHitTestVisible="False" Opacity="0">
                                     <Border.Style>
                                         <Style TargetType="Border">
@@ -513,7 +519,7 @@
 
             <!-- Flyout left of the rail, level with the item it belongs to: the plugin's widgets as live previews. Fades in with a short slide. -->
             <Border x:Name="PickerFlyout" Width="288" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,16,92,0" Padding="16,14,16,4"
-                    CornerRadius="12" BorderThickness="1" Opacity="0" SnapsToDevicePixels="True"
+                    CornerRadius="8" BorderThickness="1" Opacity="0" SnapsToDevicePixels="True"
                     Background="{DynamicResource Blocker.Bg.Raised}" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
                     MouseEnter="OnFlyoutEnter" MouseLeave="OnFlyoutLeave" SizeChanged="OnFlyoutSizeChanged">
                 <Border.Effect>
