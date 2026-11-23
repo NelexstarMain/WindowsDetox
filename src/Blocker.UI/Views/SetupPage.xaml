@@ -14,7 +14,8 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" Margin="0,0,0,24" />
+                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" />
+                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,24" Text="Choose how long the next session runs and how emergency exits work." />
 
                 <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24">
                     <StackPanel>

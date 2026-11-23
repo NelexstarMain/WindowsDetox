@@ -13,17 +13,13 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" VerticalAlignment="Center" />
-                    <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
-                        <ContentControl.ToolTip>
-                            <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
-                                     Content="Download the starter template, describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed." />
-                        </ContentControl.ToolTip>
-                    </ContentControl>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,0" Text="{Binding AdminNote}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}">
+                    <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}"
+                            ToolTip="Describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed.">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="ArrowDownload24" Margin="0,0,8,0" />
                             <TextBlock Text="Download starter template (.zip)" />
@@ -48,7 +44,6 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,0,0,16" Text="{Binding AdminNote}" />
             <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,16" Foreground="{DynamicResource Blocker.Accent}"
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" AutomationProperties.Name="Working" />
 

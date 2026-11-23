@@ -70,17 +70,11 @@
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="{StaticResource Blocker.Thickness.Page}">
-                <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,16" Margin="0,0,0,24">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session" VerticalAlignment="Center" />
-                        <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
-                            <ContentControl.ToolTip>
-                                <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
-                                         Content="Only allowlisted apps and websites stay open until the timer reaches zero." />
-                            </ContentControl.ToolTip>
-                        </ContentControl>
-                    </StackPanel>
-                </Border>
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,0"
+                               Text="Only allowlisted apps and websites stay open until the timer reaches zero." />
+                </StackPanel>
 
                 <!-- Idle: one action, one shortcut. -->
                 <StackPanel HorizontalAlignment="Center" Margin="0,32,0,24"

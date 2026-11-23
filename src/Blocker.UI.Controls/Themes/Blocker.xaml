@@ -588,8 +588,15 @@
     <!-- WPF-UI's NavigationView content panel: transparent so the #0F100D canvas and the faint logo watermark show through. -->
     <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
     <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
-    <!-- No protruding left accent bar on the active item (the item itself carries the active state). -->
-    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="Transparent" />
+    <!-- WPF-UI draws navigation items from its own template (a Template setter in an item style is ignored), so the states are
+         themed through its resource keys: pointer-over lifts to the card surface, the selected item to the raised one, and the
+         selection indicator is the accent bar at the item's left edge. -->
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#98AD4A" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#161813" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1F221B" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F221B" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#ECEEE6" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#ECEEE6" />
 
     <!-- Keyed and set explicitly on each item: NavigationView brings its own item style, which would win over an implicit one. -->
     <Style x:Key="Blocker.NavItem" TargetType="ui:NavigationViewItem">
@@ -598,42 +605,6 @@
         <Setter Property="Margin" Value="0,0,10,2" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ui:NavigationViewItem">
-                    <Border x:Name="Item"
-                            Padding="10,8"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            SnapsToDevicePixels="True">
-                        <StackPanel Orientation="Horizontal">
-                            <ContentPresenter x:Name="IconHost"
-                                              Content="{TemplateBinding Icon}"
-                                              TextElement.Foreground="{TemplateBinding Foreground}"
-                                              VerticalAlignment="Center" />
-                            <ContentPresenter Margin="12,0,0,0"
-                                              VerticalAlignment="Center"
-                                              TextElement.Foreground="{TemplateBinding Foreground}"
-                                              Content="{TemplateBinding Content}" />
-                        </StackPanel>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Item" Property="Background" Value="#0F1116" />
-                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
-                        </Trigger>
-                        <Trigger Property="IsActive" Value="True">
-                            <Setter TargetName="Item" Property="Background" Value="#1D2018" />
-                            <Setter TargetName="Item" Property="BorderBrush" Value="#30342A" />
-                            <Setter TargetName="IconHost" Property="TextElement.Foreground" Value="{DynamicResource Blocker.Logo.Brush}" />
-                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
     </Style>
 
     <!-- Minimal overlay scrollbars: a thin rounded thumb that thickens and brightens on hover; no arrows, no track. -->

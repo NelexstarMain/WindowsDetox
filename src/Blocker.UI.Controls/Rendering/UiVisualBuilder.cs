@@ -147,7 +147,7 @@ internal sealed class UiVisualBuilder
         }
 
         Panel content = BuildChildren(page.Children, UiOrientation.Vertical, PageGap, insideCard: false);
-        content.Margin = new Thickness(0, 20, 0, 0);
+        content.Margin = new Thickness(0, 24, 0, 0);
         root.Children.Add(content);
         return root;
     }

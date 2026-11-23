@@ -8,11 +8,8 @@
       Title="Settings" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="{StaticResource Blocker.Thickness.Page}" MaxWidth="760" HorizontalAlignment="Left">
-            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" Margin="0,0,0,24" />
-
-            <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,16" Margin="0,0,0,24">
-                <TextBlock Style="{DynamicResource Blocker.Text.MonoSmall}" Foreground="{DynamicResource Blocker.Text.Secondary}" Text="{Binding VersionText}" />
-            </Border>
+            <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Settings" />
+            <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,24" Text="Preferences for the app and its plugins." />
 
             <ItemsControl ItemsSource="{Binding Sections}">
                 <ItemsControl.ItemTemplate>
@@ -31,6 +28,7 @@
 
             <TextBlock Style="{DynamicResource Blocker.Text.Caption}"
                        Text="Blocking is decided by the Blocker service. This app only shows state and sends your requests." />
+            <TextBlock Style="{DynamicResource Blocker.Text.MonoSmall}" Margin="0,8,0,0" Foreground="{DynamicResource Blocker.Text.Muted}" Text="{Binding VersionText}" />
         </StackPanel>
     </ScrollViewer>
 </Page>
