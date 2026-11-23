@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Developer/CI tool, not part of the product and never packaged: drives the INSTALLED service through its pipe, runs one full
+       focus-session scenario against the real machine and reports PASS/FAIL per step (see Program.cs). Windows only. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>Blocker.SmokeTest</RootNamespace>
+    <AssemblyName>Blocker.SmokeTest</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Blocker.Contracts\Blocker.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Blocker.Core\Blocker.Core.csproj" />
+  </ItemGroup>
+</Project>
