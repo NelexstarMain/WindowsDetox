@@ -110,9 +110,13 @@ public sealed class ProcessTree(int maxNodes = 16384)
         }
     }
 
+    /// <summary>
+    /// The process an allow is inherited from: the real creator when the event reported one (the claimed parent is ignored then, because a
+    /// launcher can name any process as its parent), otherwise the claimed parent.
+    /// </summary>
     private ProcessKey? ResolveParentLocked(ProcessInfo child) =>
-        child.ParentProcessId > 0
-        && _latestByPid.TryGetValue(child.ParentProcessId, out ProcessKey parent)
+        (child.CreatorProcessId ?? child.ParentProcessId) is > 0 and int sourceProcessId
+        && _latestByPid.TryGetValue(sourceProcessId, out ProcessKey parent)
         && parent.StartTimeTicks <= child.StartTimeTicks
         && parent != ProcessKey.Of(child)
             ? parent

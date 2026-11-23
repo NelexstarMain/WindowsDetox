@@ -182,6 +182,11 @@ public sealed partial class EnforcementCoordinator
             return null;
         }
 
+        if (process.CreatorProcessId is { } creator && creator != process.ParentProcessId)
+        {
+            LogParentMismatch(logger, process.ProcessId, process.ParentProcessId, creator);
+        }
+
         string image = process.ImagePath ?? "";
         bool trusted = process.SessionId == 0 || runtime.Critical.IsCritical(image);
         string? sha256 = trusted || image.Length == 0 ? null : await HashAsync(image, cancellationToken).ConfigureAwait(false);

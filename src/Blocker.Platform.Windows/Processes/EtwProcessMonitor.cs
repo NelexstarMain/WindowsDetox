@@ -153,7 +153,8 @@ public sealed class EtwProcessMonitor : IProcessMonitor
                     ReadInt(data, "ParentProcessID"),
                     ReadInt(data, "SessionID"),
                     _paths.Convert(data.PayloadByName("ImageName") as string ?? string.Empty) ?? string.Empty,
-                    ReadFileTime(data, "CreateTime"))));
+                    ReadFileTime(data, "CreateTime"),
+                    data.ProcessID))); // the event header names the process that issued the create, which the new process cannot choose
                 break;
             case ProcessStopEventId:
                 Raise(ProcessExited, new ProcessExitedEventArgs(ReadInt(data, "ProcessID"), ReadFileTime(data, "CreateTime")));

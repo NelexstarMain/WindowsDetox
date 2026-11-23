@@ -43,6 +43,9 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Warning, Message = "The process queue is full; the monitor thread blocks until the consumer catches up.")]
     private static partial void LogQueueFull(ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Process {ProcessId} claims parent {ParentProcessId} but was created by process {CreatorProcessId}; inheriting from the creator only.")]
+    private static partial void LogParentMismatch(ILogger logger, int processId, int parentProcessId, int creatorProcessId);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Blocked {Image} (pid {ProcessId}, {Reason}, terminated: {Terminated}).")]
     private static partial void LogBlocked(ILogger logger, string image, int processId, VerdictReason reason, bool terminated);
 

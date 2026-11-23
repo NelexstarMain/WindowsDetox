@@ -20,11 +20,15 @@ public interface IProcessMonitor : IAsyncDisposable
 
 /// <summary>Minimal process facts known at creation time.</summary>
 /// <param name="ProcessId">Process id.</param>
-/// <param name="ParentProcessId">Creator process id.</param>
+/// <param name="ParentProcessId">Parent process id as the process claims it. A process can choose its parent (<c>PROC_THREAD_ATTRIBUTE_PARENT_PROCESS</c>), so never trust it for inheritance when <paramref name="CreatorProcessId"/> is known.</param>
 /// <param name="SessionId">Terminal-services session id (0 = services).</param>
 /// <param name="ImagePath">Full image path (may be empty if not resolvable).</param>
 /// <param name="StartTimeTicks">Process creation time as FILETIME ticks (identity together with the pid).</param>
-public sealed record ProcessInfo(int ProcessId, int ParentProcessId, int SessionId, string ImagePath, long StartTimeTicks);
+/// <param name="CreatorProcessId">
+/// The process that really created this one (the process id in the header of the creation event), or <see langword="null"/> when the source cannot
+/// tell, as for a snapshot of running processes. Unlike the parent it cannot be chosen by the new process.
+/// </param>
+public sealed record ProcessInfo(int ProcessId, int ParentProcessId, int SessionId, string ImagePath, long StartTimeTicks, int? CreatorProcessId = null);
 
 /// <summary>Process started.</summary>
 public sealed class ProcessStartedEventArgs(ProcessInfo process) : EventArgs

@@ -23,6 +23,53 @@ public sealed class ProcessTreeTests
         Assert.False(tree.ParentAllowsInheritance(P(12, 11, 300)));
     }
 
+    private static ProcessInfo Created(int pid, int claimedParent, int creator, long ticks) => P(pid, claimedParent, ticks) with { CreatorProcessId = creator };
+
+    [Fact]
+    public void A_child_whose_real_creator_is_not_the_claimed_allowed_parent_does_not_inherit()
+    {
+        var tree = new ProcessTree();
+        tree.Add(P(10, 4, 100), allowsInheritance: true); // allowlisted app
+        tree.Add(P(20, 4, 150), allowsInheritance: false); // blocked launcher that spoofed the parent
+        ProcessInfo spoofed = Created(30, claimedParent: 10, creator: 20, ticks: 200);
+
+        Assert.False(tree.ParentAllowsInheritance(spoofed));
+        tree.Add(spoofed, allowsInheritance: false);
+        Assert.True(tree.TryGetNode(ProcessKey.Of(spoofed), out ProcessNode node));
+        Assert.Equal(new ProcessKey(20, 150), node.Parent); // the tree records who really made it
+    }
+
+    [Fact]
+    public void A_child_whose_creator_matches_the_allowed_parent_inherits()
+    {
+        var tree = new ProcessTree();
+        tree.Add(P(10, 4, 100), allowsInheritance: true);
+
+        Assert.True(tree.ParentAllowsInheritance(Created(30, claimedParent: 10, creator: 10, ticks: 200)));
+    }
+
+    [Fact]
+    public void An_allowed_creator_passes_inheritance_on_whatever_parent_the_child_claims()
+    {
+        var tree = new ProcessTree();
+        tree.Add(P(10, 4, 100), allowsInheritance: true);
+
+        Assert.True(tree.ParentAllowsInheritance(Created(30, claimedParent: 999, creator: 10, ticks: 200)));
+    }
+
+    [Theory]
+    [InlineData(0)] // a kernel-context event has no real creator process
+    [InlineData(-1)]
+    [InlineData(777)] // a creator the tree never saw
+    public void A_creator_that_cannot_be_resolved_never_inherits_even_when_the_claimed_parent_is_allowed(int creator)
+    {
+        var tree = new ProcessTree();
+        tree.Add(P(10, 4, 100), allowsInheritance: true);
+
+        Assert.False(tree.ParentAllowsInheritance(Created(30, claimedParent: 10, creator: creator, ticks: 200)));
+        Assert.False(tree.TryResolveParent(Created(30, claimedParent: 10, creator: creator, ticks: 200), out _));
+    }
+
     [Fact]
     public void Unknown_or_missing_parent_does_not_resolve()
     {
