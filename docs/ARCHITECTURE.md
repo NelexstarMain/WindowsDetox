@@ -27,6 +27,8 @@ Session 0 → never touched · hardcoded critical set → never killed · bypass
 ## Rollback journal
 Write-ahead: record intent + original state (DPAPI LocalMachine + HMAC-SHA256) → flush → apply → mark applied. Rollback replays in reverse, idempotent. Every artifact we create carries a `BlockerOwned=<installId>` marker so a sweep removes it even if the journal is damaged. Covers IFEO, service DACL, NTFS deny ACEs, browser policies. Runs at session end, at boot after expiry, on recovery and uninstall.
 
+Required vs best-effort: the planner marks IFEO redirects, NTFS deny ACEs and service DACLs `BestEffort`. If Windows refuses one at session start (access denied, IO, Win32, security), the journal undoes that entry, the coordinator logs a warning, continues and reports the skipped targets (`StartEnforcedSessionResult.Warnings`, a `ProtectionDegraded` notification, a snackbar in the UI); the ETW monitor and reconcile still kill the programs. They are not retried within the session. Browser policies, process monitor, proxy and firewall stay fatal and roll the whole session back.
+
 ## Time
 Elapsed time: `TickCount64` checkpoints. Anchor: NTP consensus + HTTPS `Date` header. Offline reboot ⇒ powered-off time does not count. Time zone frozen at session start for the daily emergency-pass reset.
 

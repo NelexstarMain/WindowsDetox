@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security;
 using System.Security.Principal;
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
@@ -34,9 +35,13 @@ internal sealed partial class SmokeScenario
     private readonly string _probeAllowed = Path.Combine(Path.GetTempPath(), "smoke-allowed.exe");
     private readonly string _probeScanned = Path.Combine(Path.GetTempPath(), "smoke-blocked.exe");
     private readonly string _probeUnscanned = Path.Combine(Path.GetTempPath(), "smoke-unscanned.exe");
+    private readonly string _probeLocked = Path.Combine(Path.GetTempPath(), LockedIfeoKey.ImageName);
+    private readonly LockedIfeoKey _lockedKey = new();
     private List<AllowlistEntryDto> _apps = [];
     private bool _connected;
     private bool _probesReady;
+    private bool _lockedKeyReady;
+    private IReadOnlyList<string> _startWarnings = [];
     private bool _sessionStarted;
     private string? _breakGlassCode;
     private int _logLinesAtStart;
@@ -66,6 +71,7 @@ internal sealed partial class SmokeScenario
             {
                 await StepAsync("plugin-list", CheckPluginListAsync);
                 await StepAsync("probe-setup", PrepareProbes);
+                await StepAsync("locked-ifeo-key", CreateLockedIfeoKey);
                 await StepAsync("allowlist-scan", ScanAppsAsync);
                 await StepAsync("allowlist-set", SetAllowlistAsync);
                 await StepAsync("session-start", StartSessionAsync);
@@ -97,7 +103,7 @@ internal sealed partial class SmokeScenario
     {
         using CancellationTokenSource cleanup = new(TimeSpan.FromSeconds(60));
         await EnsureSessionEndedAsync(cleanup.Token);
-        foreach (string name in new[] { "smoke-allowed", "smoke-blocked", "smoke-unscanned" })
+        foreach (string name in new[] { "smoke-allowed", "smoke-blocked", "smoke-unscanned", "smoke-locked" })
         {
             foreach (Process process in Process.GetProcessesByName(name))
             {
@@ -106,10 +112,12 @@ internal sealed partial class SmokeScenario
         }
 
         _launcher.Dispose();
-        foreach (string probe in new[] { _probeAllowed, _probeScanned, _probeUnscanned })
+        foreach (string probe in new[] { _probeAllowed, _probeScanned, _probeUnscanned, _probeLocked })
         {
             DeleteBestEffort(probe);
         }
+
+        RemoveLockedIfeoKey();
 
         await _client.DisposeAsync();
     }
@@ -127,6 +135,19 @@ internal sealed partial class SmokeScenario
             {
                 Console.WriteLine($"     process {process.Id} was already gone: {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>The DACL is restored before the key is deleted, so neither a later step nor the CI uninstall check meets a key nobody may touch.</summary>
+    private void RemoveLockedIfeoKey()
+    {
+        try
+        {
+            _lockedKey.Remove();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidOperationException)
+        {
+            _report.Fail("locked-ifeo-key-cleanup", $"could not remove the write-protected IFEO key {LockedIfeoKey.ImageName}: {ex.Message}");
         }
     }
 
@@ -216,7 +237,7 @@ internal sealed partial class SmokeScenario
     {
         string system = Environment.GetFolderPath(Environment.SpecialFolder.System);
         File.Copy(Path.Combine(system, "waitfor.exe"), _probeAllowed, overwrite: true);
-        foreach (string probe in new[] { _probeScanned, _probeUnscanned })
+        foreach (string probe in new[] { _probeScanned, _probeUnscanned, _probeLocked })
         {
             File.Copy(Path.Combine(system, "ping.exe"), probe, overwrite: true);
         }
@@ -224,8 +245,19 @@ internal sealed partial class SmokeScenario
         _launcher.Register("allowed", _probeAllowed, AllowedProbeArguments);
         _launcher.Register("scanned", _probeScanned, ProbeArguments);
         _launcher.Register("unscanned", _probeUnscanned, ProbeArguments);
+        _launcher.Register("locked", _probeLocked, ProbeArguments);
         _probesReady = true;
-        _report.Pass("probe-setup", $"copy of waitfor.exe at {_probeAllowed} (allowed) and copies of ping.exe at {_probeScanned}, {_probeUnscanned} (blocked), so no two probes share a hash; three Task Scheduler tasks registered to start them outside this tool's process tree");
+        _report.Pass("probe-setup", $"copy of waitfor.exe at {_probeAllowed} (allowed) and copies of ping.exe at {_probeScanned}, {_probeUnscanned}, {_probeLocked} (blocked), so no two probes share a hash; four Task Scheduler tasks registered to start them outside this tool's process tree");
+    }
+
+    private void CreateLockedIfeoKey()
+    {
+        _lockedKey.Create();
+        _lockedKeyReady = _lockedKey.RefusesWrites(out string detail);
+        _report.Check(
+            "locked-ifeo-key",
+            _lockedKeyReady,
+            $"HKLM IFEO key {LockedIfeoKey.ImageName} created with a protected DACL that gives SYSTEM and Administrators read access only; {detail} (the service will get ACCESS_DENIED writing it)");
     }
 
     private async Task ScanAppsAsync()
@@ -233,9 +265,10 @@ internal sealed partial class SmokeScenario
         // The scan lists running processes, which is how a program outside the Start Menu gets into the inventory that plans the IFEO redirects.
         ProcessStartInfo start = new(_probeScanned, ProbeArguments) { UseShellExecute = false, CreateNoWindow = true };
         Process? probe = Process.Start(start);
+        Process? lockedProbe = Process.Start(new ProcessStartInfo(_probeLocked, ProbeArguments) { UseShellExecute = false, CreateNoWindow = true });
         try
         {
-            await WaitUntilAsync(() => IsRunning("smoke-blocked"), TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => IsRunning("smoke-blocked") && IsRunning("smoke-locked"), TimeSpan.FromSeconds(5));
             using CancellationTokenSource limit = CancellationTokenSource.CreateLinkedTokenSource(_cap);
             limit.CancelAfter(TimeSpan.FromSeconds(100));
             ScanAppsResponse scan = await _client.InvokeAsync<ScanAppsResponse>(IpcMethods.AllowlistScanApps, limit.Token);
@@ -246,12 +279,17 @@ internal sealed partial class SmokeScenario
                 found is null
                     ? $"{scan.Apps.Count} apps scanned but the running probe '{_probeScanned}' is not among them, so the IFEO redirect of a scanned app cannot be verified"
                     : $"{scan.Apps.Count} apps scanned; the running probe is listed (sources: {found.Sources})");
+            bool lockedListed = scan.Apps.Any(a => string.Equals(a.ExecutablePath, _probeLocked, StringComparison.OrdinalIgnoreCase));
+            _report.Check("allowlist-scan-locked", lockedListed, $"the running probe '{_probeLocked}' (its IFEO key is write-protected) is {(lockedListed ? string.Empty : "NOT ")}in the scan");
         }
         finally
         {
-            if (probe is not null)
+            foreach (Process? running in new[] { probe, lockedProbe })
             {
-                Terminate(probe);
+                if (running is not null)
+                {
+                    Terminate(running);
+                }
             }
         }
     }
@@ -332,6 +370,12 @@ internal sealed partial class SmokeScenario
             _report.Info($"session.start error: {error}");
         }
 
+        foreach (string warning in response.Warnings ?? [])
+        {
+            _report.Info($"session.start warning: {warning}");
+        }
+
+        _startWarnings = response.Warnings ?? [];
         _sessionStarted = response.Success;
         _breakGlassCode = response.BreakGlassCode;
         _logLinesAtStart = SystemState.ReadNewestLog(_paths.LogsDirectory).Lines.Count;

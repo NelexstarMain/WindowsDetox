@@ -23,6 +23,7 @@ internal sealed partial class SmokeScenario
     {
         await StepAsync("status-active", CheckStatusActiveAsync);
         await StepAsync("ifeo-redirects", CheckIfeoRedirects);
+        await StepAsync("locked-key-skipped", CheckLockedKeySkipped);
         await StepAsync("deny-acl", CheckDenyAcls);
         await StepAsync("service-dacl", CheckServiceDaclRestricted);
         await StepAsync("web-filter", CheckWebFilterAsync);
@@ -48,6 +49,28 @@ internal sealed partial class SmokeScenario
         _report.Info($"{owned.Count(static e => e.View == "64-bit")} image key(s) in the 64-bit view and {owned.Count(static e => e.View == "32-bit")} in the 32-bit view carry the BlockerOwned marker");
         CheckIfeo("ifeo-bypass-tool", "regedit.exe", all);
         CheckIfeo("ifeo-scanned-app", Path.GetFileName(_probeScanned), all);
+    }
+
+    /// <summary>The refused IFEO write must be reported as a warning naming the target, and must have left nothing in the locked key.</summary>
+    private void CheckLockedKeySkipped()
+    {
+        string? named = _startWarnings.FirstOrDefault(static w => w.Contains(LockedIfeoKey.ImageName, StringComparison.OrdinalIgnoreCase));
+        _report.Check(
+            "session-warning-names-locked-key",
+            named is not null,
+            named is null
+                ? $"the session started but no warning names {LockedIfeoKey.ImageName}; warnings: {(_startWarnings.Count == 0 ? "none" : string.Join(" | ", _startWarnings))}"
+                : named);
+        CheckLockedKeyUntouched("ifeo-locked-key-untouched");
+    }
+
+    private void CheckLockedKeyUntouched(string name)
+    {
+        IfeoEntry? locked = SystemState.ReadIfeo().FirstOrDefault(static e => e.View == "64-bit" && string.Equals(e.Image, LockedIfeoKey.ImageName, StringComparison.OrdinalIgnoreCase));
+        _report.Check(
+            name,
+            locked is { Debugger: null, Owner: null },
+            locked is null ? $"the key {LockedIfeoKey.ImageName} does not exist" : $"{LockedIfeoKey.ImageName}: Debugger={locked.Debugger ?? "(none)"}, BlockerOwned={locked.Owner ?? "(none)"} (expected neither)");
     }
 
     private void CheckIfeo(string name, string image, IReadOnlyList<IfeoEntry> all)
@@ -137,7 +160,7 @@ internal sealed partial class SmokeScenario
         }
 
         DateTime launchedAt = DateTime.Now.AddSeconds(-2);
-        foreach (string key in new[] { "allowed", "scanned", "unscanned" })
+        foreach (string key in new[] { "allowed", "scanned", "unscanned", "locked" })
         {
             _launcher.Start(key);
         }
@@ -145,16 +168,18 @@ internal sealed partial class SmokeScenario
         ProbeWatch allowed = new("smoke-allowed");
         ProbeWatch scanned = new("smoke-blocked");
         ProbeWatch unscanned = new("smoke-unscanned");
+        ProbeWatch locked = new("smoke-locked");
         Stopwatch clock = Stopwatch.StartNew();
         while (clock.Elapsed < BlockWindow)
         {
             allowed.Poll(clock.Elapsed);
             scanned.Poll(clock.Elapsed);
             unscanned.Poll(clock.Elapsed);
+            locked.Poll(clock.Elapsed);
 
             // Leave the other tasks a few seconds after the control came up before concluding that they are gone for good.
             bool settled = allowed.FirstSeen is { } up && clock.Elapsed >= up + TimeSpan.FromSeconds(4);
-            if (settled && scanned.GoneFor(clock.Elapsed) >= StayGone && unscanned.GoneFor(clock.Elapsed) >= StayGone)
+            if (settled && scanned.GoneFor(clock.Elapsed) >= StayGone && unscanned.GoneFor(clock.Elapsed) >= StayGone && locked.GoneFor(clock.Elapsed) >= StayGone)
             {
                 break;
             }
@@ -169,8 +194,9 @@ internal sealed partial class SmokeScenario
                 ? "the allowlisted probe never started (so the two blocked probes below are inconclusive)"
                 : $"allowlisted probe started after {allowed.FirstSeen.Value.TotalSeconds:0.0}s and {(allowed.DiedAfterSeen ? "was killed" : "stayed alive")}");
         _report.Info(_launcher.Describe("allowed"));
-        PrintProbeLogLines(allowed, scanned, unscanned);
+        PrintProbeLogLines(allowed, scanned, unscanned, locked);
         EvaluateBlockedProbe("probe-etw-kill", "unscanned", "not in the scan: only the ETW process monitor can stop it", unscanned, allowed, launchedAt);
+        EvaluateBlockedProbe("probe-locked-etw-kill", "locked", "its IFEO key is write-protected, so no redirect exists: only the ETW process monitor can stop it", locked, allowed, launchedAt);
         EvaluateBlockedProbe("probe-ifeo-block", "scanned", "in the scan: IFEO redirects it to the block screen, the ETW monitor is the backup", scanned, allowed, launchedAt);
     }
 
@@ -258,6 +284,10 @@ internal sealed partial class SmokeScenario
         }
 
         await StepAsync("rollback-ifeo", CheckRollbackIfeo);
+        if (_lockedKeyReady)
+        {
+            await StepAsync("rollback-locked-key", () => CheckLockedKeyUntouched("rollback-locked-key"));
+        }
         await StepAsync("rollback-deny-acl", CheckRollbackDenyAcls);
         await StepAsync("rollback-service-dacl", CheckRollbackServiceDacl);
         _report.Check("rollback-browser-policies", SystemState.ReadEdgeProxySettings() is null, "the Edge ProxySettings policy written for the session is gone");
