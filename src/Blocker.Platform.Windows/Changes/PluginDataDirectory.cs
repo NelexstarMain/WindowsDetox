@@ -1,9 +1,5 @@
 using System.IO.Abstractions;
 using System.Runtime.Versioning;
-using Windows.Win32;
-using Windows.Win32.Foundation;
-using Windows.Win32.Security;
-using Windows.Win32.Security.Authorization;
 
 namespace Blocker.Platform.Windows.Changes;
 
@@ -34,47 +30,14 @@ public static class PluginDataSecurity
 /// <summary>Real <see cref="IPluginDataDirectory"/> using <c>SetNamedSecurityInfo</c>; needs an elevated administrator.</summary>
 /// <param name="fileSystem">File system used to create and delete the directory.</param>
 [SupportedOSPlatform("windows10.0.19041")]
-public sealed unsafe class PluginDataDirectory(IFileSystem fileSystem) : IPluginDataDirectory
+public sealed class PluginDataDirectory(IFileSystem fileSystem) : IPluginDataDirectory
 {
     /// <inheritdoc />
     public void Provision(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         _ = fileSystem.Directory.CreateDirectory(path);
-        if (!PInvoke.ConvertStringSecurityDescriptorToSecurityDescriptor(PluginDataSecurity.Sddl, PInvoke.SDDL_REVISION_1, out PSECURITY_DESCRIPTOR descriptor, out _))
-        {
-            throw ChangeGuard.LastError("ConvertStringSecurityDescriptorToSecurityDescriptor");
-        }
-
-        try
-        {
-            ACL* dacl = null;
-            ACL* sacl = null;
-            BOOL present, defaulted;
-            if (!PInvoke.GetSecurityDescriptorDacl(descriptor, &present, &dacl, &defaulted)
-                || !PInvoke.GetSecurityDescriptorSacl(descriptor, &present, &sacl, &defaulted))
-            {
-                throw ChangeGuard.LastError("GetSecurityDescriptor");
-            }
-
-            const OBJECT_SECURITY_INFORMATION info = OBJECT_SECURITY_INFORMATION.DACL_SECURITY_INFORMATION
-                | OBJECT_SECURITY_INFORMATION.PROTECTED_DACL_SECURITY_INFORMATION
-                | OBJECT_SECURITY_INFORMATION.LABEL_SECURITY_INFORMATION;
-            WIN32_ERROR error;
-            fixed (char* name = path)
-            {
-                error = PInvoke.SetNamedSecurityInfo(new PWSTR(name), SE_OBJECT_TYPE.SE_FILE_OBJECT, info, default, default, dacl, sacl);
-            }
-
-            if (error != WIN32_ERROR.ERROR_SUCCESS)
-            {
-                throw new System.ComponentModel.Win32Exception((int)error, "SetNamedSecurityInfo failed");
-            }
-        }
-        finally
-        {
-            _ = PInvoke.LocalFree(new HLOCAL(descriptor.Value));
-        }
+        DirectorySddl.Apply(path, PluginDataSecurity.Sddl, includeLabel: true);
     }
 
     /// <inheritdoc />

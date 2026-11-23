@@ -12,13 +12,14 @@ public sealed class ServiceCommandsTests
     private readonly Dictionary<string, string> _serviceArguments = [];
 
     [Fact]
-    public async Task Install_provisions_plugin_data_before_the_services_start()
+    public async Task Install_protects_the_data_root_and_provisions_plugin_data_before_the_services_start()
     {
         int code = await RunAsync(ServiceCommandKind.Install);
 
         Assert.Equal(ExitCodes.Success, code);
         Assert.Equal(
             [
+                $"protect {Paths.DataRoot}",
                 $"provision {Paths.PluginDataDirectory}",
                 $"install {BlockerServiceNames.Service}",
                 $"install {BlockerServiceNames.Watchdog}",
@@ -115,7 +116,8 @@ public sealed class ServiceCommandsTests
                 _log.Add("devabort");
                 return Task.FromResult(ExitCodes.Success);
             },
-            () => administrator);
+            () => administrator,
+            paths => _log.Add($"protect {paths.DataRoot}"));
         return ServiceCommands.RunAsync(kind, Paths, devMode, ports, CancellationToken.None);
     }
 

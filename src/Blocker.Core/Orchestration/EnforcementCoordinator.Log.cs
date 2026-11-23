@@ -43,6 +43,24 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Warning, Message = "The process queue is full; the monitor thread blocks until the consumer catches up.")]
     private static partial void LogQueueFull(ILogger logger);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Process {ProcessId} claims parent {ParentProcessId} but was created by process {CreatorProcessId}; inheriting from the creator only.")]
+    private static partial void LogParentMismatch(ILogger logger, int processId, int parentProcessId, int creatorProcessId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The delayed rollback completed.")]
+    private static partial void LogCleanupCompleted(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The delayed rollback was superseded or the service is stopping.")]
+    private static partial void LogCleanupRetryStopped(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The process monitor stopped delivering events; restarting it.")]
+    private static partial void LogMonitorStopped(ILogger logger, Exception? exception);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The process monitor was restarted.")]
+    private static partial void LogMonitorRestarted(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Reconciliation found {Count} running process(es) the monitor did not report.")]
+    private static partial void LogReconciled(ILogger logger, int count);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Blocked {Image} (pid {ProcessId}, {Reason}, terminated: {Terminated}).")]
     private static partial void LogBlocked(ILogger logger, string image, int processId, VerdictReason reason, bool terminated);
 

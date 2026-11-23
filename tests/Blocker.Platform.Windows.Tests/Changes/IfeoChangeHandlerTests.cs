@@ -13,7 +13,10 @@ public sealed class IfeoChangeHandlerTests
     private readonly FakeIfeoStore _store = new();
     private readonly CancellationToken _ct = TestContext.Current.CancellationToken;
 
-    private IfeoChangeHandler Create(FakeIfeoStore? store = null) => new(InstallId, ["explorer.exe", "csrss.exe"], store ?? _store);
+    private const string OldDebugger = @"C:\Program Files\Old\old.exe";
+
+    private IfeoChangeHandler Create(FakeIfeoStore? store = null) =>
+        new(InstallId, ["explorer.exe", "csrss.exe"], store ?? _store, [@"C:\Program Files", @"C:\Windows\System32"]);
 
     [Theory]
     [InlineData("")]
@@ -94,7 +97,7 @@ public sealed class IfeoChangeHandlerTests
     [Fact]
     public async Task Prior_debugger_is_restored_and_other_values_survive()
     {
-        _store.Seed(IfeoView.Native, Image, ("Debugger", "old.exe"), ("GlobalFlag", "512"));
+        _store.Seed(IfeoView.Native, Image, ("Debugger", OldDebugger), ("GlobalFlag", "512"));
         _store.Seed(IfeoView.Wow64, Image, ("GlobalFlag", "256"));
         IfeoChangeHandler handler = Create();
         string? original = await handler.CaptureOriginalAsync(Image, _ct);
@@ -103,9 +106,38 @@ public sealed class IfeoChangeHandlerTests
         Assert.Equal("512", _store.Values(IfeoView.Native, Image)!["GlobalFlag"]);
         await handler.RestoreAsync(Image, original, _ct);
 
-        Assert.Equal(new Dictionary<string, string> { ["Debugger"] = "old.exe", ["GlobalFlag"] = "512" }, _store.Values(IfeoView.Native, Image));
+        Assert.Equal(new Dictionary<string, string> { ["Debugger"] = OldDebugger, ["GlobalFlag"] = "512" }, _store.Values(IfeoView.Native, Image));
         Assert.Equal(new Dictionary<string, string> { ["GlobalFlag"] = "256" }, _store.Values(IfeoView.Wow64, Image));
     }
+
+    [Theory]
+    [InlineData(@"C:\Users\mallory\evil.exe")] // user-writable
+    [InlineData(@"""C:\Users\mallory\evil.exe"" --ifeo")]
+    [InlineData("evil.exe")] // relative: resolved through a search path
+    [InlineData(@"C:\Program Files\..\Users\evil.exe")]
+    [InlineData(@"C:\Program Files2\evil.exe")] // prefix of the directory name, not inside it
+    [InlineData(@"\\server\share\evil.exe")]
+    [InlineData("")]
+    public async Task Restore_drops_a_recorded_debugger_outside_the_trusted_directories(string forged)
+    {
+        _store.Seed(IfeoView.Native, Image, ("Debugger", ExpectedDebugger), ("BlockerOwned", InstallId));
+        string json = System.Text.Json.JsonSerializer.Serialize(new { native = new { keyExisted = true, debugger = forged }, wow64 = new { keyExisted = false, debugger = (string?)null } });
+
+        await Create().RestoreAsync(Image, json, _ct);
+
+        Assert.False(_store.Values(IfeoView.Native, Image)!.ContainsKey("Debugger")); // redirect gone, forged value not planted
+        Assert.False(_store.Values(IfeoView.Native, Image)!.ContainsKey("BlockerOwned"));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\Old\old.exe", true)]
+    [InlineData(@"""C:\Program Files\Old Tool\old.exe"" -p %ld -e %ld", true)]
+    [InlineData(@"c:\windows\system32\vsjitdebugger.exe -p %ld", true)]
+    [InlineData(@"C:\Windows\Temp\x.exe", false)]
+    [InlineData(@"C:\Program Files\Old Tool\old.exe -p 1", true)] // an unquoted path is read up to ".exe", as CreateProcess does
+    [InlineData(@"C:\Program", false)]
+    public void Debugger_trust_is_decided_by_the_directory_of_the_program(string debugger, bool expected) =>
+        Assert.Equal(expected, IfeoChangeHandler.IsDebuggerTrusted(debugger, [@"C:\Program Files", @"C:\Windows\System32"]));
 
     [Fact]
     public async Task Existing_empty_key_is_kept_after_restore()
@@ -163,14 +195,14 @@ public sealed class IfeoChangeHandlerTests
     public async Task Shared_key_between_views_round_trips()
     {
         var shared = new FakeIfeoStore { SharedKey = true };
-        shared.Seed(IfeoView.Native, Image, ("Debugger", "old.exe"));
+        shared.Seed(IfeoView.Native, Image, ("Debugger", OldDebugger));
         IfeoChangeHandler handler = Create(shared);
         string? original = await handler.CaptureOriginalAsync(Image, _ct);
 
         await handler.ApplyAsync(Image, DesiredJson, _ct);
         await handler.RestoreAsync(Image, original, _ct);
 
-        Assert.Equal(new Dictionary<string, string> { ["Debugger"] = "old.exe" }, shared.Values(IfeoView.Native, Image));
+        Assert.Equal(new Dictionary<string, string> { ["Debugger"] = OldDebugger }, shared.Values(IfeoView.Native, Image));
     }
 
     [Fact]

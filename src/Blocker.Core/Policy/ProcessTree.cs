@@ -101,18 +101,30 @@ public sealed class ProcessTree(int maxNodes = 16384)
     }
 
     /// <summary>True when the child's resolved parent allows inheritance. Feeds <see cref="ProcessFacts.ParentAllowsInheritance"/>.</summary>
-    public bool ParentAllowsInheritance(ProcessInfo child)
+    /// <param name="child">The process.</param>
+    /// <param name="requireLiveParent">
+    /// Also require that the parent has not exited. For a process found by a snapshot, whose claimed parent cannot be verified, an exited parent
+    /// is one more reason not to believe the claim (the start-time guard only catches a reused pid, not a dead parent).
+    /// </param>
+    public bool ParentAllowsInheritance(ProcessInfo child, bool requireLiveParent = false)
     {
         ArgumentNullException.ThrowIfNull(child);
         lock (_gate)
         {
-            return ResolveParentLocked(child) is { } parent && _nodes.TryGetValue(parent, out ProcessNode node) && node.AllowsInheritance;
+            return ResolveParentLocked(child) is { } parent
+                && _nodes.TryGetValue(parent, out ProcessNode node)
+                && node.AllowsInheritance
+                && !(requireLiveParent && node.Exited);
         }
     }
 
+    /// <summary>
+    /// The process an allow is inherited from: the real creator when the event reported one (the claimed parent is ignored then, because a
+    /// launcher can name any process as its parent), otherwise the claimed parent.
+    /// </summary>
     private ProcessKey? ResolveParentLocked(ProcessInfo child) =>
-        child.ParentProcessId > 0
-        && _latestByPid.TryGetValue(child.ParentProcessId, out ProcessKey parent)
+        (child.CreatorProcessId ?? child.ParentProcessId) is > 0 and int sourceProcessId
+        && _latestByPid.TryGetValue(sourceProcessId, out ProcessKey parent)
         && parent.StartTimeTicks <= child.StartTimeTicks
         && parent != ProcessKey.Of(child)
             ? parent

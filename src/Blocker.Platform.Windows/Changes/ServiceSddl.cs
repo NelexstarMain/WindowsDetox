@@ -63,6 +63,17 @@ internal static partial class ServiceSddl
         return true;
     }
 
+    /// <summary>
+    /// True when a journal may write <paramref name="sddl"/> back as a service's original DACL: it is the DACL recorded as the default for that
+    /// service, a DACL that passes <see cref="IsSafe"/>, or one shaped like the SCM default, meaning nobody but SYSTEM and Administrators can
+    /// stop, reconfigure or delete the service or change its security. The journal is attacker-reachable state, so this is checked on every restore.
+    /// </summary>
+    public static bool IsSafeToRestore(string sddl, string? recordedDefault) =>
+        (recordedDefault is not null && string.Equals(sddl, recordedDefault, StringComparison.OrdinalIgnoreCase))
+        || string.Equals(sddl, ScmDefaultDacl, StringComparison.OrdinalIgnoreCase)
+        || IsSafe(sddl)
+        || DaclInspector.GrantsNothingDangerousToUnprivileged(sddl, DaclInspector.ServiceControl);
+
     private static string Ace(string rights, string sid) => $"(A;;{rights};;;{sid})";
 
     [GeneratedRegex(@"\(([^()]*)\)")]

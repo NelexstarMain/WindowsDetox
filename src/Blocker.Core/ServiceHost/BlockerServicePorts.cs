@@ -102,6 +102,12 @@ public sealed record BlockerServicePorts
     /// <summary>Gets whether developer abort works (DEVMODE builds started with <c>--dev-mode</c> only).</summary>
     public bool DevMode { get; init; }
 
+    /// <summary>
+    /// Gets the action that gives the data root its protected DACL (SYSTEM and Administrators only); <see langword="null"/> skips it. It runs at
+    /// every start before any state file is read, and a failure is logged without stopping the service.
+    /// </summary>
+    public Action<BlockerPaths>? ProtectDataRoot { get; init; }
+
     /// <summary>Gets the name of the service pipe.</summary>
     public string ServicePipeName { get; init; } = IpcPipeNames.Service;
 

@@ -90,6 +90,31 @@ public sealed class CoordinatorProcessTests
     }
 
     [Fact]
+    public async Task ChildWhoseRealCreatorIsNotTheClaimedAllowedParent_IsBlocked()
+    {
+        await using var h = new OrchestrationHarness();
+        await h.StartAsync();
+
+        await h.SpawnAsync(P(12, Editor)); // allowlisted
+        await h.SpawnAsync(P(13, @"C:\Temp\launcher.exe")); // not allowlisted: runs just long enough to spawn a child
+        await h.SpawnAsync(P(14, @"C:\Temp\game2.exe", parent: 12) with { CreatorProcessId = 13 });
+
+        Assert.Equal([(13, 13_000L), (14, 14_000L)], h.Controller.Terminated);
+    }
+
+    [Fact]
+    public async Task ChildWhoseRealCreatorIsTheAllowedParent_StillInherits()
+    {
+        await using var h = new OrchestrationHarness();
+        await h.StartAsync();
+
+        await h.SpawnAsync(P(12, Editor));
+        await h.SpawnAsync(P(14, @"C:\Temp\helper.exe", parent: 12) with { CreatorProcessId = 12 });
+
+        Assert.Empty(h.Controller.Terminated);
+    }
+
+    [Fact]
     public async Task BypassToolStartedByAnAllowedApp_IsBlocked()
     {
         await using var h = new OrchestrationHarness();

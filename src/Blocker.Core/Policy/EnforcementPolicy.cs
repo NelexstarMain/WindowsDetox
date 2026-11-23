@@ -111,6 +111,19 @@ public sealed class EnforcementPolicy
     private readonly BypassTools _bypass;
     private readonly Allowlist _allowlist;
     private readonly string[] _baselineRoots;
+    private readonly string[] _writableSubtrees;
+
+    /// <summary>
+    /// Subtrees below the Windows directory that standard users can write to and run programs from (the classic AppLocker-bypass folders),
+    /// relative to it. A Microsoft-signed program copied there must not ride on the system baseline.
+    /// </summary>
+    private static readonly string[] WritableSubtrees =
+    [
+        @"tasks", @"temp", @"tracing", @"registration\crmlog", @"debug\wia",
+        @"system32\tasks", @"system32\tasks_migrated", @"system32\spool\drivers\color", @"system32\spool\printers", @"system32\spool\servers",
+        @"system32\fxstmp", @"system32\com\dmp", @"system32\microsoft\crypto\rsa\machinekeys",
+        @"syswow64\tasks", @"syswow64\spool\drivers\color", @"syswow64\fxstmp", @"syswow64\com\dmp",
+    ];
 
     /// <summary>Creates the policy.</summary>
     /// <param name="critical">Critical process classifier.</param>
@@ -126,6 +139,7 @@ public sealed class EnforcementPolicy
         (_critical, _bypass, _allowlist) = (critical, bypass, allowlist);
         string root = WinPath.Normalize(windowsDirectory);
         _baselineRoots = [root + @"\system32", root + @"\syswow64", root + @"\systemapps"];
+        _writableSubtrees = [.. WritableSubtrees.Select(relative => root + @"\" + relative)];
     }
 
     /// <summary>Decides what to do with a process.</summary>
@@ -210,7 +224,7 @@ public sealed class EnforcementPolicy
         {
             if (WinPath.IsUnder(path, root))
             {
-                return true;
+                return !_writableSubtrees.Any(subtree => WinPath.IsUnder(path, subtree));
             }
         }
 

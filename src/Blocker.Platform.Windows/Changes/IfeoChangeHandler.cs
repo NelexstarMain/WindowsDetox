@@ -65,6 +65,7 @@ public sealed class IfeoChangeHandler : IReversibleChangeHandler
     private readonly IIfeoStore _store;
     private readonly string _installId;
     private readonly HashSet<string> _criticalNames;
+    private readonly string[] _trustedDebuggerDirectories;
 
     /// <summary>Creates a handler over HKLM.</summary>
     /// <param name="installId">Value of the <c>BlockerOwned</c> marker.</param>
@@ -74,11 +75,18 @@ public sealed class IfeoChangeHandler : IReversibleChangeHandler
     {
     }
 
-    internal IfeoChangeHandler(string installId, IEnumerable<string> criticalImageNames, IIfeoStore store)
+    /// <param name="installId">Value of the <c>BlockerOwned</c> marker.</param>
+    /// <param name="criticalImageNames">Image names that must never be redirected.</param>
+    /// <param name="store">Registry access.</param>
+    /// <param name="trustedDebuggerDirectories">
+    /// Directories a pre-existing <c>Debugger</c> may point into to be restored; null selects Program Files and the system directories.
+    /// </param>
+    internal IfeoChangeHandler(string installId, IEnumerable<string> criticalImageNames, IIfeoStore store, IEnumerable<string>? trustedDebuggerDirectories = null)
     {
         _installId = ChangeGuard.RequireInstallId(installId);
         _criticalNames = new HashSet<string>(criticalImageNames, StringComparer.OrdinalIgnoreCase);
         _store = store;
+        _trustedDebuggerDirectories = [.. trustedDebuggerDirectories ?? DefaultTrustedDebuggerDirectories()];
     }
 
     /// <inheritdoc />
@@ -157,7 +165,11 @@ public sealed class IfeoChangeHandler : IReversibleChangeHandler
             }
 
             IfeoViewState? prior = view == IfeoView.Native ? original?.Native : original?.Wow64;
-            _store.Write(view, name, prior?.Debugger, owner: null);
+
+            // A forged journal could name any program as the "original" debugger; one that is not in a directory only administrators can
+            // write is dropped, so the redirect is still removed but nothing attacker-chosen is planted in its place.
+            string? debugger = prior?.Debugger is { } recorded && IsTrustedDebugger(recorded) ? recorded : null;
+            _store.Write(view, name, debugger, owner: null);
             if (prior is not { KeyExisted: true })
             {
                 _store.DeleteKeyIfEmpty(view, name);
@@ -166,6 +178,34 @@ public sealed class IfeoChangeHandler : IReversibleChangeHandler
 
         return ValueTask.CompletedTask;
     }
+
+    /// <summary>True when the program a <c>Debugger</c> value starts is an absolute path inside one of the trusted directories.</summary>
+    internal static bool IsDebuggerTrusted(string debugger, IReadOnlyList<string> trustedDirectories)
+    {
+        string trimmed = debugger.TrimStart();
+        int exeEnd = trimmed.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+        string executable = trimmed.StartsWith('"')
+            ? trimmed[1..].Split('"')[0]
+            : exeEnd >= 0 ? trimmed[..(exeEnd + 4)] : trimmed.Split(' ')[0]; // CreateProcess reads an unquoted path up to ".exe"
+        if (!WindowsPath.TryNormalize(executable, out string? path))
+        {
+            return false;
+        }
+
+        return trustedDirectories.Any(directory => WindowsPath.TryNormalize(directory, out string? root)
+            && path.StartsWith(root + "\\", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool IsTrustedDebugger(string debugger) => IsDebuggerTrusted(debugger, _trustedDebuggerDirectories);
+
+    private static IEnumerable<string> DefaultTrustedDebuggerDirectories() =>
+        new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            Environment.GetFolderPath(Environment.SpecialFolder.SystemX86),
+        }.Where(static directory => directory.Length > 0);
 
     /// <inheritdoc />
     public ValueTask<int> SweepAsync(string installId, CancellationToken cancellationToken)

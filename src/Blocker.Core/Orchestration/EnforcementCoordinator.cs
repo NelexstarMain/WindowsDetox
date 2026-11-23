@@ -46,6 +46,9 @@ public sealed partial class EnforcementCoordinator(
     internal static readonly TimeSpan GracefulCloseBudget = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ReapplyBackoff = TimeSpan.FromSeconds(10);
 
+    /// <summary>How often an active session re-checks the running processes against the monitor's events.</summary>
+    internal static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(5);
+
     private EnforcementSettings _settings = Validated(settings);
     private readonly Func<int, CancellationToken, Task<bool>> _closeGracefully =
         closeGracefully ?? ((pid, ct) => controller.TryCloseGracefullyAsync(pid, GracefulCloseBudget, ct));
@@ -99,6 +102,7 @@ public sealed partial class EnforcementCoordinator(
                 return StartEnforcedSessionResult.Failed(started.Errors);
             }
 
+            StopCleanupRetry();
             var policy = new SessionPolicy([.. allowlist.Entries], [.. domains]);
             SessionRuntime runtime = BuildRuntime(policy);
             _runtime = runtime;
@@ -157,6 +161,7 @@ public sealed partial class EnforcementCoordinator(
                 Notify(EnforcementNotificationKind.ProtectionDegraded, "The saved allowlist is unavailable; everything outside the system baseline is blocked until the session ends.");
             }
 
+            StopCleanupRetry();
             SessionRuntime runtime = BuildRuntime(policy ?? new SessionPolicy([], []));
             _runtime = runtime;
             LogRecovering(logger, session.Snapshot.Phase);
@@ -275,7 +280,9 @@ public sealed partial class EnforcementCoordinator(
         }
 
         SessionRuntime? runtime = _runtime;
+        _cleanupStop?.Cancel(); // before taking the gate: a retry waiting for it must not block the shutdown
         await StopRuntimeLoopsAsync(runtime, fromTickLoop: false).ConfigureAwait(false);
+        await GuardedAsync("Stopping the cleanup retry", () => _cleanupRetry).ConfigureAwait(false);
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -321,7 +328,7 @@ public sealed partial class EnforcementCoordinator(
         var domains = new DomainMatcher(policy.Domains.Select(static d => DomainPattern.TryParse(d, out DomainPattern? p) ? p : null).OfType<DomainPattern>());
         var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots);
         var decision = new EnforcementPolicy(critical, new BypassTools(_settings.BypassToolHashes), allowlist, _settings.WindowsDirectory);
-        return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist, critical), _settings.ResolveBrowsers());
+        return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist), _settings.ResolveBrowsers());
     }
 
     /// <summary>Brings protections and the process pipeline up. Caller holds the gate and has set <see cref="_runtime"/>.</summary>
@@ -343,6 +350,7 @@ public sealed partial class EnforcementCoordinator(
             await EnforceRunningAsync(runtime, graceful: false, cancellationToken).ConfigureAwait(false);
         }
 
+        runtime.ReconcileStamp = time.GetTimestamp();
         runtime.Consumer = ConsumeAsync(runtime);
         runtime.TickLoop = RunTickLoopAsync(runtime);
     }
@@ -518,6 +526,14 @@ public sealed partial class EnforcementCoordinator(
         {
             await EnforceRunningAsync(runtime, graceful: true, cancellationToken).ConfigureAwait(false);
         }
+
+        if (ReferenceEquals(_runtime, runtime)
+            && session.Snapshot.Phase == SessionPhase.Active
+            && time.GetElapsedTime(runtime.ReconcileStamp) >= ReconcileInterval)
+        {
+            runtime.ReconcileStamp = time.GetTimestamp();
+            await ReconcileAsync(runtime, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async ValueTask ResumeAsync(SessionRuntime runtime, CancellationToken cancellationToken)
@@ -541,6 +557,11 @@ public sealed partial class EnforcementCoordinator(
         }
 
         RollbackReport? report = await RollbackAllGuardedAsync().ConfigureAwait(false);
+        if (report is not { Complete: true })
+        {
+            StartCleanupRetry();
+        }
+
         await GuardedAsync("Clearing the saved session policy", () => policyStore.ClearAsync(CancellationToken.None).AsTask()).ConfigureAwait(false);
         runtime?.Work.Reset();
         ForgetStubLaunches();
@@ -588,7 +609,7 @@ public sealed partial class EnforcementCoordinator(
         }
     }
 
-    private async ValueTask<RollbackReport?> RollbackAllGuardedAsync()
+    private async ValueTask<RollbackReport?> RollbackAllGuardedAsync(bool announce = true)
     {
         try
         {
@@ -596,7 +617,10 @@ public sealed partial class EnforcementCoordinator(
             if (!report.Complete)
             {
                 LogRollbackIncomplete(logger, report.Mode, report.Restored, report.Failures.Count);
-                Notify(EnforcementNotificationKind.ProtectionDegraded, "Some system changes could not be reverted yet; Blocker retries when the service restarts.");
+                if (announce)
+                {
+                    Notify(EnforcementNotificationKind.ProtectionDegraded, "Some system changes could not be reverted yet; Blocker keeps retrying.");
+                }
             }
 
             return report;
@@ -624,7 +648,10 @@ public sealed partial class EnforcementCoordinator(
         if (pending)
         {
             LogRollingBackLeftovers(logger);
-            _ = await RollbackAllGuardedAsync().ConfigureAwait(false);
+            if (await RollbackAllGuardedAsync().ConfigureAwait(false) is not { Complete: true })
+            {
+                StartCleanupRetry();
+            }
         }
 
         await GuardedAsync("Clearing the saved session policy", () => policyStore.ClearAsync(CancellationToken.None).AsTask()).ConfigureAwait(false);
@@ -733,6 +760,10 @@ public sealed partial class EnforcementCoordinator(
         public bool Degraded { get; set; }
 
         public long RetryStamp { get; set; }
+
+        public long ReconcileStamp { get; set; }
+
+        public bool MonitorDown { get; set; }
 
         public void Dispose() => Stop.Dispose();
     }

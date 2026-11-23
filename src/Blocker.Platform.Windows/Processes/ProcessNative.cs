@@ -33,6 +33,13 @@ internal static class ProcessNative
         return true;
     }
 
+    /// <summary>Start time of a live process by pid, or <see langword="null"/> when it cannot be opened or no longer exists.</summary>
+    public static long? TryGetStartTicks(int processId)
+    {
+        using var process = Open(processId, PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_LIMITED_INFORMATION);
+        return !process.IsInvalid && TryGetStartTicks(process, out var ticks) ? ticks : null;
+    }
+
     /// <summary>Win32 image path of an open process, or null when it cannot be read (for example the process is exiting).</summary>
     public static string? TryGetImagePath(SafeHandle process)
     {

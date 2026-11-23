@@ -13,6 +13,9 @@ public sealed class CriticalAndBypassTests
     [InlineData(@"C:\Windows\SystemApps\ShellExperienceHost_x\ShellExperienceHost.exe", CriticalKind.System)]
     [InlineData(@"\\?\C:\Windows\System32\csrss.exe", CriticalKind.System)]
     [InlineData(@"C:\ProgramData\Microsoft\Windows Defender\Platform\4.18\MsMpEng.exe", CriticalKind.System)]
+    [InlineData(@"C:\Windows\SysWOW64\svchost.exe", CriticalKind.System)]
+    [InlineData(@"C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe", CriticalKind.System)]
+    [InlineData(@"C:\Windows\WinSxS\amd64_microsoft-windows-console_31bf3856ad364e35_10.0.19041.1\conhost.exe", CriticalKind.System)]
     [InlineData(@"C:\Program Files\Blocker\Blocker.Service.exe", CriticalKind.BlockerOwn)]
     [InlineData(@"C:\Program Files\Blocker\Blocker.PluginHost.exe", CriticalKind.BlockerOwn)]
     [InlineData(@"C:\Users\me\Downloads\explorer.exe", CriticalKind.None)]
@@ -20,6 +23,27 @@ public sealed class CriticalAndBypassTests
     [InlineData(@"C:\Windows\..\Temp\lsass.exe", CriticalKind.None)]
     [InlineData(@"C:\Windows\System32\SystemSettings.exe", CriticalKind.None)]
     [InlineData(@"C:\Temp\MsMpEng.exe", CriticalKind.None)]
+
+    // Subtrees of the Windows directory that standard users can write to and run from: a copy named like a critical process is not critical.
+    [InlineData(@"C:\Windows\Tasks\conhost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\Tasks\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\Temp\explorer.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\tracing\dllhost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\Registration\CRMLog\explorer.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\debug\WIA\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\spool\drivers\color\x\dllhost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\spool\drivers\color\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\Tasks\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\sub\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\SysWOW64\Tasks\conhost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\svchost.exe", CriticalKind.None)] // only explorer lives in the Windows directory itself
+    [InlineData(@"C:\Windows\System32\explorer.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\SystemApps\SearchHost.exe", CriticalKind.None)] // must be one package level below
+    [InlineData(@"C:\Windows\SystemApps\pkg\sub\SearchHost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\SearchHost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\WinSxS\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\WinSxS\a\b\svchost.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\System32\..\Tasks\svchost.exe", CriticalKind.None)]
     [InlineData(@"C:\Temp\Blocker.Service.exe", CriticalKind.None)]
     [InlineData(@"C:\Windows\Blocker.Service.exe", CriticalKind.None)]
     [InlineData(@"C:\Program Files\Blocker\lsass.exe", CriticalKind.None)]
@@ -31,6 +55,15 @@ public sealed class CriticalAndBypassTests
         Assert.Equal(expected, Critical.Classify(path));
         Assert.Equal(expected != CriticalKind.None, Critical.IsCritical(path));
     }
+
+    [Theory]
+    [InlineData("explorer.exe", true)]
+    [InlineData("MsMpEng", true)] // Defender is critical only in its own roots, but its name is never redirected
+    [InlineData("Blocker.UI.exe", true)]
+    [InlineData("notepad.exe", false)]
+    [InlineData("", false)]
+    public void Known_image_names_are_independent_of_the_location(string name, bool expected) =>
+        Assert.Equal(expected, CriticalProcesses.IsKnownImageName(name));
 
     [Fact]
     public void Constructor_rejects_blank_directories()

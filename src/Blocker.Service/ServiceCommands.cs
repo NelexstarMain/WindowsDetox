@@ -29,12 +29,14 @@ internal static class ExitCodes
 /// <param name="Rollback">Rolls everything back while idle and returns an exit code.</param>
 /// <param name="DevAbort">Asks the running service to abort its session (developer mode only) and returns an exit code.</param>
 /// <param name="IsAdministrator">Whether the caller is an elevated administrator.</param>
+/// <param name="ProtectDataRoot">Gives the data root its protected DACL; null skips it.</param>
 internal sealed record ServiceCommandPorts(
     IServiceInstaller Installer,
     IPluginDataDirectory PluginData,
     Func<CancellationToken, Task<int>> Rollback,
     Func<CancellationToken, Task<int>> DevAbort,
-    Func<bool> IsAdministrator);
+    Func<bool> IsAdministrator,
+    Action<BlockerPaths>? ProtectDataRoot = null);
 
 /// <summary>The one-shot commands <c>--install</c>, <c>--uninstall</c>, <c>--recover</c> and <c>--dev-abort</c>. All of them need an elevated administrator.</summary>
 internal static class ServiceCommands
@@ -56,7 +58,8 @@ internal static class ServiceCommands
                 new PluginDataDirectory(new FileSystem()),
                 ct => RollbackAsync(paths, loggers, ct),
                 ct => DevAbortAsync(loggers, ct),
-                IsElevatedAdministrator),
+                IsElevatedAdministrator,
+                WindowsServicePorts.ProtectDataRoot),
             cancellationToken);
 
     /// <summary>Runs a one-shot command.</summary>
@@ -105,7 +108,8 @@ internal static class ServiceCommands
 
     private static int Install(BlockerPaths paths, bool devMode, ServiceCommandPorts ports)
     {
-        // The directory exists before the services start, so the plugin host never races its creation.
+        // The directories exist, with their security, before the services start, so the plugin host never races their creation.
+        ports.ProtectDataRoot?.Invoke(paths);
         ports.PluginData.Provision(paths.PluginDataDirectory);
         IServiceInstaller installer = ports.Installer;
 

@@ -93,6 +93,16 @@ public sealed class EnforcementPolicyTests
         Expect(Facts(@"C:\Users\me\calc2.exe", sha: CopiedCmdHash.ToUpperInvariant()), VerdictKind.Block, VerdictReason.BypassTool);
     }
 
+    [Theory]
+    [InlineData(@"C:\Windows\Tasks\conhost.exe")]
+    [InlineData(@"C:\Windows\Temp\svchost.exe")]
+    [InlineData(@"C:\Windows\System32\spool\drivers\color\dllhost.exe")]
+    public void A_bypass_tool_copy_named_like_a_critical_process_in_a_writable_windows_subtree_is_blocked(string path)
+    {
+        Expect(Facts(path, sha: CopiedCmdHash, signed: true), VerdictKind.Block, VerdictReason.BypassTool);
+        Expect(Facts(path, signed: true), VerdictKind.Block, VerdictReason.NotAllowlisted);
+    }
+
     [Fact]
     public void Bypass_tool_started_by_an_allowed_ide_is_blocked()
     {

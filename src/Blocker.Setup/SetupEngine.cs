@@ -16,10 +16,6 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
     private const string AgentValueName = "WindowsDetoxAgent";
     private static readonly string[] OwnProcesses = ["Blocker.UI", "Blocker.Stub", "Blocker.PluginHost"];
 
-    // Exit codes of Blocker.Service.exe one-shot commands (src/Blocker.Service/ServiceCommands.cs).
-    private const int ExitSessionActive = 3;
-    private const int ExitIncomplete = 4;
-
     public static string InstallDirectory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsDetox");
 
@@ -96,16 +92,10 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
         if (IsInstalled)
         {
             progress.Report("Removing the previous version...");
-            int code = await RunServiceCommandAsync("--uninstall", ct).ConfigureAwait(false);
-            if (code == ExitSessionActive)
-            {
-                throw new SetupException("A detox session is running. Update after it ends.");
-            }
-
-            if (code == ExitIncomplete)
-            {
-                throw new SetupException("The previous version could not undo all of its changes. Restart Windows and try again.");
-            }
+            ServiceUninstallCheck.EnsureSucceeded(
+                await RunServiceCommandAsync("--uninstall", ct).ConfigureAwait(false),
+                "A detox session is running. Update after it ends.",
+                "The previous version could not undo all of its changes. Restart Windows and try again.");
         }
 
         StopOwnProcesses();
@@ -136,16 +126,10 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
         if (IsInstalled)
         {
             progress.Report("Undoing all changes and removing services...");
-            int code = await RunServiceCommandAsync("--uninstall", ct).ConfigureAwait(false);
-            if (code == ExitSessionActive)
-            {
-                throw new SetupException("A detox session is running. Uninstall after it ends.");
-            }
-
-            if (code == ExitIncomplete)
-            {
-                throw new SetupException("Some changes could not be undone. Restart Windows and run the uninstaller again.");
-            }
+            ServiceUninstallCheck.EnsureSucceeded(
+                await RunServiceCommandAsync("--uninstall", ct).ConfigureAwait(false),
+                "A detox session is running. Uninstall after it ends.",
+                "Some changes could not be undone. Restart Windows and run the uninstaller again.");
         }
 
         StopOwnProcesses();
@@ -293,6 +277,3 @@ internal sealed partial class SetupEngine(IProgress<string> progress)
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool MoveFileEx(string existingFileName, string? newFileName, int flags);
 }
-
-/// <summary>A setup failure with a message meant for the user.</summary>
-internal sealed class SetupException(string message) : Exception(message);

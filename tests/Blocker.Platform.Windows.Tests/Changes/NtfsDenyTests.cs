@@ -79,6 +79,38 @@ public sealed class NtfsDenyTests
         Assert.Equal(writesAfterFirstRestore, _acl.Writes.Count); // second restore changed nothing
     }
 
+    [Theory]
+    [InlineData("D:PAI(A;OICI;FA;;;WD)")] // Everyone full control of the install directory: code planted there would run as SYSTEM
+    [InlineData("D:PAI(A;OICI;FA;;;SY)(A;OICI;0x1301bf;;;BU)")]
+    [InlineData("D:PAI(A;OICI;FA;;;S-1-5-21-1-2-3-1001)")]
+    [InlineData("O:BUD:PAI(A;OICI;FA;;;SY)")] // not a plain DACL
+    public async Task Restore_does_not_write_a_recorded_dacl_that_newly_grants_write_to_an_unprivileged_account(string forged)
+    {
+        _acl.Add(Root, OriginalSddl);
+        NtfsDenyWriteChangeHandler handler = Create();
+        await handler.ApplyAsync(Root, "{}", _ct);
+
+        await handler.RestoreAsync(Root, System.Text.Json.JsonSerializer.Serialize(new { sddl = forged }), _ct);
+
+        // Only our own deny ACEs came off; nothing the journal named was written.
+        Assert.Equal(OriginalSddl, _acl.Directories[Root].Sddl);
+        Assert.DoesNotContain(_acl.Writes, write => write.Sddl == forged);
+    }
+
+    [Fact]
+    public async Task Restore_keeps_a_recorded_ace_the_directory_already_had()
+    {
+        const string userAce = "D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;S-1-5-21-1-2-3-1001)"; // e.g. a temp directory inheriting the owner's ACE
+        _acl.Add(Root, userAce);
+        NtfsDenyWriteChangeHandler handler = Create();
+        string? original = await handler.CaptureOriginalAsync(Root, _ct);
+        await handler.ApplyAsync(Root, "{}", _ct);
+
+        await handler.RestoreAsync(Root, original, _ct);
+
+        Assert.Equal(userAce, _acl.Directories[Root].Sddl);
+    }
+
     [Fact]
     public async Task Apply_twice_writes_once()
     {

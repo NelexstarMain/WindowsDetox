@@ -54,7 +54,7 @@ public sealed partial class BlockerServiceApp
         try
         {
             SessionSnapshot snapshot = Coordinator.Snapshot;
-            var status = SessionStatusDto.From(snapshot);
+            var status = SessionStatusDto.From(snapshot, Coordinator.CleanupPending);
             if (status != _lastPublished)
             {
                 _lastPublished = status;

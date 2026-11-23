@@ -9,6 +9,10 @@
     <ProjectReference Include="..\..\src\Blocker.Plugin.Templates\Blocker.Plugin.Templates.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Blocker.Setup is a Windows-only WPF exe; its pure exit-code decision is compiled in so it is tested on Linux too. -->
+    <Compile Include="..\..\src\Blocker.Setup\ServiceUninstallCheck.cs" Link="Setup\ServiceUninstallCheck.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="System.IO.Abstractions.TestingHelpers" />

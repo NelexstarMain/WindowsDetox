@@ -70,7 +70,6 @@ public sealed class EnforcementSettingsTests
             new AllowlistEntry("Editor", @"C:\Apps\editor.exe"),
             new AllowlistEntry("Tool", null, Hash),
         ]);
-        var critical = new CriticalProcesses(@"C:\Windows", OrchestrationHarness.InstallDir);
         EnforcementSettings settings = Valid with
         {
             BypassToolImageNames = ["taskmgr", "TASKMGR.exe", "cmd.exe", "services", "explorer", "Blocker.Stub", "  ", "regedit"],
@@ -88,6 +87,6 @@ public sealed class EnforcementSettingsTests
         };
 
         // services.exe and explorer.exe are critical; editor.exe and tool.exe are allowlisted (IFEO matches by name only).
-        Assert.Equal(["cmd.exe", "game.exe", "regedit.exe", "taskmgr.exe"], settings.BuildIfeoImageNames(allowlist, critical));
+        Assert.Equal(["cmd.exe", "game.exe", "regedit.exe", "taskmgr.exe"], settings.BuildIfeoImageNames(allowlist));
     }
 }

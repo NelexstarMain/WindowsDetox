@@ -12,6 +12,8 @@ public sealed class ServiceDaclTests
 
     private ServiceDaclChangeHandler Create(Dictionary<string, string>? defaults = null) => new(_security, defaults);
 
+    private ServiceDaclChangeHandler CreateOwning(string defaultSddl = Default) => Create(new() { [Service] = defaultSddl });
+
     [Fact]
     public void Restricted_sddl_is_exactly_the_documented_string() =>
         Assert.Equal(
@@ -66,7 +68,7 @@ public sealed class ServiceDaclTests
     public async Task Apply_sets_restricted_dacl_and_restore_returns_the_original()
     {
         _security.Sddl[Service] = Default;
-        ServiceDaclChangeHandler handler = Create();
+        ServiceDaclChangeHandler handler = CreateOwning();
         string? original = await handler.CaptureOriginalAsync(Service, _ct);
 
         await handler.ApplyAsync(Service, "{}", _ct);
@@ -99,10 +101,69 @@ public sealed class ServiceDaclTests
     [Fact]
     public async Task Restore_of_a_vanished_service_or_missing_original_is_a_no_op()
     {
-        await Create().RestoreAsync("Missing", """{"sddl":"D:"}""", _ct);
-        await Create().RestoreAsync(Service, null, _ct);
+        ServiceDaclChangeHandler handler = Create(new() { ["Missing"] = Default, [Service] = Default });
+
+        await handler.RestoreAsync("Missing", $$"""{"sddl":"{{Default}}"}""", _ct);
+        await handler.RestoreAsync(Service, null, _ct);
 
         Assert.Empty(_security.Sddl);
+    }
+
+    [Fact]
+    public async Task Restore_rejects_a_service_that_is_not_ours()
+    {
+        const string victim = "Spooler";
+        _security.Sddl[victim] = Default;
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await CreateOwning().RestoreAsync(victim, $$"""{"sddl":"{{Default}}"}""", _ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Create().RestoreAsync(Service, $$"""{"sddl":"{{Default}}"}""", _ct)); // no owned services at all
+
+        Assert.Equal(Default, _security.Sddl[victim]);
+    }
+
+    [Theory]
+    [InlineData("D:(A;;GA;;;WD)")] // Everyone: full control (the forged-journal attack)
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;GA;;;WD)")]
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;CCDC;;;AU)")] // change config for authenticated users
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;WD;;;IU)")]
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;0xF01FF;;;S-1-5-21-1-2-3-1001)")] // a specific user, hex mask
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;WP;;;BU)")] // stop
+    [InlineData("O:WDD:(A;;CCLC;;;SY)")] // owner section is not a plain DACL
+    [InlineData("D:(A;;CCLC;;;SY)garbage")]
+    [InlineData("not sddl")]
+    public async Task Restore_rejects_an_sddl_that_lets_an_unprivileged_account_take_the_service(string forged)
+    {
+        _security.Sddl[Service] = ServiceSddl.BuildRestricted();
+        string json = System.Text.Json.JsonSerializer.Serialize(new { sddl = forged });
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await CreateOwning().RestoreAsync(Service, json, _ct));
+
+        Assert.Equal(ServiceSddl.BuildRestricted(), _security.Sddl[Service]);
+    }
+
+    [Theory]
+    [InlineData(Default)]
+    [InlineData(ServiceSddl.ScmDefaultDacl)]
+    [InlineData("D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;CCLCSWRPLORC;;;BA)")] // IsSafe
+    [InlineData("D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)(A;;CCLCSWLOCRRC;;;S-1-5-80-1234)")] // default plus a read-only service SID
+    public async Task Restore_accepts_the_default_and_scm_shaped_dacls(string original)
+    {
+        _security.Sddl[Service] = ServiceSddl.BuildRestricted();
+
+        await CreateOwning().RestoreAsync(Service, System.Text.Json.JsonSerializer.Serialize(new { sddl = original }), _ct);
+
+        Assert.Equal(original, _security.Sddl[Service]);
+    }
+
+    [Fact]
+    public async Task Restore_accepts_exactly_the_recorded_default_even_when_it_is_unusual()
+    {
+        const string unusual = "D:(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)(A;;CCDC;;;S-1-5-21-1-2-3-1001)";
+        _security.Sddl[Service] = ServiceSddl.BuildRestricted();
+
+        await CreateOwning(unusual).RestoreAsync(Service, System.Text.Json.JsonSerializer.Serialize(new { sddl = unusual }), _ct);
+
+        Assert.Equal(unusual, _security.Sddl[Service]);
     }
 
     [Fact]

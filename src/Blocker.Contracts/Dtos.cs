@@ -21,6 +21,7 @@ public sealed record OperationResponse(bool Success, IReadOnlyList<string> Error
 /// <param name="EmergencyPassesLeftToday">Passes still available today.</param>
 /// <param name="EmergencyPassesPerDay">Passes granted per day.</param>
 /// <param name="EmergencyPassDurationSeconds">Length of one pass.</param>
+/// <param name="CleanupPending">The rollback after a finished session failed and is being retried: some restrictions may still be in place.</param>
 public sealed record SessionStatusDto(
     SessionPhase Phase,
     Guid? SessionId,
@@ -28,12 +29,14 @@ public sealed record SessionStatusDto(
     double? EmergencyPassRemainingSeconds,
     int EmergencyPassesLeftToday,
     int EmergencyPassesPerDay,
-    double EmergencyPassDurationSeconds)
+    double EmergencyPassDurationSeconds,
+    bool CleanupPending = false)
 {
     /// <summary>Converts a snapshot to its wire form.</summary>
     /// <param name="snapshot">Snapshot.</param>
+    /// <param name="cleanupPending">Whether a rollback is still being retried.</param>
     /// <returns>The DTO.</returns>
-    public static SessionStatusDto From(SessionSnapshot snapshot)
+    public static SessionStatusDto From(SessionSnapshot snapshot, bool cleanupPending = false)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         return new(
@@ -43,7 +46,8 @@ public sealed record SessionStatusDto(
             snapshot.EmergencyPassRemaining?.TotalSeconds,
             snapshot.EmergencyPassesLeftToday,
             snapshot.EmergencyPassesPerDay,
-            snapshot.EmergencyPassDuration.TotalSeconds);
+            snapshot.EmergencyPassDuration.TotalSeconds,
+            cleanupPending);
     }
 
     /// <summary>Converts the wire form back to a snapshot.</summary>
