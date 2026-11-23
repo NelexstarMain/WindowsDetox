@@ -5,19 +5,16 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
+      xmlns:v="clr-namespace:Blocker.UI.Views"
       Title="Plugins" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="{StaticResource Blocker.Thickness.Page}">
-            <Grid Margin="0,0,0,24">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
+            <v:HeaderRowPanel Margin="0,0,0,24">
+                <StackPanel>
                     <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Plugins" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,0" Text="{Binding AdminNote}" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal">
                     <Button Style="{DynamicResource Blocker.Button.SecondaryPill}" Command="{Binding DownloadTemplateCommand}"
                             ToolTip="Describe what you want to an AI agent, then install the finished .zip here. Blocker tests it before it is installed.">
                         <StackPanel Orientation="Horizontal">
@@ -32,7 +29,7 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
-            </Grid>
+            </v:HeaderRowPanel>
 
             <Border Margin="0,0,0,16" Padding="16,8" CornerRadius="6" BorderThickness="1"
                     Background="{DynamicResource Blocker.Warning.Soft}" BorderBrush="{DynamicResource Blocker.Warning}"
@@ -70,8 +67,8 @@
                                             </Style.Triggers>
                                         </Style>
                                     </StackPanel.Style>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Name}" VerticalAlignment="Center" />
+                                    <WrapPanel>
+                                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                         <Border VerticalAlignment="Center">
                                             <Border.Style>
                                                 <Style TargetType="Border" BasedOn="{StaticResource App.Chip}">
@@ -88,8 +85,8 @@
                                             </Border.Style>
                                             <TextBlock Text="{Binding StateLabel}" Style="{StaticResource App.ChipText}" />
                                         </Border>
-                                    </StackPanel>
-                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,8">
+                                    </WrapPanel>
+                                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,8" TextWrapping="Wrap">
                                         <Run Text="Version" /> <Run Text="{Binding Version, Mode=OneWay}" />
                                         <Run Text=" by " /><Run Text="{Binding Author, Mode=OneWay}" />
                                     </TextBlock>
@@ -129,11 +126,11 @@
                                                Text="Privacy: this plugin can read the titles of the windows you use."
                                                Visibility="{Binding HasPrivacySensitiveCapability, Converter={StaticResource BoolToVisible}}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                                    <Button Style="{DynamicResource Blocker.Button.Secondary}" Content="{Binding ToggleLabel}" MinWidth="88"
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0">
+                                    <Button Style="{DynamicResource Blocker.Button.SecondaryCompact}" Content="{Binding ToggleLabel}" MinWidth="72"
                                             Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
-                                    <Button Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Subtle}" Content="Remove"
+                                    <Button Margin="4,0,0,0" Style="{DynamicResource Blocker.Button.SubtleCompact}" Content="Remove"
                                             Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
                                 </StackPanel>

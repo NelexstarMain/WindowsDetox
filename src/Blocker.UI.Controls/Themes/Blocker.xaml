@@ -534,6 +534,17 @@
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
     </Style>
 
+    <!-- Compact scale (32 high, 12 side padding) for actions repeated in list rows. -->
+    <Style x:Key="Blocker.Button.SecondaryCompact" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Secondary}">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+
+    <Style x:Key="Blocker.Button.SubtleCompact" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Subtle}">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+
     <!-- ============================== Dividers, info badge, tooltip ============================== -->
     <Style x:Key="Blocker.SectionDivider" TargetType="Border">
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Subtle}" />
