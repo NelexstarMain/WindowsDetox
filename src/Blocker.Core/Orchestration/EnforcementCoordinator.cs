@@ -102,6 +102,7 @@ public sealed partial class EnforcementCoordinator(
                 return StartEnforcedSessionResult.Failed(started.Errors);
             }
 
+            StopCleanupRetry();
             var policy = new SessionPolicy([.. allowlist.Entries], [.. domains]);
             SessionRuntime runtime = BuildRuntime(policy);
             _runtime = runtime;
@@ -160,6 +161,7 @@ public sealed partial class EnforcementCoordinator(
                 Notify(EnforcementNotificationKind.ProtectionDegraded, "The saved allowlist is unavailable; everything outside the system baseline is blocked until the session ends.");
             }
 
+            StopCleanupRetry();
             SessionRuntime runtime = BuildRuntime(policy ?? new SessionPolicy([], []));
             _runtime = runtime;
             LogRecovering(logger, session.Snapshot.Phase);
@@ -278,7 +280,9 @@ public sealed partial class EnforcementCoordinator(
         }
 
         SessionRuntime? runtime = _runtime;
+        _cleanupStop?.Cancel(); // before taking the gate: a retry waiting for it must not block the shutdown
         await StopRuntimeLoopsAsync(runtime, fromTickLoop: false).ConfigureAwait(false);
+        await GuardedAsync("Stopping the cleanup retry", () => _cleanupRetry).ConfigureAwait(false);
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -553,6 +557,11 @@ public sealed partial class EnforcementCoordinator(
         }
 
         RollbackReport? report = await RollbackAllGuardedAsync().ConfigureAwait(false);
+        if (report is not { Complete: true })
+        {
+            StartCleanupRetry();
+        }
+
         await GuardedAsync("Clearing the saved session policy", () => policyStore.ClearAsync(CancellationToken.None).AsTask()).ConfigureAwait(false);
         runtime?.Work.Reset();
         ForgetStubLaunches();
@@ -600,7 +609,7 @@ public sealed partial class EnforcementCoordinator(
         }
     }
 
-    private async ValueTask<RollbackReport?> RollbackAllGuardedAsync()
+    private async ValueTask<RollbackReport?> RollbackAllGuardedAsync(bool announce = true)
     {
         try
         {
@@ -608,7 +617,10 @@ public sealed partial class EnforcementCoordinator(
             if (!report.Complete)
             {
                 LogRollbackIncomplete(logger, report.Mode, report.Restored, report.Failures.Count);
-                Notify(EnforcementNotificationKind.ProtectionDegraded, "Some system changes could not be reverted yet; Blocker retries when the service restarts.");
+                if (announce)
+                {
+                    Notify(EnforcementNotificationKind.ProtectionDegraded, "Some system changes could not be reverted yet; Blocker keeps retrying.");
+                }
             }
 
             return report;
@@ -636,7 +648,10 @@ public sealed partial class EnforcementCoordinator(
         if (pending)
         {
             LogRollingBackLeftovers(logger);
-            _ = await RollbackAllGuardedAsync().ConfigureAwait(false);
+            if (await RollbackAllGuardedAsync().ConfigureAwait(false) is not { Complete: true })
+            {
+                StartCleanupRetry();
+            }
         }
 
         await GuardedAsync("Clearing the saved session policy", () => policyStore.ClearAsync(CancellationToken.None).AsTask()).ConfigureAwait(false);

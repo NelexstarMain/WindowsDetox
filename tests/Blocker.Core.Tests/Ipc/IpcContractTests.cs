@@ -153,6 +153,17 @@ public sealed class IpcContractTests
     }
 
     [Fact]
+    public void Session_status_carries_the_pending_cleanup_flag_and_defaults_to_false()
+    {
+        var typeInfo = IpcJson.TypeInfo<SessionStatusDto>();
+        var pending = JsonSerializer.Serialize(SessionStatusDto.From(SessionSnapshot.Idle, cleanupPending: true), typeInfo);
+
+        Assert.True(JsonSerializer.Deserialize(pending, typeInfo)!.CleanupPending);
+        Assert.False(SessionStatusDto.From(SessionSnapshot.Idle).CleanupPending);
+        Assert.False(JsonSerializer.Deserialize(pending.Replace("\"cleanupPending\":true", "\"cleanupPending\":false", StringComparison.Ordinal), typeInfo)!.CleanupPending);
+    }
+
+    [Fact]
     public void Dtos_reject_unknown_members()
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize("""{"code":"x","extra":1}""", IpcJson.TypeInfo<BreakGlassRequest>()));

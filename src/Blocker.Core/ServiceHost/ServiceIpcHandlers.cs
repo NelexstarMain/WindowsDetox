@@ -134,10 +134,10 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
     // ---- session ----
 
     private ValueTask<SessionStatusDto> GetStatusAsync(IpcRequestContext context, EmptyDto request, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(SessionStatusDto.From(deps.Coordinator.Snapshot));
+        ValueTask.FromResult(SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending));
 
     private ValueTask<SubscribeResponse> SubscribeAsync(IpcRequestContext context, EmptyDto request, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(new SubscribeResponse(SessionStatusDto.From(deps.Coordinator.Snapshot)));
+        ValueTask.FromResult(new SubscribeResponse(SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending)));
 
     private ValueTask<StartSessionResponse> StartSessionAsync(IpcRequestContext context, StartSessionRequest request, CancellationToken cancellationToken) =>
         StartSessionCoreAsync(request, cancellationToken);
@@ -226,7 +226,7 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             EmergencyPassResult.AlreadyActive => EmergencyPassOutcome.AlreadyActive,
             _ => EmergencyPassOutcome.NotInSession,
         };
-        return new EmergencyPassResponse(outcome, SessionStatusDto.From(deps.Coordinator.Snapshot));
+        return new EmergencyPassResponse(outcome, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending));
     }
 
     private async ValueTask<BreakGlassResponse> BreakGlassAsync(IpcRequestContext context, BreakGlassRequest request, CancellationToken cancellationToken)
@@ -334,7 +334,7 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         // The block id is only a hint from the launch command line: show its file name, never anything else, and never trust it further.
         string name = request.BlockId is { Length: > 0 and <= 1024 } id ? id[(id.LastIndexOfAny(['\\', '/']) + 1)..] : string.Empty;
         string subject = name.Length == 0 ? "an application" : Printable(name, 128);
-        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot)));
+        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending)));
     }
 
     private ValueTask<AgentRegisterResponse> RegisterAgentAsync(IpcRequestContext context, AgentRegisterRequest request, CancellationToken cancellationToken)

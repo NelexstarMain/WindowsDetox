@@ -46,6 +46,12 @@ public sealed partial class EnforcementCoordinator
     [LoggerMessage(Level = LogLevel.Information, Message = "Process {ProcessId} claims parent {ParentProcessId} but was created by process {CreatorProcessId}; inheriting from the creator only.")]
     private static partial void LogParentMismatch(ILogger logger, int processId, int parentProcessId, int creatorProcessId);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "The delayed rollback completed.")]
+    private static partial void LogCleanupCompleted(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The delayed rollback was superseded or the service is stopping.")]
+    private static partial void LogCleanupRetryStopped(ILogger logger);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The process monitor stopped delivering events; restarting it.")]
     private static partial void LogMonitorStopped(ILogger logger, Exception? exception);
 
