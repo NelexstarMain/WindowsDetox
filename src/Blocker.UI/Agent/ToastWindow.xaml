@@ -6,10 +6,10 @@
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False" Topmost="True"
         Background="{DynamicResource Blocker.Bg.Canvas}">
     <!-- Always-on-top notification in the bottom-right corner. The agent positions it and closes it when the view model expires. -->
-        <Border Margin="8" Padding="16,16" CornerRadius="4" BorderThickness="1" Background="#13151B">
+        <Border Margin="8" Padding="16,16" CornerRadius="4" BorderThickness="1" Background="#181A15">
             <Border.Style>
                 <Style TargetType="Border">
-                    <Setter Property="BorderBrush" Value="#323746" />
+                    <Setter Property="BorderBrush" Value="#3C4132" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsWarning}" Value="True">
                             <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Warning}" />

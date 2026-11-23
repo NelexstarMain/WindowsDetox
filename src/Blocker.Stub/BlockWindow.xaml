@@ -10,7 +10,7 @@
         ShowInTaskbar="False" Topmost="True"
         Background="{DynamicResource Blocker.Bg.Canvas}"
         Foreground="{DynamicResource Blocker.Text.Primary}"
-        BorderBrush="#323746" BorderThickness="1">
+        BorderBrush="#3C4132" BorderThickness="1">
     <Grid>
         <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}" Opacity="0.025"
               Width="360" Height="360" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Bottom"

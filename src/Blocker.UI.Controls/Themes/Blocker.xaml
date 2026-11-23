@@ -9,16 +9,16 @@
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ============================== Palette ============================== -->
-    <Color x:Key="Blocker.Bg.Base.Color">#07080A</Color>
-    <Color x:Key="Blocker.Bg.Canvas.Color">#0B0C0F</Color>
-    <Color x:Key="Blocker.Bg.Card.Color">#111215</Color>
-    <Color x:Key="Blocker.Bg.Raised.Color">#1A1D25</Color>
-    <Color x:Key="Blocker.Border.Subtle.Color">#181A21</Color>
-    <Color x:Key="Blocker.Border.Strong.Color">#323746</Color>
-    <Color x:Key="Blocker.Text.Primary.Color">#EEF0F4</Color>
-    <Color x:Key="Blocker.Text.Secondary.Color">#9AA0AE</Color>
+    <Color x:Key="Blocker.Bg.Base.Color">#0A0B09</Color>
+    <Color x:Key="Blocker.Bg.Canvas.Color">#0F100D</Color>
+    <Color x:Key="Blocker.Bg.Card.Color">#161813</Color>
+    <Color x:Key="Blocker.Bg.Raised.Color">#1F221B</Color>
+    <Color x:Key="Blocker.Border.Subtle.Color">#262920</Color>
+    <Color x:Key="Blocker.Border.Strong.Color">#3C4132</Color>
+    <Color x:Key="Blocker.Text.Primary.Color">#ECEEE6</Color>
+    <Color x:Key="Blocker.Text.Secondary.Color">#A5AA9B</Color>
     <!-- Muted is still text (captions, axis labels): 4.9:1 on the raised surface, 5.5:1 on cards. -->
-    <Color x:Key="Blocker.Text.Muted.Color">#858B9A</Color>
+    <Color x:Key="Blocker.Text.Muted.Color">#8D9281</Color>
     <Color x:Key="Blocker.Text.OnAccent.Color">#F4F7EE</Color>
     <Color x:Key="Blocker.Accent.Color">#5F6F2E</Color>
     <Color x:Key="Blocker.Accent.Hover.Color">#6E8036</Color>
@@ -78,9 +78,9 @@
     <SolidColorBrush x:Key="Blocker.Chart.Series1" Color="#7C913D" />
     <SolidColorBrush x:Key="Blocker.Chart.Series2" Color="#F5A524" />
     <SolidColorBrush x:Key="Blocker.Chart.Series3" Color="#60A5FA" />
-    <SolidColorBrush x:Key="Blocker.Chart.Series4" Color="#A78BFA" />
+    <SolidColorBrush x:Key="Blocker.Chart.Series4" Color="#5EB5A6" />
     <SolidColorBrush x:Key="Blocker.Chart.Series5" Color="#F87171" />
-    <SolidColorBrush x:Key="Blocker.Chart.Series6" Color="#9AA0AE" />
+    <SolidColorBrush x:Key="Blocker.Chart.Series6" Color="#A5AA9B" />
 
     <!-- ============================== Typography ============================== -->
     <FontFamily x:Key="Blocker.Font.Ui">Segoe UI Variable Text, Segoe UI</FontFamily>
@@ -97,8 +97,8 @@
     <Thickness x:Key="Blocker.Thickness.GapLarge">16</Thickness>
     <Thickness x:Key="Blocker.Thickness.Pad">24</Thickness>
     <Thickness x:Key="Blocker.Thickness.Page">24</Thickness>
-    <CornerRadius x:Key="Blocker.Radius.Card">4</CornerRadius>
-    <CornerRadius x:Key="Blocker.Radius.Control">4</CornerRadius>
+    <CornerRadius x:Key="Blocker.Radius.Card">8</CornerRadius>
+    <CornerRadius x:Key="Blocker.Radius.Control">6</CornerRadius>
     <CornerRadius x:Key="Blocker.Radius.Pill">20</CornerRadius>
 
     <!-- ============================== Motion ============================== -->
@@ -114,37 +114,37 @@
     <CubicEase x:Key="Blocker.Motion.EaseIn" EasingMode="EaseIn" />
 
     <!-- ============================== WPF-UI palette overrides ============================== -->
-    <Color x:Key="ApplicationBackgroundColor">#0B0C0F</Color>
+    <Color x:Key="ApplicationBackgroundColor">#0F100D</Color>
     <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="{StaticResource ApplicationBackgroundColor}" />
 
-    <Color x:Key="TextFillColorPrimary">#EEF0F4</Color>
-    <Color x:Key="TextFillColorSecondary">#9AA0AE</Color>
-    <Color x:Key="TextFillColorTertiary">#858B9A</Color>
-    <Color x:Key="TextFillColorDisabled">#4B5160</Color>
+    <Color x:Key="TextFillColorPrimary">#ECEEE6</Color>
+    <Color x:Key="TextFillColorSecondary">#A5AA9B</Color>
+    <Color x:Key="TextFillColorTertiary">#8D9281</Color>
+    <Color x:Key="TextFillColorDisabled">#54594A</Color>
     <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
     <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
     <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
     <SolidColorBrush x:Key="TextFillColorDisabledBrush" Color="{StaticResource TextFillColorDisabled}" />
 
-    <Color x:Key="ControlFillColorDefault">#161820</Color>
-    <Color x:Key="ControlFillColorSecondary">#1A1D25</Color>
-    <Color x:Key="ControlFillColorTertiary">#121419</Color>
-    <Color x:Key="ControlFillColorDisabled">#111215</Color>
-    <Color x:Key="ControlFillColorInputActive">#0B0C0F</Color>
+    <Color x:Key="ControlFillColorDefault">#1A1D17</Color>
+    <Color x:Key="ControlFillColorSecondary">#1F221B</Color>
+    <Color x:Key="ControlFillColorTertiary">#181A15</Color>
+    <Color x:Key="ControlFillColorDisabled">#161813</Color>
+    <Color x:Key="ControlFillColorInputActive">#0F100D</Color>
     <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
     <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
     <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="{StaticResource ControlFillColorTertiary}" />
     <SolidColorBrush x:Key="ControlFillColorDisabledBrush" Color="{StaticResource ControlFillColorDisabled}" />
     <SolidColorBrush x:Key="ControlFillColorInputActiveBrush" Color="{StaticResource ControlFillColorInputActive}" />
 
-    <Color x:Key="ControlStrokeColorDefault">#2B303C</Color>
-    <Color x:Key="ControlStrokeColorSecondary">#181A21</Color>
+    <Color x:Key="ControlStrokeColorDefault">#343829</Color>
+    <Color x:Key="ControlStrokeColorSecondary">#262920</Color>
     <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
     <SolidColorBrush x:Key="ControlStrokeColorSecondaryBrush" Color="{StaticResource ControlStrokeColorSecondary}" />
 
-    <Color x:Key="CardBackgroundFillColorDefault">#111215</Color>
-    <Color x:Key="CardBackgroundFillColorSecondary">#1A1D25</Color>
-    <Color x:Key="CardStrokeColorDefault">#181A21</Color>
+    <Color x:Key="CardBackgroundFillColorDefault">#161813</Color>
+    <Color x:Key="CardBackgroundFillColorSecondary">#1F221B</Color>
+    <Color x:Key="CardStrokeColorDefault">#262920</Color>
     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
     <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
     <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
@@ -277,8 +277,8 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
-        <Setter Property="Background" Value="#161820" />
-        <Setter Property="BorderBrush" Value="#2B303C" />
+        <Setter Property="Background" Value="#1A1D17" />
+        <Setter Property="BorderBrush" Value="#343829" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16,0" />
         <Setter Property="MinHeight" Value="40" />
@@ -378,7 +378,7 @@
     </Style>
 
     <Style x:Key="Blocker.Button.GhostPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
-        <Setter Property="Background" Value="#121419" />
+        <Setter Property="Background" Value="#181A15" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
     </Style>
@@ -485,8 +485,8 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">
                     <Border x:Name="Box"
-                            Background="#121419"
-                            BorderBrush="#2B303C"
+                            Background="#181A15"
+                            BorderBrush="#343829"
                             BorderThickness="1"
                             CornerRadius="2"
                             SnapsToDevicePixels="True">
@@ -542,8 +542,8 @@
                                 Width="42"
                                 Height="22"
                                 CornerRadius="5"
-                                Background="#161820"
-                                BorderBrush="#2B303C"
+                                Background="#1A1D17"
+                                BorderBrush="#343829"
                                 BorderThickness="1"
                                 VerticalAlignment="Center">
                             <Border x:Name="Thumb"
@@ -585,7 +585,7 @@
     </Style>
 
     <!-- ============================== Navigation item ============================== -->
-    <!-- WPF-UI's NavigationView content panel: transparent so the #0B0C0F canvas and the faint logo watermark show through. -->
+    <!-- WPF-UI's NavigationView content panel: transparent so the #0F100D canvas and the faint logo watermark show through. -->
     <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
     <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
     <!-- No protruding left accent bar on the active item (the item itself carries the active state). -->
@@ -606,7 +606,7 @@
                             Background="Transparent"
                             BorderBrush="Transparent"
                             BorderThickness="1"
-                            CornerRadius="4"
+                            CornerRadius="6"
                             SnapsToDevicePixels="True">
                         <StackPanel Orientation="Horizontal">
                             <ContentPresenter x:Name="IconHost"
@@ -625,8 +625,8 @@
                             <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
                         </Trigger>
                         <Trigger Property="IsActive" Value="True">
-                            <Setter TargetName="Item" Property="Background" Value="#14171E" />
-                            <Setter TargetName="Item" Property="BorderBrush" Value="#222632" />
+                            <Setter TargetName="Item" Property="Background" Value="#1D2018" />
+                            <Setter TargetName="Item" Property="BorderBrush" Value="#30342A" />
                             <Setter TargetName="IconHost" Property="TextElement.Foreground" Value="{DynamicResource Blocker.Logo.Brush}" />
                             <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
                         </Trigger>
