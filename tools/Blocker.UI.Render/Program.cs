@@ -24,6 +24,7 @@ internal static class Program
         app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = BlockerTheme.ThemeUri });
         app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Blocker.UI;component/Resources/Shared.xaml", UriKind.Absolute) });
         Motion.Apply(app.Resources);
+        Blocker.UI.Behaviors.WheelPassThrough.Register();
 
         int exitCode = 0;
         _ = app.Dispatcher.InvokeAsync(async () =>

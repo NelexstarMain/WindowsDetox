@@ -37,6 +37,14 @@
     { "name": "anim-shell-nav", "target": "main:dashboard", "size": [1280, 1000], "animate": true, "steps": [ { "move": [70, 124] }, { "click": [70, 124] }, { "click": [63, 271] }, { "click": [70, 313] }, { "click": [70, 376] }, { "click": [70, 1272] }, { "click": [70, 229] }, { "click": [70, 82] } ] },
     { "name": "anim-settings-click", "target": "main:settings", "size": [1280, 1100], "animate": true, "steps": [ { "click": [954, 321] }, { "click": [336, 546] }, { "wait": 300 }, { "click": [336, 546] }, { "wait": 300 }, { "click": [317, 775] }, { "click": [317, 775] } ] },
     { "name": "anim-insights-hover", "target": "plugin:insights", "size": [1280, 1300], "animate": true, "steps": [ { "move": [441, 410] }, { "move": [400, 800] }, { "move": [862, 770] }, { "move": [650, 1034] }, { "move": [790, 1084] } ] },
-    { "name": "dashboard-session-narrow", "target": "main:dashboard", "size": [820, 1000], "session": "active" }
+    { "name": "dashboard-session-narrow", "target": "main:dashboard", "size": [820, 1000], "session": "active" },
+    { "name": "anim-wheel-goals", "target": "plugin:goals", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [750, 475, -360] }, { "wheel": [750, 475, -360] }, { "wheel": [750, 475, 360] } ] },
+    { "name": "anim-wheel-insights", "target": "plugin:insights", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [470, 425, -360] }, { "wheel": [470, 425, -360] }, { "wheel": [470, 425, 360] } ] },
+    { "name": "anim-wheel-settings", "target": "main:settings", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [450, 375, -360] }, { "wheel": [450, 375, -360] }, { "wheel": [450, 375, 360] } ] },
+    { "name": "anim-wheel-allowlist", "target": "main:allowlist", "size": [1280, 560], "animate": true, "steps": [ { "wheel": [407, 412, -360] }, { "wheel": [407, 412, -360] }, { "wheel": [407, 412, 360] } ] },
+    { "name": "anim-wheel-plugins", "target": "main:plugins", "size": [1280, 520], "animate": true, "steps": [ { "wheel": [500, 325, -360] }, { "wheel": [500, 325, -360] }, { "wheel": [500, 325, 360] } ] },
+    { "name": "anim-wheel-dashboard", "target": "main:dashboard", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [500, 600, -360] }, { "wheel": [500, 600, -360] }, { "wheel": [500, 600, 360] } ] }
+    ,{ "name": "anim-wheel-calendar", "target": "plugin:calendar", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [700, 550, -360] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, 1200] } ] }
+    ,{ "name": "plugins-narrow", "target": "main:plugins", "size": [900, 800] }
   ]
 }

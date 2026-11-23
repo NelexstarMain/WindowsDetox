@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Blocker.UI.Behaviors;
@@ -15,6 +16,7 @@ internal static partial class Interaction
 {
     private const uint LeftDown = 0x0002;
     private const uint LeftUp = 0x0004;
+    private const uint Wheel = 0x0800;
 
     /// <summary>Waits until pending dispatcher work (bindings, layout, async commands that already completed) has run.</summary>
     /// <param name="window">The shown window.</param>
@@ -25,6 +27,16 @@ internal static partial class Interaction
         {
             await window.Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.ApplicationIdle);
             window.UpdateLayout();
+        }
+    }
+
+    /// <summary>Scrolls every scroller of the window to its top; the navigation host keeps one scroller across pages, so an earlier shot would otherwise leave an offset behind.</summary>
+    /// <param name="window">The shown window.</param>
+    public static void ResetScroll(Window window)
+    {
+        foreach (ScrollViewer scroller in Descendants<ScrollViewer>(window))
+        {
+            scroller.ScrollToTop();
         }
     }
 
@@ -111,6 +123,20 @@ internal static partial class Interaction
     public static async Task HoverAsync(Window window, double x, double y)
     {
         await MoveAsync(window, x, y);
+        await SettleAsync(window);
+    }
+
+    /// <summary>Injects a real mouse wheel notch at window coordinates, the path a physical wheel takes.</summary>
+    /// <param name="window">The shown window.</param>
+    /// <param name="x">X in device-independent pixels from the window's top-left corner.</param>
+    /// <param name="y">Y in device-independent pixels from the window's top-left corner.</param>
+    /// <param name="delta">Wheel delta; 120 is one notch up (content moves down), -120 one notch down.</param>
+    /// <returns>A task that completes when the wheel was processed.</returns>
+    public static async Task WheelAsync(Window window, double x, double y, int delta)
+    {
+        await MoveAsync(window, x, y);
+        mouse_event(Wheel, 0, 0, unchecked((uint)delta), 0);
+        await PauseAsync(window);
         await SettleAsync(window);
     }
 

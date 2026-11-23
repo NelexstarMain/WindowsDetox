@@ -108,6 +108,8 @@ internal sealed class ScenarioRunner
         }
 
         await Interaction.SettleAsync(shell.Window);
+        Interaction.ResetScroll(shell.Window);
+        await Interaction.SettleAsync(shell.Window);
     }
 
     private Func<Task> StartFrames(Window window, string name)
@@ -140,6 +142,10 @@ internal sealed class ScenarioRunner
         {
             await Interaction.HoverAsync(window, move[0], move[1]);
         }
+        else if (step.Wheel is { Length: 3 } wheel)
+        {
+            await Interaction.WheelAsync(window, wheel[0], wheel[1], (int)wheel[2]);
+        }
         else if (step.Wait is { } wait)
         {
             await Task.Delay(wait);
@@ -147,7 +153,7 @@ internal sealed class ScenarioRunner
         }
         else
         {
-            throw new InvalidOperationException("A step needs one of action, click, drag, move or wait.");
+            throw new InvalidOperationException("A step needs one of action, click, drag, move, wheel or wait.");
         }
     }
 

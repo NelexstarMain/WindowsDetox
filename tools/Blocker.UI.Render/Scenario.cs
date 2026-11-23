@@ -12,9 +12,9 @@ namespace Blocker.UI.Render;
 internal sealed record Scenario(string Name, string Target, int[]? Size, string? Session, IReadOnlyList<ScenarioStep>? Steps, bool Animate = false);
 
 /// <summary>
-/// One interaction. Exactly one of <see cref="Action"/>, <see cref="Click"/>, <see cref="Drag"/>, <see cref="Move"/> or <see cref="Wait"/> is set.
+/// One interaction. Exactly one of <see cref="Action"/>, <see cref="Click"/>, <see cref="Drag"/>, <see cref="Move"/>, <see cref="Wheel"/> or <see cref="Wait"/> is set.
 /// <c>action</c> goes through the view model command of the view that shows the element (the same path as a real click);
-/// <c>click</c> and <c>drag</c> inject real mouse input at window coordinates.
+/// <c>click</c>, <c>drag</c> and <c>wheel</c> inject real mouse input at window coordinates.
 /// </summary>
 internal sealed record ScenarioStep
 {
@@ -38,6 +38,9 @@ internal sealed record ScenarioStep
 
     /// <summary>Gets the window coordinates the pointer moves to without pressing (hover).</summary>
     public double[]? Move { get; init; }
+
+    /// <summary>Gets the window coordinates and the delta (120 per notch, negative scrolls down) of an injected mouse wheel turn.</summary>
+    public double[]? Wheel { get; init; }
 
     /// <summary>Gets a pause in milliseconds.</summary>
     public int? Wait { get; init; }
