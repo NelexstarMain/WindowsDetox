@@ -34,7 +34,7 @@
                   Margin="0,0,-50,-70" IsHitTestVisible="False" />
         </Grid>
 
-        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="22,4,12,0">
+        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,4,12,0">
             <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}"
                   Width="19" Height="19" Stretch="Uniform" VerticalAlignment="Center" />
             <TextBlock Text="Windows Detox" FontFamily="{DynamicResource Blocker.Font.Ui}" FontSize="13.5" FontWeight="SemiBold"
