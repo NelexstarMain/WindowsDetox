@@ -27,6 +27,22 @@ public sealed class WidgetGridLayoutTests
         Assert.Equal(260, WidgetGridLayout.CellWidth((2 * 260) + WidgetSpans.Gap, 2), 6);
 
     [Fact]
+    public void Widgets_with_free_space_below_stretch_to_a_flush_bottom()
+    {
+        GridSlot[] slots = WidgetGridLayout.FillBottom(WidgetGridLayout.Pack([(1, 3), (1, 1), (1, 2)], 3));
+
+        Assert.Equal([new GridSlot(0, 0, 1, 3), new GridSlot(1, 0, 1, 3), new GridSlot(2, 0, 1, 3)], slots);
+    }
+
+    [Fact]
+    public void Widgets_with_a_neighbour_below_keep_their_height()
+    {
+        GridSlot[] slots = WidgetGridLayout.FillBottom([new GridSlot(0, 0, 1, 1), new GridSlot(0, 1, 1, 2), new GridSlot(1, 0, 1, 1)]);
+
+        Assert.Equal([new GridSlot(0, 0, 1, 1), new GridSlot(0, 1, 1, 2), new GridSlot(1, 0, 1, 3)], slots);
+    }
+
+    [Fact]
     public void Single_cells_fill_rows_left_to_right()
     {
         GridSlot[] slots = WidgetGridLayout.Pack([(1, 1), (1, 1), (1, 1)], 2);

@@ -49,6 +49,31 @@ internal static class WidgetGridLayout
         return slots;
     }
 
+    /// <summary>
+    /// Stretches every widget that has nothing below it down to the board's last row, so the bottom edge of the board is flush
+    /// instead of ragged. Widgets that already reach the bottom, or have a neighbour below, are left alone.
+    /// </summary>
+    /// <param name="slots">Packed slots.</param>
+    /// <returns>The slots with the free space under them taken up.</returns>
+    public static GridSlot[] FillBottom(IReadOnlyList<GridSlot> slots)
+    {
+        int rows = RowCount(slots);
+        GridSlot[] filled = [.. slots];
+        for (int i = 0; i < filled.Length; i++)
+        {
+            GridSlot slot = filled[i];
+            int bottom = slot.Row + slot.RowSpan;
+            bool clear = bottom < rows && !filled.Where((_, j) => j != i).Any(other =>
+                other.Row < rows && other.Row + other.RowSpan > bottom && other.Column < slot.Column + slot.ColumnSpan && other.Column + other.ColumnSpan > slot.Column);
+            if (clear)
+            {
+                filled[i] = slot with { RowSpan = rows - slot.Row };
+            }
+        }
+
+        return filled;
+    }
+
     /// <summary>Gets the number of rows the slots cover.</summary>
     /// <param name="slots">The slots.</param>
     /// <returns>The row count, zero for none.</returns>

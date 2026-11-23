@@ -201,7 +201,7 @@ internal sealed class WidgetGridPanel : Panel
         }
 
         _arranged = _order is null ? natural : [.. _order.Where(natural.Contains), .. natural.Where(c => !_order.Contains(c))];
-        _slots = WidgetGridLayout.Pack([.. _arranged.Select(c => (GetColumnSpan(c), GetRowSpan(c)))], Columns);
+        _slots = WidgetGridLayout.FillBottom(WidgetGridLayout.Pack([.. _arranged.Select(c => (GetColumnSpan(c), GetRowSpan(c)))], Columns));
         for (int i = 0; i < _arranged.Count; i++)
         {
             Rect slot = SlotRect(_slots[i]);
