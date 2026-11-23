@@ -74,10 +74,9 @@ public sealed record EnforcementSettings
     /// IFEO matches by name only, so a name is dropped when an allowlisted application has that name, and critical Windows or Blocker
     /// names are never included (<c>services.exe</c> is on the bypass list, but redirecting it would break Windows).
     /// </summary>
-    public IReadOnlyList<string> BuildIfeoImageNames(Allowlist allowlist, CriticalProcesses critical)
+    public IReadOnlyList<string> BuildIfeoImageNames(Allowlist allowlist)
     {
         ArgumentNullException.ThrowIfNull(allowlist);
-        ArgumentNullException.ThrowIfNull(critical);
         HashSet<string> allowed = new(StringComparer.OrdinalIgnoreCase);
         foreach (AllowlistEntry entry in allowlist.Entries)
         {
@@ -111,12 +110,10 @@ public sealed record EnforcementSettings
             }
         }
 
-        string system32 = WindowsDirectory.TrimEnd('\\', '/') + @"\System32\";
-        string install = InstallDirectory.TrimEnd('\\', '/') + @"\";
         return
         [
             .. names
-                .Where(n => !allowed.Contains(n) && !critical.IsCritical(system32 + n) && !critical.IsCritical(install + n))
+                .Where(n => !allowed.Contains(n) && !CriticalProcesses.IsKnownImageName(n))
                 .Order(StringComparer.OrdinalIgnoreCase),
         ];
     }

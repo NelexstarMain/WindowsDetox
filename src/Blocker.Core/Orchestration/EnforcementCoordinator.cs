@@ -321,7 +321,7 @@ public sealed partial class EnforcementCoordinator(
         var domains = new DomainMatcher(policy.Domains.Select(static d => DomainPattern.TryParse(d, out DomainPattern? p) ? p : null).OfType<DomainPattern>());
         var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots);
         var decision = new EnforcementPolicy(critical, new BypassTools(_settings.BypassToolHashes), allowlist, _settings.WindowsDirectory);
-        return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist, critical), _settings.ResolveBrowsers());
+        return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist), _settings.ResolveBrowsers());
     }
 
     /// <summary>Brings protections and the process pipeline up. Caller holds the gate and has set <see cref="_runtime"/>.</summary>
