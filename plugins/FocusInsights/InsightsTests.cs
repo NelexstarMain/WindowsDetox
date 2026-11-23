@@ -879,11 +879,11 @@ public sealed class InsightsTests
         Assert.Equal(3, heatmap.Values[3].Sum());
 
         UiTable table = Single<UiTable>(page);
-        Assert.Equal(["Started", "Planned", "Actual", "Outcome"], table.Columns.Select(c => c.Header));
-        Assert.Equal([false, true, true, false], table.Columns.Select(c => c.Monospace));
+        Assert.Equal(["Started", "Outcome", "Planned", "Actual"], table.Columns.Select(c => c.Header));
+        Assert.Equal([false, false, true, true], table.Columns.Select(c => c.Monospace));
         Assert.Equal(2, table.Rows.Count);
-        Assert.Equal(["Jan 1, 09:30", "30 min", "10 min", "Ended early"], table.Rows[0].Cells);
-        Assert.Equal(["Jan 1, 09:00", "30 min", "30 min", "Completed"], table.Rows[1].Cells);
+        Assert.Equal(["Jan 1, 09:30", "Ended early", "30 min", "10 min"], table.Rows[0].Cells);
+        Assert.Equal(["Jan 1, 09:00", "Completed", "30 min", "30 min"], table.Rows[1].Cells);
     }
 
     [Fact]

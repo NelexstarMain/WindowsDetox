@@ -75,13 +75,13 @@ public static class InsightsLayout
     private static UiNode Tiles(InsightsView v) => Ui.Grid(
         4,
         Ui.Stat("Focus time", InsightsFormat.Compact(v.FocusSeconds7d / 60), "Last 7 days", UiTone.Accent, UiIcon.Clock),
-        Ui.Stat("Sessions completed", v.Completed7d.ToString(System.Globalization.CultureInfo.InvariantCulture), "Last 7 days", UiTone.Success, UiIcon.Checkmark),
+        Ui.Stat("Sessions completed", v.Completed7d.ToString(System.Globalization.CultureInfo.InvariantCulture), "Last 7 days", UiTone.Neutral, UiIcon.Checkmark),
         Ui.Stat("Blocked attempts", v.Blocked7d.ToString(System.Globalization.CultureInfo.InvariantCulture), "Last 7 days", UiTone.Neutral, UiIcon.Shield),
         Ui.Stat(
             "Current streak",
             v.StreakCapped ? $"{v.Streak}+ days" : InsightsFormat.Count(v.Streak, "day"),
             "Days with a completed session",
-            v.Streak > 0 ? UiTone.Success : UiTone.Neutral,
+            UiTone.Neutral,
             UiIcon.Flame));
 
     private static UiNode FocusChart(InsightsView v)
@@ -143,17 +143,17 @@ public static class InsightsLayout
             ? new UiTable(
                 [
                     new UiTableColumn("Started"),
+                    new UiTableColumn("Outcome"),
                     new UiTableColumn("Planned", UiAlignment.End, Monospace: true),
                     new UiTableColumn("Actual", UiAlignment.End, Monospace: true),
-                    new UiTableColumn("Outcome"),
                 ],
                 [
                     .. v.Recent.Select(s => new UiTableRow(
                     [
                         InsightsFormat.StartLabel(s.Start, zone),
+                        InsightsFormat.OutcomeLabel(s.Reason),
                         InsightsFormat.Duration(s.Planned),
                         InsightsFormat.Duration(s.Actual),
-                        InsightsFormat.OutcomeLabel(s.Reason),
                     ])),
                 ])
             : Ui.Text("No sessions recorded yet.", UiTextStyle.Caption);

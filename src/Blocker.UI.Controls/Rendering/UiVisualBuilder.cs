@@ -1033,12 +1033,15 @@ internal sealed class UiVisualBuilder
     {
         var grid = new Grid();
         int columns = table.Columns.Count;
-        foreach (UiTableColumn column in table.Columns)
+
+        // The first column takes the free width; the others hold their content, so a short outcome sits next to the numbers
+        // instead of floating mid-row.
+        for (int c = 0; c < columns; c++)
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition
             {
-                Width = column.Alignment == UiAlignment.End ? GridLength.Auto : new GridLength(1, GridUnitType.Star),
-                MinWidth = column.Alignment == UiAlignment.End ? 72 : 0,
+                Width = c == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto,
+                MinWidth = c == 0 ? 0 : table.Columns[c].Alignment == UiAlignment.End ? 88 : 120,
             });
         }
 
