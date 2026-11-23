@@ -1110,15 +1110,17 @@ internal sealed class UiVisualBuilder
         if (node is { IconOnly: true, Icon: { } onlyIcon })
         {
             button.Content = Icon(onlyIcon, 18);
-            button.MinWidth = 36;
-            button.Padding = new Thickness(8, 6, 8, 6);
+            button.MinWidth = 32;
+            button.MinHeight = 32;
+            button.Padding = new Thickness(8, 0, 8, 0);
             button.ToolTip = node.Label;
         }
         else if (node.ShortLabel is { } shortLabel)
         {
             button.Content = shortLabel;
             button.MinWidth = 32;
-            button.Padding = new Thickness(10, 4, 10, 4);
+            button.MinHeight = 32;
+            button.Padding = new Thickness(10, 0, 10, 0);
             button.ToolTip = node.Label;
         }
         else

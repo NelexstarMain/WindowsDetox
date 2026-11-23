@@ -26,8 +26,8 @@
     <!-- Accent as text: the brand olive lifted to 7.7:1 on the raised surface and 5.8:1 on Accent.Soft (Accent itself is a fill, 3:1 only). -->
     <Color x:Key="Blocker.Accent.Text.Color">#98AD4A</Color>
     <Color x:Key="Blocker.Accent.Soft.Color">#252C15</Color>
-    <Color x:Key="Blocker.Warning.Color">#F08C3A</Color>
-    <Color x:Key="Blocker.Warning.Soft.Color">#2EF08C3A</Color>
+    <Color x:Key="Blocker.Warning.Color">#E8914A</Color>
+    <Color x:Key="Blocker.Warning.Soft.Color">#2EE8914A</Color>
     <Color x:Key="Blocker.Danger.Color">#F87171</Color>
     <Color x:Key="Blocker.Danger.Soft.Color">#2EF87171</Color>
     <Color x:Key="Blocker.Success.Color">#BFD0B4</Color>
@@ -167,8 +167,8 @@
             <Setter.Value>
                 <ControlTemplate>
                     <Rectangle Margin="-3"
-                               RadiusX="5"
-                               RadiusY="5"
+                               RadiusX="9"
+                               RadiusY="9"
                                SnapsToDevicePixels="True"
                                Stroke="{DynamicResource Blocker.Logo.Brush}"
                                StrokeThickness="1" />
@@ -271,17 +271,37 @@
     </Style>
 
     <!-- ============================== Buttons ============================== -->
-    <!-- Hover and pressed states are a white overlay so every variant shares one template. -->
+    <!-- One scale: 36 high (compact icon and stepper buttons 32), 6 radius (pills are capsules), 16 side padding, semibold 14, 8 between
+         icon and label. Every variant shares one template: the state overlay is drawn in the text colour, so hover and pressed
+         work on dark, lime and orange buttons alike; the keyboard ring is the sage focus outline. -->
+    <Color x:Key="Blocker.Warning.Tint.Color">#1AE8914A</Color>
+    <SolidColorBrush x:Key="Blocker.Warning.Tint" Color="{StaticResource Blocker.Warning.Tint.Color}" />
+
+    <Style x:Key="Blocker.FocusVisual.Pill">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-3"
+                               RadiusX="21"
+                               RadiusY="21"
+                               SnapsToDevicePixels="True"
+                               Stroke="{DynamicResource Blocker.Logo.Brush}"
+                               StrokeThickness="1" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="Blocker.Button.Base" TargetType="Button">
         <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
         <Setter Property="Background" Value="#1A1D17" />
-        <Setter Property="BorderBrush" Value="#343829" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="16,0" />
-        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Cursor" Value="Hand" />
@@ -296,9 +316,33 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="{StaticResource Blocker.Radius.Control}"
                             SnapsToDevicePixels="True">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition GeneratedDuration="0:0:0.12" />
+                                </VisualStateGroup.Transitions>
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="MouseOver">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="0.1" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="0.2" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="Opacity" To="0.4" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
                         <Grid>
+                            <!-- The state overlay takes the text colour: it lightens dark buttons, darkens the lime one and tints the orange one. -->
                             <Border x:Name="Overlay"
-                                    Background="White"
+                                    Background="{TemplateBinding Foreground}"
                                     CornerRadius="{StaticResource Blocker.Radius.Control}"
                                     IsHitTestVisible="False"
                                     Opacity="0" />
@@ -309,14 +353,7 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Overlay" Property="Opacity" Value="0.08" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Overlay" Property="Opacity" Value="0.16" />
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
                             <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -325,20 +362,26 @@
         </Setter>
     </Style>
 
+    <!-- Primary: the lifted brand olive with dark text (the same pair as the calendar blocks). -->
     <Style x:Key="Blocker.Button.Primary" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
-        <Setter Property="Background" Value="{DynamicResource Blocker.Accent}" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.OnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource Blocker.Accent.Text}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Text}" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Event.OnLight}" />
     </Style>
 
+    <!-- Secondary: a quiet surface with a light border. -->
     <Style x:Key="Blocker.Button.Secondary" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}" />
 
+    <!-- Warning: orange text and outline on a faint orange tint. Lighter than Primary, so it reads as a deliberate caution. -->
     <Style x:Key="Blocker.Button.Warning" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
+        <Setter Property="Background" Value="{DynamicResource Blocker.Warning.Tint}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Warning}" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Warning}" />
     </Style>
 
-    <!-- Pill variants: the shared template with the pill corner radius. -->
+    <!-- Pill variants: the same states with the capsule radius. -->
     <Style x:Key="Blocker.Button.SecondaryPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource Blocker.FocusVisual.Pill}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -348,9 +391,33 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="{StaticResource Blocker.Radius.Pill}"
                             SnapsToDevicePixels="True">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition GeneratedDuration="0:0:0.12" />
+                                </VisualStateGroup.Transitions>
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="MouseOver">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="0.1" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Overlay" Storyboard.TargetProperty="Opacity" To="0.2" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="Opacity" To="0.4" Duration="0" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
                         <Grid>
+                            <!-- The state overlay takes the text colour: it lightens dark buttons, darkens the lime one and tints the orange one. -->
                             <Border x:Name="Overlay"
-                                    Background="White"
+                                    Background="{TemplateBinding Foreground}"
                                     CornerRadius="{StaticResource Blocker.Radius.Pill}"
                                     IsHitTestVisible="False"
                                     Opacity="0" />
@@ -361,14 +428,7 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Overlay" Property="Opacity" Value="0.08" />
-                        </Trigger>
-                        <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Overlay" Property="Opacity" Value="0.16" />
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
                             <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -379,31 +439,21 @@
 
     <Style x:Key="Blocker.Button.GhostPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
         <Setter Property="Background" Value="#181A15" />
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
     </Style>
 
-    <!-- The way out of a session: an orange outlined pill on a faint orange tint, stronger under the pointer or finger. It stays
-         lighter than the filled accent buttons, so it reads as a deliberate warning action, not the main one. -->
-    <Style x:Key="Blocker.Button.ExitPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
-        <Setter Property="Background" Value="#1AF08C3A" />
+    <Style x:Key="Blocker.Button.WarningPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
+        <Setter Property="Background" Value="{DynamicResource Blocker.Warning.Tint}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Warning}" />
         <Setter Property="Foreground" Value="{DynamicResource Blocker.Warning}" />
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="#33F08C3A" />
-            </Trigger>
-            <Trigger Property="IsPressed" Value="True">
-                <Setter Property="Background" Value="#4DF08C3A" />
-            </Trigger>
-        </Style.Triggers>
     </Style>
 
     <Style x:Key="Blocker.Button.PrimaryPill" TargetType="Button" BasedOn="{StaticResource Blocker.Button.SecondaryPill}">
-        <Setter Property="Background" Value="{DynamicResource Blocker.Accent}" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.OnAccent}" />
-        <Setter Property="Padding" Value="20,6" />
+        <Setter Property="Background" Value="{DynamicResource Blocker.Accent.Text}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Blocker.Accent.Text}" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Event.OnLight}" />
+        <Setter Property="Padding" Value="20,0" />
     </Style>
 
     <!-- Large borderless title input with an underline that turns accent on focus; the placeholder sits in Tag. -->
@@ -477,6 +527,7 @@
         </Setter>
     </Style>
 
+    <!-- Subtle: no surface and no outline until the pointer is over it. -->
     <Style x:Key="Blocker.Button.Subtle" TargetType="Button" BasedOn="{StaticResource Blocker.Button.Base}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />

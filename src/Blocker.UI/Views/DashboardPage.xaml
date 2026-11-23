@@ -88,7 +88,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Style="{DynamicResource Blocker.Button.Primary}" Command="{Binding StartSessionCommand}">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="M 0,0 L 8,4.5 L 0,9 Z" Fill="{DynamicResource Blocker.Text.OnAccent}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                <Path Data="M 0,0 L 8,4.5 L 0,9 Z" Fill="{DynamicResource Blocker.Event.OnLight}" Margin="0,0,10,0" VerticalAlignment="Center" />
                                 <TextBlock Text="Start session" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
@@ -140,7 +140,7 @@
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Style="{DynamicResource Blocker.Button.ExitPill}" Command="{Binding UseEmergencyPassCommand}" Content="Emergency exit" />
+                        <Button Style="{DynamicResource Blocker.Button.WarningPill}" Command="{Binding UseEmergencyPassCommand}" Content="Emergency exit" />
                         <StackPanel Orientation="Horizontal" Margin="18,0" VerticalAlignment="Center">
                             <TextBlock Style="{DynamicResource Blocker.Text.Body}" VerticalAlignment="Center">
                                 <Run Text="{Binding PassesLeftText, Mode=OneWay}" />
