@@ -18,7 +18,7 @@
 
                 <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24">
                     <StackPanel>
-                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="HOW LONG" />
+                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Session length" />
                         <ListBox Margin="0,16,0,0" Style="{StaticResource App.PillList}"
                                  ItemsSource="{Binding DurationOptions}" SelectedItem="{Binding SelectedDuration}"
                                  DisplayMemberPath="Label" AutomationProperties.Name="Session length" />
@@ -44,7 +44,7 @@
                 <Border Margin="0,24,0,0">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="EMERGENCY PASSES" VerticalAlignment="Center" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Emergency passes" VerticalAlignment="Center" />
                             <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
                                 <ContentControl.ToolTip>
                                     <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}"
@@ -77,7 +77,7 @@
             <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
             <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,58,0,0">
                 <StackPanel>
-                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="SUMMARY" />
+                    <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Summary" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="34" FontWeight="Light" Margin="0,12,0,0" Text="{Binding DurationText}" />
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,16" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
                                Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />
