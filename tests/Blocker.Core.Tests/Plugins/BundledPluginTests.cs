@@ -45,7 +45,7 @@ public sealed class BundledPluginTests
         Assert.Equal(PluginInstallStage.Ready, report.Stage);
         PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
         Assert.Equal("com.windowsdetox.insights", manifest.Id.Value);
-        Assert.Equal(new Version(1, 0, 1), manifest.Version);
+        Assert.Equal(new Version(1, 1, 0), manifest.Version);
         Assert.Equal("FocusInsights.InsightsPlugin", manifest.EntryType);
         Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
         PluginTestReport tests = Assert.IsType<PluginTestReport>(report.TestReport);

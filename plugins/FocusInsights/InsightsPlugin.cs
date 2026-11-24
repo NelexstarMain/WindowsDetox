@@ -3,10 +3,12 @@
 // The base app has no statistics on purpose; this plugin is where they live. Data never leaves the device:
 //   * events      SessionStarted/SessionEnded/EmergencyPassStarted (events.session), ProcessBlocked (events.process)
 //   * storage     compact per-day aggregates, 90 days of history (see InsightsStore)
+//   * Forest      sessions also grow a game forest (ForestStore): coins, plants, shop; shown on the page's Forest tab
 //   * UI          a page (ui.page), a small dashboard widget (ui.dashboard) and a settings section (ui.settings)
 //   * 50 ms rule  every render combines at most 90 cached day records; storage is never read while rendering
 
 using Blocker.Sdk;
+using System.Globalization;
 using Blocker.Sdk.Events;
 using Blocker.UI.Sdk;
 
@@ -23,13 +25,21 @@ public sealed class InsightsPlugin : IBlockerPlugin
         var store = new InsightsStore(context.Storage, context.Time, context.Logger);
         await store.LoadAsync(cancellationToken);
         _store = store;
+        var forest = new ForestStore(context.Storage, context.Time, context.Logger);
+        await forest.LoadAsync(cancellationToken);
 
         context.Events.Subscribe<SessionStarted>((e, ct) => store.OnSessionStartedAsync(e, ct));
-        context.Events.Subscribe<SessionEnded>((e, ct) => store.OnSessionEndedAsync(e, ct));
+        context.Events.Subscribe<SessionEnded>(async (e, ct) =>
+        {
+            if (await store.OnSessionEndedAsync(e, ct) is { } recorded)
+            {
+                await forest.OnSessionRecordedAsync(recorded, ct);
+            }
+        });
         context.Events.Subscribe<EmergencyPassStarted>((e, ct) => store.OnEmergencyPassAsync(e, ct));
         context.Events.Subscribe<ProcessBlocked>((e, ct) => store.OnProcessBlockedAsync(e, ct));
 
-        context.Extensions.Add(new InsightsPage(store));
+        context.Extensions.Add(new InsightsPage(store, forest));
         context.Extensions.Add(new InsightsWidget(store));
         context.Extensions.Add(new InsightsSettings(store));
     }
@@ -167,10 +177,14 @@ public abstract class InsightsContribution : IUiContribution
     private IUiSurface? _surface;
 
     /// <summary>Subscribes to store changes.</summary>
-    protected InsightsContribution(InsightsStore store)
+    protected InsightsContribution(InsightsStore store, ForestStore? forest = null)
     {
         Store = store;
         store.Changed += () => Volatile.Read(ref _surface)?.RequestRender();
+        if (forest is not null)
+        {
+            forest.Changed += () => Volatile.Read(ref _surface)?.RequestRender();
+        }
     }
 
     /// <summary>The shared, cached state.</summary>
@@ -188,7 +202,7 @@ public abstract class InsightsContribution : IUiContribution
 }
 
 /// <summary>The Insights page. Requires "ui.page".</summary>
-public sealed class InsightsPage(InsightsStore store) : InsightsContribution(store), IUiPagePlugin
+public sealed class InsightsPage : InsightsContribution, IUiPagePlugin
 {
     /// <summary>Id of the "Show example" button of the empty state.</summary>
     public const string ExampleButtonId = "insights-example";
@@ -199,8 +213,24 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     /// <summary>Caption shown above the example data.</summary>
     public const string ExampleCaption = "Example data — your own stats appear after your first session.";
 
+    /// <summary>Id of the "Forest" tab button.</summary>
+    public const string ForestTabId = "insights-tab-forest";
+
+    /// <summary>Id of the "Stats" tab button.</summary>
+    public const string StatsTabId = "insights-tab-stats";
+
+    private readonly ForestStore _forest;
     private int _showExample;
+    private int _statsTab;
+    private int _shopCategory;
     private ExampleCache? _example;
+
+    /// <summary>Creates the page on top of the recorded statistics and the _forest.</summary>
+    public InsightsPage(InsightsStore store, ForestStore forest)
+        : base(store, forest)
+    {
+        _forest = forest;
+    }
 
     /// <inheritdoc/>
     public UiNavigationItem Navigation { get; } = new("Insights", UiIcon.Chart);
@@ -209,10 +239,25 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     public ValueTask<UiPage> RenderAsync(UiRenderContext context, CancellationToken cancellationToken)
     {
         Remember(context);
-        List<UiNode> children = [];
-        if (Volatile.Read(ref _showExample) == 1)
+        bool stats = Volatile.Read(ref _statsTab) == 1;
+        bool example = Volatile.Read(ref _showExample) == 1;
+        List<UiNode> children =
+        [
+            Ui.Row(
+                Ui.Button(ForestTabId, "Forest", stats ? UiButtonVariant.Subtle : UiButtonVariant.Secondary, UiIcon.Leaf),
+                Ui.Button(StatsTabId, "Stats", stats ? UiButtonVariant.Secondary : UiButtonVariant.Subtle, UiIcon.Chart)),
+        ];
+        if (example)
         {
             children.Add(Ui.Row(Ui.Text(ExampleCaption, UiTextStyle.Caption), Ui.Button(HideExampleButtonId, "Hide example", UiButtonVariant.Secondary)));
+        }
+
+        if (!stats)
+        {
+            children.AddRange(ForestLayout.Body(example ? ExampleForest() : _forest.GetView(), Store.LocalTimeZone, interactive: !example, (ShopCategory)Volatile.Read(ref _shopCategory)));
+        }
+        else if (example)
+        {
             children.AddRange(InsightsLayout.Body(ExampleView(), Store.LocalTimeZone));
         }
         else
@@ -235,13 +280,48 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     public override async ValueTask OnActionAsync(UiAction action, UiRenderContext context, CancellationToken cancellationToken)
     {
         await base.OnActionAsync(action, context, cancellationToken);
+        if (action.Kind == UiActionKind.Pick && action.ElementId == ForestIds.Scene && !IsExample
+            && action.FormValues.TryGetValue("column", out string? column) && int.TryParse(column, NumberStyles.None, CultureInfo.InvariantCulture, out int c)
+            && action.FormValues.TryGetValue("row", out string? row) && int.TryParse(row, NumberStyles.None, CultureInfo.InvariantCulture, out int r))
+        {
+            await _forest.PickAsync(c, r, cancellationToken);
+            return;
+        }
+
         if (action.Kind != UiActionKind.Click)
+        {
+            return;
+        }
+
+        if (action.ElementId.StartsWith(ForestIds.ShopTabPrefix, StringComparison.Ordinal))
+        {
+            foreach (ShopCategory category in Enum.GetValues<ShopCategory>())
+            {
+                if (action.ElementId == ForestIds.ShopTab(category))
+                {
+                    Volatile.Write(ref _shopCategory, (int)category);
+                    context.Surface.RequestRender();
+                }
+            }
+
+            return;
+        }
+
+        if (!IsExample && await HandleForestClickAsync(action.ElementId, cancellationToken))
         {
             return;
         }
 
         switch (action.ElementId)
         {
+            case ForestTabId:
+                Volatile.Write(ref _statsTab, 0);
+                context.Surface.RequestRender();
+                break;
+            case StatsTabId:
+                Volatile.Write(ref _statsTab, 1);
+                context.Surface.RequestRender();
+                break;
             case ExampleButtonId:
                 Volatile.Write(ref _showExample, 1);
                 context.Surface.RequestRender();
@@ -251,6 +331,53 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
                 context.Surface.RequestRender();
                 break;
         }
+    }
+
+    private bool IsExample => Volatile.Read(ref _showExample) == 1;
+
+    // Returns whether the id belonged to a forest control; the store ignores ids that are not valid for the current state.
+    private async ValueTask<bool> HandleForestClickAsync(string id, CancellationToken cancellationToken)
+    {
+        if (id == ForestIds.Cancel)
+        {
+            _forest.CancelSelection();
+        }
+        else if (id == ForestIds.Remove)
+        {
+            if (_forest.GetView().SelectedObject is { } selected)
+            {
+                await _forest.RemoveWitheredAsync(selected, cancellationToken);
+            }
+        }
+        else if (id.StartsWith(ForestIds.ObjectPrefix, StringComparison.Ordinal))
+        {
+            if (int.TryParse(id.AsSpan(ForestIds.ObjectPrefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out int objectId))
+            {
+                _forest.ToggleSelect(objectId);
+            }
+        }
+        else if (id.StartsWith(ForestIds.UnlockPrefix, StringComparison.Ordinal))
+        {
+            await _forest.UnlockAsync(id[ForestIds.UnlockPrefix.Length..], cancellationToken);
+        }
+        else if (id.StartsWith(ForestIds.SelectPrefix, StringComparison.Ordinal))
+        {
+            await _forest.SelectSpeciesAsync(id[ForestIds.SelectPrefix.Length..], cancellationToken);
+        }
+        else if (id.StartsWith(ForestIds.BuyPrefix, StringComparison.Ordinal))
+        {
+            await _forest.BuyDecorationAsync(id[ForestIds.BuyPrefix.Length..], cancellationToken);
+        }
+        else if (id.StartsWith(ForestIds.PlacePrefix, StringComparison.Ordinal))
+        {
+            _forest.TogglePlacing(id[ForestIds.PlacePrefix.Length..]);
+        }
+        else
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static UiCard EmptyState() => Ui.Card(
@@ -269,12 +396,18 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
             return cached.View;
         }
 
-        var created = new ExampleCache(today, zone, InsightsSampleData.Create(today, zone));
+        var created = new ExampleCache(today, zone, InsightsSampleData.Create(today, zone), ForestSampleData.Create(today, zone));
         Volatile.Write(ref _example, created);
         return created.View;
     }
 
-    private sealed record ExampleCache(int Day, TimeZoneInfo Zone, InsightsView View);
+    private ForestView ExampleForest()
+    {
+        _ = ExampleView();
+        return Volatile.Read(ref _example)!.Forest;
+    }
+
+    private sealed record ExampleCache(int Day, TimeZoneInfo Zone, InsightsView View, ForestView Forest);
 }
 
 /// <summary>Small dashboard widget: today's focus time. The host draws the surface, icon, name and tap-to-open. Requires "ui.dashboard".</summary>
