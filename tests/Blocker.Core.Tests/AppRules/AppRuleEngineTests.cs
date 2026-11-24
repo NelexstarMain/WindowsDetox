@@ -3,6 +3,7 @@ using Blocker.Contracts;
 using Blocker.Core.AppRules;
 using Blocker.Core.Security;
 using Blocker.Core.Tests.Security;
+using Microsoft.Extensions.Logging.Abstractions;
 using static Blocker.Core.Tests.AppRules.AppRuleTestData;
 
 namespace Blocker.Core.Tests.AppRules;
@@ -26,8 +27,8 @@ public sealed class AppRuleEngineTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private AppRuleEngine NewEngine() => new(
-        new AppRulesStore(_store, _fs.Path.Combine(Root, "rules.bin")),
-        new AppUsageStore(_store, _fs.Path.Combine(Root, "usage.bin")),
+        new AppRulesStore(_store, _fs.Path.Combine(Root, "rules.bin"), NullLogger<AppRulesStore>.Instance),
+        new AppUsageStore(_store, _fs.Path.Combine(Root, "usage.bin"), NullLogger<AppUsageStore>.Instance),
         () => _utc,
         () => _zone,
         @"C:\Windows");

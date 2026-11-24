@@ -74,8 +74,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
         _store = new SecureFileStore(Fs, protector, new HmacKeyStore(Fs, protector, Fs.Path.Combine(Root, "hmac.key")));
         Time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 23, 10, 0, 0, TimeSpan.Zero));
         Engine = new AppRuleEngine(
-            new AppRulesStore(_store, Fs.Path.Combine(Root, "rules.bin")),
-            new AppUsageStore(_store, UsagePath),
+            new AppRulesStore(_store, Fs.Path.Combine(Root, "rules.bin"), NullLogger<AppRulesStore>.Instance),
+            new AppUsageStore(_store, UsagePath, NullLogger<AppUsageStore>.Instance),
             Time.GetUtcNow,
             static () => "UTC",
             @"C:\Windows");
@@ -143,7 +143,7 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
 
     public long UsedSeconds(int rule = 0) => Engine.GetStatus(sessionRunning: false).Items[rule].UsedSeconds;
 
-    public ValueTask<AppUsageState> LoadUsageAsync() => new AppUsageStore(_store, UsagePath).LoadAsync(Ct);
+    public ValueTask<AppUsageState> LoadUsageAsync() => new AppUsageStore(_store, UsagePath, NullLogger<AppUsageStore>.Instance).LoadAsync(Ct);
 
     public ValueTask DisposeAsync() => Enforcer.DisposeAsync();
 }

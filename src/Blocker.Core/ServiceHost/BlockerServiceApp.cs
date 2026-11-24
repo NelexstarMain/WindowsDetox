@@ -74,8 +74,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         _supervisionFile = new SupervisionStatusFile(secure, paths.SupervisionStatusPath, loggers.CreateLogger<SupervisionStatusFile>());
         var policyStore = new SecureSessionPolicyStore(secure, paths.SessionPolicyPath);
         _appRules = new AppRuleEngine(
-            new AppRulesStore(secure, paths.AppRulesPath),
-            new AppUsageStore(secure, paths.AppUsagePath),
+            new AppRulesStore(secure, paths.AppRulesPath, loggers.CreateLogger<AppRulesStore>()),
+            new AppUsageStore(secure, paths.AppUsagePath, loggers.CreateLogger<AppUsageStore>()),
             VerifiedOrSystemNow,
             static () => TimeZoneInfo.Local.Id,
             ports.Enforcement.WindowsDirectory);
@@ -170,7 +170,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 ports.DevMode,
                 ports.PluginTemplate,
                 SyncStatusAsync,
-                new AppSetsStore(secure, paths.AppSetsPath),
+                new AppSetsStore(secure, paths.AppSetsPath, loggers.CreateLogger<AppSetsStore>()),
                 _appRules,
                 _appEnforcer),
             loggers.CreateLogger<ServiceIpcHandlers>());

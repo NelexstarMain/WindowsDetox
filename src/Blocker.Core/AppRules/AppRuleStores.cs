@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Blocker.Contracts;
 using Blocker.Core.Security;
+using Microsoft.Extensions.Logging;
 
 namespace Blocker.Core.AppRules;
 
@@ -13,7 +14,8 @@ internal sealed record StoredAppRules(AppRulesDto Rules, string? TimeZoneId);
 /// <summary>Persists the saved app sets in a sealed file; a missing or damaged file means no sets (the user starts over).</summary>
 /// <param name="store">Sealed store.</param>
 /// <param name="path">File path.</param>
-internal sealed class AppSetsStore(SecureFileStore store, string path)
+/// <param name="logger">Receives a warning when a damaged file is replaced by no sets.</param>
+internal sealed partial class AppSetsStore(SecureFileStore store, string path, ILogger<AppSetsStore> logger)
 {
     /// <summary>Loads the sets.</summary>
     /// <param name="cancellationToken">Cancellation.</param>
@@ -26,6 +28,7 @@ internal sealed class AppSetsStore(SecureFileStore store, string path)
         }
         catch (Exception ex) when (ex is TamperDetectedException or JsonException)
         {
+            LogDamaged(logger, ex, path);
             return new AppSetsDto([]);
         }
     }
@@ -36,12 +39,16 @@ internal sealed class AppSetsStore(SecureFileStore store, string path)
     /// <returns>A task that completes when the sets are durable.</returns>
     public ValueTask SaveAsync(AppSetsDto sets, CancellationToken cancellationToken) =>
         store.WriteJsonAsync(path, sets, IpcJson.TypeInfo<AppSetsDto>(), cancellationToken);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The saved app sets in {Path} failed verification or could not be read as sets; starting with no sets.")]
+    private static partial void LogDamaged(ILogger logger, Exception exception, string path);
 }
 
 /// <summary>Persists the per-app rules and their frozen time zone; a missing or damaged file means no rules.</summary>
 /// <param name="store">Sealed store.</param>
 /// <param name="path">File path.</param>
-internal sealed class AppRulesStore(SecureFileStore store, string path)
+/// <param name="logger">Receives a warning when a damaged file is replaced by no rules.</param>
+internal sealed partial class AppRulesStore(SecureFileStore store, string path, ILogger<AppRulesStore> logger)
 {
     /// <summary>Loads the rules.</summary>
     /// <param name="cancellationToken">Cancellation.</param>
@@ -55,6 +62,7 @@ internal sealed class AppRulesStore(SecureFileStore store, string path)
         }
         catch (Exception ex) when (ex is TamperDetectedException or JsonException)
         {
+            LogDamaged(logger, ex, path);
             return new StoredAppRules(new AppRulesDto([]), null);
         }
     }
@@ -65,6 +73,9 @@ internal sealed class AppRulesStore(SecureFileStore store, string path)
     /// <returns>A task that completes when the rules are durable.</returns>
     public ValueTask SaveAsync(StoredAppRules rules, CancellationToken cancellationToken) =>
         store.WriteJsonAsync(path, rules, AppRuleJsonContext.Default.StoredAppRules, cancellationToken);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The app rules in {Path} failed verification or could not be read as rules (damaged or tampered with); starting with no rules.")]
+    private static partial void LogDamaged(ILogger logger, Exception exception, string path);
 }
 
 /// <summary>
@@ -73,7 +84,8 @@ internal sealed class AppRulesStore(SecureFileStore store, string path)
 /// </summary>
 /// <param name="store">Sealed store.</param>
 /// <param name="path">File path.</param>
-internal sealed class AppUsageStore(SecureFileStore store, string path)
+/// <param name="logger">Receives a warning when a damaged file is replaced by no usage.</param>
+internal sealed partial class AppUsageStore(SecureFileStore store, string path, ILogger<AppUsageStore> logger)
 {
     /// <summary>Loads the ledger state.</summary>
     /// <param name="cancellationToken">Cancellation.</param>
@@ -87,6 +99,7 @@ internal sealed class AppUsageStore(SecureFileStore store, string path)
         }
         catch (Exception ex) when (ex is TamperDetectedException or JsonException)
         {
+            LogDamaged(logger, ex, path);
             return new AppUsageState([]);
         }
     }
@@ -97,6 +110,9 @@ internal sealed class AppUsageStore(SecureFileStore store, string path)
     /// <returns>A task that completes when the state is durable.</returns>
     public ValueTask SaveAsync(AppUsageState state, CancellationToken cancellationToken) =>
         store.WriteJsonAsync(path, state, AppRuleJsonContext.Default.AppUsageState, cancellationToken);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The app usage in {Path} failed verification or could not be read as usage (damaged or tampered with); starting with no usage counted.")]
+    private static partial void LogDamaged(ILogger logger, Exception exception, string path);
 }
 
 /// <summary>Metadata for the files above; a file with missing members counts as damaged.</summary>
