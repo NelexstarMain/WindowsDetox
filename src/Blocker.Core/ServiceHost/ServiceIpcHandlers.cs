@@ -35,6 +35,7 @@ namespace Blocker.Core.ServiceHost;
 /// <param name="StateChanged">Called after an operation that may have changed the session state.</param>
 /// <param name="AppSets">Saved app sets.</param>
 /// <param name="AppRules">Per-app rules, their usage ledger and every decision on them.</param>
+/// <param name="AppEnforcer">Meters the foreground app against the rules and enforces them outside sessions.</param>
 internal sealed record ServiceHandlerDependencies(
     EnforcementCoordinator Coordinator,
     ISessionPolicyStore SessionPolicies,
@@ -53,7 +54,8 @@ internal sealed record ServiceHandlerDependencies(
     Func<CancellationToken, ValueTask<byte[]>> PluginTemplate,
     Func<CancellationToken, ValueTask> StateChanged,
     AppSetsStore AppSets,
-    AppRuleEngine AppRules);
+    AppRuleEngine AppRules,
+    AppRuleEnforcer AppEnforcer);
 
 /// <summary>
 /// Every client-callable IPC method of the service. Roles, the session gate and payload sizes are enforced by <see cref="IpcServer"/> from
@@ -380,12 +382,15 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             _ = await deps.Coordinator.BlockWindowProcessAsync(request.ProcessId, request.StartTimeTicks, path, verdict.Reason, cancellationToken).ConfigureAwait(false);
         }
 
+        // After the plugin check of the session, so nothing in the app rules can hold that up.
+        await deps.AppEnforcer.OnForegroundAsync(path, window.PackageFamilyName, cancellationToken).ConfigureAwait(false);
         return new EmptyDto();
     }
 
     private async ValueTask<EmptyDto> IdleChangedAsync(IpcRequestContext context, IdleChangedDto request, CancellationToken cancellationToken)
     {
         TimeSpan idle = TimeSpan.FromSeconds(Math.Clamp(request.IdleSeconds, 0, 366 * 24 * 3600));
+        deps.AppEnforcer.SetIdle(request.IsIdle);
         await deps.Events.PublishAsync(new UserIdleChanged(request.IsIdle, idle, VerifiedNow()), cancellationToken).ConfigureAwait(false);
         return new EmptyDto();
     }

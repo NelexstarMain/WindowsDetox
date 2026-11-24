@@ -54,6 +54,12 @@ public enum VerdictReason
 
     /// <summary>A plugin interceptor tightened an allow into a block.</summary>
     PluginInterceptor,
+
+    /// <summary>Outside a session: the app is inside a scheduled block of its per-app rule.</summary>
+    AppScheduledBlock,
+
+    /// <summary>Outside a session: the app used up the time pool of its per-app rule.</summary>
+    AppBudgetExhausted,
 }
 
 /// <summary>Enforcement state at decision time.</summary>

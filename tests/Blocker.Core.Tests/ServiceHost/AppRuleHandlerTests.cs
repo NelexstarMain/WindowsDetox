@@ -1,7 +1,9 @@
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
 using Blocker.Core.Ports;
+using Blocker.Core.ServiceHost;
 using Blocker.Core.Tests.AppRules;
+using Blocker.Core.Tests.Orchestration;
 using static Blocker.Core.Tests.AppRules.AppRuleTestData;
 
 namespace Blocker.Core.Tests.ServiceHost;
@@ -161,5 +163,53 @@ public sealed class AppRuleHandlerTests
         Assert.Equal(IpcErrorCode.Unauthorized, await CodeOfAsync(async () => await SetRulesAsync(stub)));
         Assert.Equal(IpcErrorCode.Unauthorized, await CodeOfAsync(async () => await StatusAsync(stub)));
         Assert.Equal(IpcErrorCode.Unauthorized, await CodeOfAsync(async () => await SetSetsAsync(stub)));
+    }
+
+    [Fact]
+    public async Task The_agent_reports_the_foreground_and_the_running_service_enforces_the_pool_without_a_session()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await SetRulesAsync(user, Rule(Daily(1)))).Success);
+        h.Monitor.Running.Add(OrchestrationHarness.P(600, GamePath));
+        IpcClient agent = await ConnectAgentAsync(h);
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
+
+        await h.AdvanceUntilAsync(() => h.Controller.Terminated.Count > 0);
+
+        AppRuleStatusDto status = Assert.Single((await StatusAsync(user)).Items);
+        Assert.Equal(AppRuleState.BudgetExhausted, status.State);
+        Assert.True(status.UsedSeconds >= 60);
+        Assert.Equal([(600, 600_000L)], h.Controller.Terminated);
+        Assert.Single(h.Launcher.Launches);
+    }
+
+    [Fact]
+    public async Task An_idle_report_pauses_the_metering_and_the_usage_survives_a_restart()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await SetRulesAsync(user, Rule(Daily(60)))).Success);
+        IpcClient agent = await ConnectAgentAsync(h);
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= 10);
+
+        _ = await agent.InvokeAsync<IdleChangedDto, EmptyDto>(IpcMethods.AgentIdleChanged, new IdleChangedDto(true, 300), Ct);
+        long before = h.App.AppRules.GetStatus(false).Items[0].UsedSeconds;
+        h.Time.Advance(TimeSpan.FromSeconds(20));
+        await h.App.AppEnforcer.TickOnceAsync(Ct);
+        await h.RestartAsync();
+
+        long after = h.App.AppRules.GetStatus(false).Items[0].UsedSeconds;
+        Assert.True(before >= 10);
+        Assert.Equal(before, after); // twenty idle seconds were not counted, and what was counted survived the restart
+    }
+
+    private static async Task<IpcClient> ConnectAgentAsync(ServiceHostHarness h)
+    {
+        IpcClient agent = await h.ConnectAsync(IpcCallerRole.Agent);
+        AgentRegisterResponse response = await agent.InvokeAsync<AgentRegisterRequest, AgentRegisterResponse>(IpcMethods.AgentRegister, new AgentRegisterRequest(AgentProtocol.Version, 1), Ct);
+        Assert.True(response.Accepted);
+        return agent;
     }
 }
