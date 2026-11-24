@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Blocker.UI.Sdk;
 using SymbolIcon = Wpf.Ui.Controls.SymbolIcon;
 using SymbolRegular = Wpf.Ui.Controls.SymbolRegular;
@@ -72,6 +73,12 @@ internal sealed class SceneElement : Grid
         private readonly Action<UiAction> _raise;
         private readonly Dictionary<Color, Brush> _brushes = [];
         private static readonly Brush ShadowBrush = CreateShadowBrush();
+        private static readonly Brush CastShadowBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x0A, 0x22, 0x14)));
+        private static readonly Brush FoliageTexture = CreateTexture(7, PaintFoliage);
+        private static readonly Brush GrassTexture = CreateTexture(11, PaintGrass);
+        private static readonly Brush SoilTexture = CreateTexture(13, PaintSoil);
+
+        private readonly Dictionary<SceneMaterial, Brush> _scaledTextures = [];
 
         private readonly Dictionary<Color, Pen> _seams = [];
         private readonly Dictionary<Color, Brush> _gradients = [];
@@ -93,6 +100,12 @@ internal sealed class SceneElement : Grid
             _occupied = [.. scene.Items.Select(i => (i.Column, i.Row))];
             _projection = SceneMath.Project(scene, _turns);
             Focusable = false;
+        }
+
+        private static Brush Frozen(Brush brush)
+        {
+            brush.Freeze();
+            return brush;
         }
 
         private static Brush CreateShadowBrush()
@@ -144,9 +157,14 @@ internal sealed class SceneElement : Grid
                     marksDrawn = true;
                 }
 
-                Color fill = _hoverItem is not null && polygon.ItemId == _hoverItem ? Lighten(polygon.Fill) : polygon.Fill;
+                Color fill = Grade(_hoverItem is not null && polygon.ItemId == _hoverItem ? Lighten(polygon.Fill) : polygon.Fill);
+                StreamGeometry geometry = Geometry(polygon.Points);
                 // Item faces get a soft top-to-bottom gradient for a painted look; the thin same-colour stroke only closes anti-aliasing seams.
-                dc.DrawGeometry(polygon.ItemId is null ? Brush(fill) : Gradient(fill), Seam(fill), Geometry(polygon.Points));
+                dc.DrawGeometry(polygon.Surface == SceneMaterial.Item ? Gradient(fill) : Brush(fill), Seam(fill), geometry);
+                if (Texture(polygon.Surface) is { } texture)
+                {
+                    dc.DrawGeometry(texture, null, geometry);
+                }
             }
 
             if (!marksDrawn)
@@ -201,6 +219,20 @@ internal sealed class SceneElement : Grid
             if (!_scene.ShowGround)
             {
                 return;
+            }
+
+            if (_projection.CastShadows.Count > 0)
+            {
+                // One translucent layer, so overlapping faces of the same object do not darken each other.
+                dc.PushClip(Geometry(_projection.GroundOutline));
+                dc.PushOpacity(0.3);
+                foreach (Point[] shadow in _projection.CastShadows)
+                {
+                    dc.DrawGeometry(CastShadowBrush, null, Geometry(shadow));
+                }
+
+                dc.Pop();
+                dc.Pop();
             }
 
             foreach (SceneShadow shadow in _projection.Shadows)
@@ -261,6 +293,129 @@ internal sealed class SceneElement : Grid
         }
 
         private Point Transform(Point p) => new((p.X * _scale) + _offset.X, (p.Y * _scale) + _offset.Y);
+
+        // Green colour grade: a touch more green, cooler blue and lifted shadows towards moss, like a forest film look.
+        private static Color Grade(Color c)
+        {
+            double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+            double lift = 0.05 * (1 - ((r + g + b) / 3));
+            r = (r * 0.9) + (lift * 0.4);
+            g = (g * 0.97) + (lift * 1.0) + 0.006;
+            b = (b * 0.9) + (lift * 0.55);
+            return Color.FromRgb(Byte(r), Byte(g), Byte(b));
+
+            static byte Byte(double v) => (byte)Math.Clamp(Math.Round(v * 255), 0, 255);
+        }
+
+        private Brush? Texture(SceneMaterial surface)
+        {
+            Brush? texture = surface switch
+            {
+                SceneMaterial.Item => FoliageTexture,
+                SceneMaterial.Grass => GrassTexture,
+                SceneMaterial.Soil => SoilTexture,
+                _ => null,
+            };
+            if (texture is null)
+            {
+                return null;
+            }
+
+            // The texture tile follows the zoom so the grain keeps its size relative to the world, within readable limits.
+            double tile = Math.Clamp(_scale * 0.9, 24, 96);
+            if (!_scaledTextures.TryGetValue(surface, out Brush? scaled) || Math.Abs(((TileBrush)scaled).Viewport.Width - tile) > 0.5)
+            {
+                TileBrush copy = ((TileBrush)texture).Clone();
+                copy.Viewport = new Rect(0, 0, tile, tile);
+                copy.Freeze();
+                _scaledTextures[surface] = copy;
+                scaled = copy;
+            }
+
+            return scaled;
+        }
+
+        // Procedural textures: a deterministic noise pattern drawn once into a small tiled bitmap.
+        private static ImageBrush CreateTexture(int seed, Action<Random, byte[], int> paint)
+        {
+            const int size = 64;
+            byte[] pixels = new byte[size * size * 4];
+            paint(new Random(seed), pixels, size);
+            var bitmap = BitmapSource.Create(size, size, 96, 96, PixelFormats.Pbgra32, null, pixels, size * 4);
+            bitmap.Freeze();
+            var brush = new ImageBrush(bitmap) { TileMode = TileMode.Tile, ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, 48, 48), Stretch = Stretch.Fill };
+            brush.Freeze();
+            return brush;
+        }
+
+        // Soft blotches of light and dark, like leaf clusters and bark grain.
+        private static void PaintFoliage(Random random, byte[] pixels, int size)
+        {
+            for (int i = 0; i < 70; i++)
+            {
+                Blot(pixels, size, random.Next(size), random.Next(size), 1.5 + (random.NextDouble() * 3), random.Next(2) == 0, 0.07 + (random.NextDouble() * 0.07));
+            }
+        }
+
+        // Short slanted strokes, like blades of grass seen from above.
+        private static void PaintGrass(Random random, byte[] pixels, int size)
+        {
+            for (int i = 0; i < 160; i++)
+            {
+                int x = random.Next(size), y = random.Next(size), length = 2 + random.Next(4);
+                bool light = random.Next(3) > 0;
+                double alpha = 0.08 + (random.NextDouble() * 0.1);
+                for (int k = 0; k < length; k++)
+                {
+                    Pixel(pixels, size, x + (k / 2), y - k, light, alpha);
+                }
+            }
+        }
+
+        // Grainy specks and a few larger crumbs, like soil.
+        private static void PaintSoil(Random random, byte[] pixels, int size)
+        {
+            for (int i = 0; i < 260; i++)
+            {
+                Pixel(pixels, size, random.Next(size), random.Next(size), random.Next(2) == 0, 0.06 + (random.NextDouble() * 0.12));
+            }
+
+            for (int i = 0; i < 14; i++)
+            {
+                Blot(pixels, size, random.Next(size), random.Next(size), 1 + random.NextDouble(), false, 0.14);
+            }
+        }
+
+        private static void Blot(byte[] pixels, int size, int cx, int cy, double radius, bool light, double alpha)
+        {
+            int r = (int)Math.Ceiling(radius);
+            for (int dy = -r; dy <= r; dy++)
+            {
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    double d = Math.Sqrt((dx * dx) + (dy * dy)) / radius;
+                    if (d < 1)
+                    {
+                        Pixel(pixels, size, cx + dx, cy + dy, light, alpha * (1 - (d * d)));
+                    }
+                }
+            }
+        }
+
+        // Blends a premultiplied white or black dot into the wrapping texture.
+        private static void Pixel(byte[] pixels, int size, int x, int y, bool light, double alpha)
+        {
+            int i = ((((y % size) + size) % size * size) + (((x % size) + size) % size)) * 4;
+            double a = pixels[i + 3] / 255.0;
+            double outA = alpha + (a * (1 - alpha));
+            double value = light ? 255 * alpha : 0;
+            for (int c = 0; c < 3; c++)
+            {
+                pixels[i + c] = (byte)Math.Clamp(value + (pixels[i + c] * (1 - alpha)), 0, 255);
+            }
+
+            pixels[i + 3] = (byte)Math.Clamp(outA * 255, 0, 255);
+        }
 
         private static Color Lighten(Color c) =>
             Color.FromRgb((byte)Math.Min(255, c.R + 28), (byte)Math.Min(255, c.G + 28), (byte)Math.Min(255, c.B + 28));

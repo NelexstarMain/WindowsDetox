@@ -4,11 +4,28 @@ using Blocker.UI.Sdk;
 
 namespace Blocker.UI.Controls.Rendering;
 
+/// <summary>Which texture a polygon gets.</summary>
+internal enum SceneMaterial
+{
+    /// <summary>Part of a scene item.</summary>
+    Item,
+
+    /// <summary>A tile top.</summary>
+    Grass,
+
+    /// <summary>Slab sides and pebbles.</summary>
+    Soil,
+
+    /// <summary>Small details drawn plain.</summary>
+    Detail,
+}
+
 /// <summary>One shaded polygon of a projected scene, in unscaled screen units, in back-to-front drawing order.</summary>
 /// <param name="Points">Screen vertices.</param>
 /// <param name="Fill">Shaded colour.</param>
 /// <param name="ItemId">Id of the scene item the polygon belongs to, or <see langword="null"/> for the ground.</param>
-internal sealed record ScenePolygon(Point[] Points, Color Fill, string? ItemId);
+/// <param name="Surface">Texture class.</param>
+internal sealed record ScenePolygon(Point[] Points, Color Fill, string? ItemId, SceneMaterial Surface = SceneMaterial.Item);
 
 /// <summary>A soft contact shadow on the ground, in unscaled screen units.</summary>
 /// <param name="Centre">Centre of the shadow ellipse.</param>
@@ -18,9 +35,16 @@ internal readonly record struct SceneShadow(Point Centre, double RadiusX, double
 
 /// <summary>A projected scene: polygons in drawing order, ground shadows and the bounds used to fit it into the control.</summary>
 /// <param name="Polygons">Back-to-front polygons; ground polygons (no item) come first.</param>
-/// <param name="Shadows">Contact shadows, drawn after the ground and before the items.</param>
+/// <param name="Shadows">Soft contact shadows, drawn after the ground and before the items.</param>
+/// <param name="CastShadows">Item faces projected onto the ground along the light; drawn as one translucent layer clipped to <paramref name="GroundOutline"/>.</param>
+/// <param name="GroundOutline">Outline of the ground top, or empty without ground.</param>
 /// <param name="Bounds">Bounds of the ground slab and the tallest object.</param>
-internal sealed record SceneProjection(IReadOnlyList<ScenePolygon> Polygons, IReadOnlyList<SceneShadow> Shadows, Rect Bounds);
+internal sealed record SceneProjection(
+    IReadOnlyList<ScenePolygon> Polygons,
+    IReadOnlyList<SceneShadow> Shadows,
+    IReadOnlyList<Point[]> CastShadows,
+    Point[] GroundOutline,
+    Rect Bounds);
 
 /// <summary>
 /// Isometric projection of a <see cref="UiScene"/>. World space: tile (c, r) covers x in c..c+1 and z in r..r+1, y up. The camera turns in
@@ -53,12 +77,16 @@ internal static class SceneMath
     // Depth of the turf band at the top of the slab sides.
     private const double TurfDepth = 0.07;
 
+    /// <summary>Models are drawn this much smaller than their tile so neighbours keep some breathing room.</summary>
+    public const double ItemScale = 0.85;
+
     /// <summary>Projects the scene for the given camera turn (0-3).</summary>
     public static SceneProjection Project(UiScene scene, int cameraTurns)
     {
         var view = new View(scene.Columns, scene.Rows, cameraTurns);
         List<ScenePolygon> polygons = [];
         List<SceneShadow> shadows = [];
+        List<Point[]> cast = [];
         double maxHeight = 0;
         if (scene.ShowGround)
         {
@@ -81,10 +109,16 @@ internal static class SceneMath
                 for (int i = 0; i < world.Length; i++)
                 {
                     (double x, double z) = Turn(face.Points[3 * i], face.Points[(3 * i) + 2], item.Rotation);
-                    double y = face.Points[(3 * i) + 1] * item.Scale;
-                    world[i] = view.ToCamera(item.Column + 0.5 + (x * item.Scale), y, item.Row + 0.5 + (z * item.Scale));
+                    double scale = item.Scale * ItemScale;
+                    double y = face.Points[(3 * i) + 1] * scale;
+                    world[i] = view.ToCamera(item.Column + 0.5 + (x * scale), y, item.Row + 0.5 + (z * scale));
                     maxHeight = Math.Max(maxHeight, y);
                     itemHeight = Math.Max(itemHeight, y);
+                }
+
+                if (scene.ShowGround && world.Any(p => p.Y > 0.005))
+                {
+                    cast.Add(CastOnGround(world));
                 }
 
                 if (TryShade(world, ParseColour(face.Color), out Color fill))
@@ -102,7 +136,8 @@ internal static class SceneMath
             }
         }
 
-        return new SceneProjection(polygons, shadows, Bounds(view, scene.ShowGround, maxHeight));
+        Point[] outline = scene.ShowGround ? TileOutlineSpan(view, 0, 0, scene.Columns, scene.Rows) : [];
+        return new SceneProjection(polygons, shadows, cast, outline, Bounds(view, scene.ShowGround, maxHeight));
     }
 
     /// <summary>The top outline of a tile, for selection and hover marks.</summary>
@@ -160,12 +195,24 @@ internal static class SceneMath
         _ => (x, z),
     };
 
+    // A planar shadow: each vertex slides down the light direction onto y = 0.
+    private static Point[] CastOnGround(Vec3[] world) =>
+        [.. world.Select(p => Screen(new Vec3(p.X - (Light.X * p.Y / Light.Y), 0, p.Z - (Light.Z * p.Y / Light.Y))))];
+
+    private static Point[] TileOutlineSpan(View view, int column, int row, int columns, int rows) =>
+    [
+        Screen(view.ToCamera(column, 0, row)),
+        Screen(view.ToCamera(column + columns, 0, row)),
+        Screen(view.ToCamera(column + columns, 0, row + rows)),
+        Screen(view.ToCamera(column, 0, row + rows)),
+    ];
+
     // The shadow falls away from the light (which comes from +x, +z in camera space), further for taller objects.
     private static SceneShadow Shadow(View view, UiSceneItem item, double height)
     {
         Vec3 centre = view.ToCamera(item.Column + 0.5, 0, item.Row + 0.5);
         double reach = Math.Min(height, 2.2) * 0.09;
-        double radius = Math.Clamp(0.3 + (height * 0.05), 0.3, 0.46) * Math.Min(item.Scale, 1.3);
+        double radius = Math.Clamp(0.24 + (height * 0.04), 0.24, 0.36) * Math.Min(item.Scale, 1.3) * ItemScale;
         Point at = Screen(new Vec3(centre.X - (Light.X * reach / Light.Y), 0, centre.Z - (Light.Z * reach / Light.Y)));
         return new SceneShadow(at, radius * Cos30 * Math.Sqrt(2), radius * Sin30 * Math.Sqrt(2));
     }
@@ -193,9 +240,9 @@ internal static class SceneMath
         foreach ((Vec3 a, Vec3 b, Vec3 cc, Vec3 dd) in Sides(c, r))
         {
             // Each side: a turf band, then soil fading to deeper soil towards the bottom.
-            AddFace(view, polygons, [a, Down(a, t), Down(dd, t), dd], turf);
-            AddFace(view, polygons, [Down(a, t), Down(a, d * 0.62), Down(dd, d * 0.62), Down(dd, t)], Dirt);
-            AddFace(view, polygons, [Down(a, d * 0.62), Down(a, d), Down(dd, d), Down(dd, d * 0.62)], DeepDirt);
+            AddFace(view, polygons, [a, Down(a, t), Down(dd, t), dd], turf, SceneMaterial.Grass);
+            AddFace(view, polygons, [Down(a, t), Down(a, d * 0.62), Down(dd, d * 0.62), Down(dd, t)], Dirt, SceneMaterial.Soil);
+            AddFace(view, polygons, [Down(a, d * 0.62), Down(a, d), Down(dd, d), Down(dd, d * 0.62)], DeepDirt, SceneMaterial.Soil);
         }
 
         AddPebbles(view, polygons, c, r);
@@ -204,7 +251,7 @@ internal static class SceneMath
             for (int column = 0; column < c; column++)
             {
                 Color tile = Scale(grass, 0.93 + (0.1 * Noise(column, row, 1)));
-                AddFace(view, polygons, [new(column, 0, row), new(column, 0, row + 1), new(column + 1, 0, row + 1), new(column + 1, 0, row)], tile);
+                AddFace(view, polygons, [new(column, 0, row), new(column, 0, row + 1), new(column + 1, 0, row + 1), new(column + 1, 0, row)], tile, SceneMaterial.Grass);
                 AddTufts(view, polygons, column, row, Scale(grass, 0.78), Scale(grass, 1.12));
             }
         }
@@ -221,12 +268,12 @@ internal static class SceneMath
 
     private static Vec3 Down(Vec3 p, double depth) => p with { Y = p.Y - depth };
 
-    private static void AddFace(View view, List<ScenePolygon> polygons, Vec3[] points, Color colour)
+    private static void AddFace(View view, List<ScenePolygon> polygons, Vec3[] points, Color colour, SceneMaterial surface)
     {
         Vec3[] world = [.. points.Select(p => view.ToCamera(p.X, p.Y, p.Z))];
         if (TryShade(world, colour, out Color fill))
         {
-            polygons.Add(new ScenePolygon([.. world.Select(Screen)], fill, null));
+            polygons.Add(new ScenePolygon([.. world.Select(Screen)], fill, null, surface));
         }
     }
 
@@ -249,7 +296,7 @@ internal static class SceneMath
                     new(foot.X - 0.012, foot.Y),
                     new(foot.X + lean, foot.Y - (h * Vertical)),
                     new(foot.X + 0.012, foot.Y),
-                ], colour, null));
+                ], colour, null, SceneMaterial.Detail));
             }
         }
     }
@@ -272,7 +319,7 @@ internal static class SceneMath
                 double y = -TurfDepth - 0.05 - ((GroundDepth - TurfDepth - 0.1) * Noise(i, (int)b.X, 41));
                 Point p = Screen(view.ToCamera(a.X + ((b.X - a.X) * f), y, a.Z + ((b.Z - a.Z) * f)));
                 double w = 0.025 + (0.02 * Noise(i, 3, 42));
-                polygons.Add(new ScenePolygon([new(p.X - w, p.Y), new(p.X - (w * 0.5), p.Y - (w * 0.6)), new(p.X + (w * 0.6), p.Y - (w * 0.5)), new(p.X + w, p.Y + (w * 0.2)), new(p.X, p.Y + (w * 0.5))], fill, null));
+                polygons.Add(new ScenePolygon([new(p.X - w, p.Y), new(p.X - (w * 0.5), p.Y - (w * 0.6)), new(p.X + (w * 0.6), p.Y - (w * 0.5)), new(p.X + w, p.Y + (w * 0.2)), new(p.X, p.Y + (w * 0.5))], fill, null, SceneMaterial.Detail));
             }
         }
     }
