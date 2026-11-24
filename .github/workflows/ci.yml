@@ -179,11 +179,25 @@ jobs:
           # The tag is never moved (a token may not push tags that point at commits touching workflow files);
           # the release keeps its tag and only its notes and files change on every build.
           if gh release view latest-build > /dev/null 2>&1; then
-            gh release edit latest-build --title "Windows Detox (latest build)" --notes "$notes" --latest --prerelease=false
+            gh release edit latest-build --title "Windows Detox (latest build)" --notes "$notes" --latest=false --prerelease=false
           else
-            gh release create latest-build --target "$GITHUB_SHA" --title "Windows Detox (latest build)" --notes "$notes" --latest
+            gh release create latest-build --target "$GITHUB_SHA" --title "Windows Detox (latest build)" --notes "$notes" --latest=false
           fi
           gh release upload latest-build out/WindowsDetox-Setup.exe out/WindowsDetox-Setup.exe.sha256 --clobber
+      - name: Renumber the preview releases as 0.x (one-time, idempotent)
+        # 1.0.0 is the first full release; the earlier ones were previews numbered by feature (minor) and fix (patch).
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for pair in v1.1.0:0.1.0 v1.2.0:0.2.0 v1.2.1:0.2.1 v1.3.0:0.3.0 v1.4.0:0.4.0 v1.5.0:0.5.0; do
+            old="${pair%%:*}"; new="${pair##*:}"
+            if gh release view "$old" > /dev/null 2>&1 && ! gh release view "v$new" > /dev/null 2>&1; then
+              gh release edit "$old" --tag "v$new" --title "Windows Detox $new" --latest=false
+            fi
+          done
       - name: Publish a versioned release the first time a new version is built
         # Bumping <Version> in Blocker.Setup (and Blocker.UI) is the release trigger; an existing v<Version> release is never touched.
         if: github.event_name == 'push'
