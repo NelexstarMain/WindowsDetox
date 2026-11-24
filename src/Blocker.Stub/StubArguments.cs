@@ -61,6 +61,8 @@ internal sealed record StubArguments(string? BlockedPath, string Reason, string 
     {
         "" or "not-allowlisted" or "notallowlisted" or "ifeo" => "This app isn't on your allowlist for this session.",
         "bypass" or "bypass-tool" => "This tool could be used to get around the session, so it stays blocked.",
+        "appscheduledblock" => "This app is blocked right now by the schedule you set for it.",
+        "appbudgetexhausted" => "You've used up the time you set for this app.",
         _ => Reason,
     };
 }
