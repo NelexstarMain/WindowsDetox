@@ -76,6 +76,7 @@ internal static partial class UiActionValidator
             UiActionKind.Toggle => action.Value is "true" or "false" && FormValuesEmpty(action),
             UiActionKind.Submit => action.Value is null && ValidForm(action.FormValues),
             UiActionKind.Schedule => action.Value is null && ValidSchedule(action.FormValues),
+            UiActionKind.Pick => action.Value is null && ValidPick(action.FormValues),
             UiActionKind.Click => action.Value is null && (FormValuesEmpty(action) || IsExtendFlag(action.FormValues)),
             _ => action.Value is null && FormValuesEmpty(action),
         };
@@ -93,6 +94,14 @@ internal static partial class UiActionValidator
             && TryMinute(values, "start", out int start)
             && TryMinute(values, "end", out int end)
             && start < end && end <= minutesPerDay;
+    }
+
+    private static bool ValidPick(IReadOnlyDictionary<string, string>? values)
+    {
+        const int maxTiles = 24;
+        return values is { Count: 2 }
+            && TryMinute(values, "column", out int column) && column < maxTiles
+            && TryMinute(values, "row", out int row) && row < maxTiles;
     }
 
     private static bool TryMinute(IReadOnlyDictionary<string, string> values, string key, out int value)

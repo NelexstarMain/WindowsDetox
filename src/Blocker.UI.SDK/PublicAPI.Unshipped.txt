@@ -31,6 +31,7 @@ Blocker.UI.Sdk.UiAction.Value.get -> string?
 Blocker.UI.Sdk.UiAction.Value.init -> void
 Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Click = 0 -> Blocker.UI.Sdk.UiActionKind
+Blocker.UI.Sdk.UiActionKind.Pick = 4 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Schedule = 3 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Submit = 2 -> Blocker.UI.Sdk.UiActionKind
 Blocker.UI.Sdk.UiActionKind.Toggle = 1 -> Blocker.UI.Sdk.UiActionKind
@@ -349,6 +350,71 @@ Blocker.UI.Sdk.UiRenderContext.Session.init -> void
 Blocker.UI.Sdk.UiRenderContext.Surface.get -> Blocker.UI.Sdk.IUiSurface!
 Blocker.UI.Sdk.UiRenderContext.Surface.init -> void
 Blocker.UI.Sdk.UiRenderContext.UiRenderContext(Blocker.Sdk.Session.SessionSnapshot! Session, Blocker.UI.Sdk.IUiSurface! Surface) -> void
+Blocker.UI.Sdk.UiScene
+Blocker.UI.Sdk.UiScene.AllowPick.get -> bool
+Blocker.UI.Sdk.UiScene.AllowPick.init -> void
+Blocker.UI.Sdk.UiScene.AllowRotate.get -> bool
+Blocker.UI.Sdk.UiScene.AllowRotate.init -> void
+Blocker.UI.Sdk.UiScene.Columns.get -> int
+Blocker.UI.Sdk.UiScene.Columns.init -> void
+Blocker.UI.Sdk.UiScene.Deconstruct(out string! Id, out int Columns, out int Rows, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneModel!>! Models, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneItem!>! Items, out double Height, out string! GroundColor, out bool ShowGround, out bool AllowRotate, out bool AllowPick, out string? Label) -> void
+Blocker.UI.Sdk.UiScene.Equals(Blocker.UI.Sdk.UiScene? other) -> bool
+Blocker.UI.Sdk.UiScene.GroundColor.get -> string!
+Blocker.UI.Sdk.UiScene.GroundColor.init -> void
+Blocker.UI.Sdk.UiScene.Height.get -> double
+Blocker.UI.Sdk.UiScene.Height.init -> void
+Blocker.UI.Sdk.UiScene.Id.get -> string!
+Blocker.UI.Sdk.UiScene.Id.init -> void
+Blocker.UI.Sdk.UiScene.Items.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneItem!>!
+Blocker.UI.Sdk.UiScene.Items.init -> void
+Blocker.UI.Sdk.UiScene.Label.get -> string?
+Blocker.UI.Sdk.UiScene.Label.init -> void
+Blocker.UI.Sdk.UiScene.Models.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneModel!>!
+Blocker.UI.Sdk.UiScene.Models.init -> void
+Blocker.UI.Sdk.UiScene.Rows.get -> int
+Blocker.UI.Sdk.UiScene.Rows.init -> void
+Blocker.UI.Sdk.UiScene.ShowGround.get -> bool
+Blocker.UI.Sdk.UiScene.ShowGround.init -> void
+Blocker.UI.Sdk.UiScene.UiScene(string! Id, int Columns, int Rows, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneModel!>! Models, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneItem!>! Items, double Height = 360, string! GroundColor = "#8BC34A", bool ShowGround = true, bool AllowRotate = true, bool AllowPick = false, string? Label = null) -> void
+Blocker.UI.Sdk.UiSceneFace
+Blocker.UI.Sdk.UiSceneFace.<Clone>$() -> Blocker.UI.Sdk.UiSceneFace!
+Blocker.UI.Sdk.UiSceneFace.Color.get -> string!
+Blocker.UI.Sdk.UiSceneFace.Color.init -> void
+Blocker.UI.Sdk.UiSceneFace.Deconstruct(out System.Collections.Generic.IReadOnlyList<double>! Points, out string! Color) -> void
+Blocker.UI.Sdk.UiSceneFace.Equals(Blocker.UI.Sdk.UiSceneFace? other) -> bool
+Blocker.UI.Sdk.UiSceneFace.Points.get -> System.Collections.Generic.IReadOnlyList<double>!
+Blocker.UI.Sdk.UiSceneFace.Points.init -> void
+Blocker.UI.Sdk.UiSceneFace.UiSceneFace(System.Collections.Generic.IReadOnlyList<double>! Points, string! Color) -> void
+Blocker.UI.Sdk.UiSceneItem
+Blocker.UI.Sdk.UiSceneItem.<Clone>$() -> Blocker.UI.Sdk.UiSceneItem!
+Blocker.UI.Sdk.UiSceneItem.Column.get -> int
+Blocker.UI.Sdk.UiSceneItem.Column.init -> void
+Blocker.UI.Sdk.UiSceneItem.Deconstruct(out string! Id, out string! Model, out int Column, out int Row, out int Rotation, out double Scale, out bool IsSelected, out string? Label) -> void
+Blocker.UI.Sdk.UiSceneItem.Equals(Blocker.UI.Sdk.UiSceneItem? other) -> bool
+Blocker.UI.Sdk.UiSceneItem.Id.get -> string!
+Blocker.UI.Sdk.UiSceneItem.Id.init -> void
+Blocker.UI.Sdk.UiSceneItem.IsSelected.get -> bool
+Blocker.UI.Sdk.UiSceneItem.IsSelected.init -> void
+Blocker.UI.Sdk.UiSceneItem.Label.get -> string?
+Blocker.UI.Sdk.UiSceneItem.Label.init -> void
+Blocker.UI.Sdk.UiSceneItem.Model.get -> string!
+Blocker.UI.Sdk.UiSceneItem.Model.init -> void
+Blocker.UI.Sdk.UiSceneItem.Rotation.get -> int
+Blocker.UI.Sdk.UiSceneItem.Rotation.init -> void
+Blocker.UI.Sdk.UiSceneItem.Row.get -> int
+Blocker.UI.Sdk.UiSceneItem.Row.init -> void
+Blocker.UI.Sdk.UiSceneItem.Scale.get -> double
+Blocker.UI.Sdk.UiSceneItem.Scale.init -> void
+Blocker.UI.Sdk.UiSceneItem.UiSceneItem(string! Id, string! Model, int Column, int Row, int Rotation = 0, double Scale = 1, bool IsSelected = false, string? Label = null) -> void
+Blocker.UI.Sdk.UiSceneModel
+Blocker.UI.Sdk.UiSceneModel.<Clone>$() -> Blocker.UI.Sdk.UiSceneModel!
+Blocker.UI.Sdk.UiSceneModel.Deconstruct(out string! Key, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneFace!>! Faces) -> void
+Blocker.UI.Sdk.UiSceneModel.Equals(Blocker.UI.Sdk.UiSceneModel? other) -> bool
+Blocker.UI.Sdk.UiSceneModel.Faces.get -> System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneFace!>!
+Blocker.UI.Sdk.UiSceneModel.Faces.init -> void
+Blocker.UI.Sdk.UiSceneModel.Key.get -> string!
+Blocker.UI.Sdk.UiSceneModel.Key.init -> void
+Blocker.UI.Sdk.UiSceneModel.UiSceneModel(string! Key, System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiSceneFace!>! Faces) -> void
 Blocker.UI.Sdk.UiSelectField
 Blocker.UI.Sdk.UiSelectField.Deconstruct(out string! Id, out string! Label, out System.Collections.Generic.IReadOnlyList<Blocker.UI.Sdk.UiOption!>! Options, out string? SelectedValue) -> void
 Blocker.UI.Sdk.UiSelectField.Equals(Blocker.UI.Sdk.UiSelectField? other) -> bool
@@ -638,6 +704,19 @@ override Blocker.UI.Sdk.UiProgress.ToString() -> string!
 override Blocker.UI.Sdk.UiRenderContext.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiRenderContext.GetHashCode() -> int
 override Blocker.UI.Sdk.UiRenderContext.ToString() -> string!
+override Blocker.UI.Sdk.UiScene.<Clone>$() -> Blocker.UI.Sdk.UiScene!
+override Blocker.UI.Sdk.UiScene.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiScene.GetHashCode() -> int
+override Blocker.UI.Sdk.UiScene.ToString() -> string!
+override Blocker.UI.Sdk.UiSceneFace.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiSceneFace.GetHashCode() -> int
+override Blocker.UI.Sdk.UiSceneFace.ToString() -> string!
+override Blocker.UI.Sdk.UiSceneItem.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiSceneItem.GetHashCode() -> int
+override Blocker.UI.Sdk.UiSceneItem.ToString() -> string!
+override Blocker.UI.Sdk.UiSceneModel.Equals(object? obj) -> bool
+override Blocker.UI.Sdk.UiSceneModel.GetHashCode() -> int
+override Blocker.UI.Sdk.UiSceneModel.ToString() -> string!
 override Blocker.UI.Sdk.UiSelectField.<Clone>$() -> Blocker.UI.Sdk.UiSelectField!
 override Blocker.UI.Sdk.UiSelectField.Equals(object? obj) -> bool
 override Blocker.UI.Sdk.UiSelectField.GetHashCode() -> int
@@ -703,6 +782,7 @@ override sealed Blocker.UI.Sdk.UiNoteField.Equals(Blocker.UI.Sdk.UiFormField? ot
 override sealed Blocker.UI.Sdk.UiNumberField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiPage.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiProgress.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
+override sealed Blocker.UI.Sdk.UiScene.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiSelectField.Equals(Blocker.UI.Sdk.UiFormField? other) -> bool
 override sealed Blocker.UI.Sdk.UiStack.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
 override sealed Blocker.UI.Sdk.UiStatTile.Equals(Blocker.UI.Sdk.UiNode? other) -> bool
@@ -786,6 +866,14 @@ static Blocker.UI.Sdk.UiProgress.operator !=(Blocker.UI.Sdk.UiProgress? left, Bl
 static Blocker.UI.Sdk.UiProgress.operator ==(Blocker.UI.Sdk.UiProgress? left, Blocker.UI.Sdk.UiProgress? right) -> bool
 static Blocker.UI.Sdk.UiRenderContext.operator !=(Blocker.UI.Sdk.UiRenderContext? left, Blocker.UI.Sdk.UiRenderContext? right) -> bool
 static Blocker.UI.Sdk.UiRenderContext.operator ==(Blocker.UI.Sdk.UiRenderContext? left, Blocker.UI.Sdk.UiRenderContext? right) -> bool
+static Blocker.UI.Sdk.UiScene.operator !=(Blocker.UI.Sdk.UiScene? left, Blocker.UI.Sdk.UiScene? right) -> bool
+static Blocker.UI.Sdk.UiScene.operator ==(Blocker.UI.Sdk.UiScene? left, Blocker.UI.Sdk.UiScene? right) -> bool
+static Blocker.UI.Sdk.UiSceneFace.operator !=(Blocker.UI.Sdk.UiSceneFace? left, Blocker.UI.Sdk.UiSceneFace? right) -> bool
+static Blocker.UI.Sdk.UiSceneFace.operator ==(Blocker.UI.Sdk.UiSceneFace? left, Blocker.UI.Sdk.UiSceneFace? right) -> bool
+static Blocker.UI.Sdk.UiSceneItem.operator !=(Blocker.UI.Sdk.UiSceneItem? left, Blocker.UI.Sdk.UiSceneItem? right) -> bool
+static Blocker.UI.Sdk.UiSceneItem.operator ==(Blocker.UI.Sdk.UiSceneItem? left, Blocker.UI.Sdk.UiSceneItem? right) -> bool
+static Blocker.UI.Sdk.UiSceneModel.operator !=(Blocker.UI.Sdk.UiSceneModel? left, Blocker.UI.Sdk.UiSceneModel? right) -> bool
+static Blocker.UI.Sdk.UiSceneModel.operator ==(Blocker.UI.Sdk.UiSceneModel? left, Blocker.UI.Sdk.UiSceneModel? right) -> bool
 static Blocker.UI.Sdk.UiSelectField.operator !=(Blocker.UI.Sdk.UiSelectField? left, Blocker.UI.Sdk.UiSelectField? right) -> bool
 static Blocker.UI.Sdk.UiSelectField.operator ==(Blocker.UI.Sdk.UiSelectField? left, Blocker.UI.Sdk.UiSelectField? right) -> bool
 static Blocker.UI.Sdk.UiSeries.operator !=(Blocker.UI.Sdk.UiSeries? left, Blocker.UI.Sdk.UiSeries? right) -> bool

@@ -4,7 +4,7 @@ namespace Blocker.UI.Render;
 
 /// <summary>One screenshot: where to navigate, how big the window is, the session state and what to do before the picture is taken.</summary>
 /// <param name="Name">File name without extension; also the value of <c>--only</c>.</param>
-/// <param name="Target"><c>main:dashboard|setup|appLimits|plugins|settings</c> or <c>plugin:calendar|goals|insights</c> (the plugin's page).</param>
+/// <param name="Target"><c>main:dashboard|setup|appLimits|plugins|settings</c> or <c>plugin:calendar|goals|insights|forest</c> (the plugin's page).</param>
 /// <param name="Size">Window size in device-independent pixels; defaults to 1100 x 700.</param>
 /// <param name="Session"><c>idle</c> (default), <c>active</c> or <c>pass</c>.</param>
 /// <param name="Steps">Interactions executed in order.</param>

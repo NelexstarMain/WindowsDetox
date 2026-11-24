@@ -329,6 +329,8 @@ if (Click-Named $main 'Goals') { Start-Sleep -Seconds 3; Shot $main '16-goals' }
 # The Calendar plugin is fully local: its page opens on an empty calendar (with an inviting empty state), so this shot needs no sample data and no network.
 # 21-calendar-in-use is taken with the in-use shots at the end.
 if (Click-Named $main 'Calendar') { Start-Sleep -Seconds 3; Shot $main '20-calendar' }
+# The Forest page opens on an empty forest with its shop; no sample data is needed.
+if (Click-Named $main 'Forest') { Start-Sleep -Seconds 3; Shot $main '23-forest' }
 
 # --- Animation recordings (docs/screenshots/anim/<name>/NN.png), driven with real mouse input at a human pace.
 # Every clip starts on the Session page with the board out of edit mode and scrolled to the top (the page is not tall enough to

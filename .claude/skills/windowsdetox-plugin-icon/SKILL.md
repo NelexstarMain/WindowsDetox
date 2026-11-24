@@ -34,7 +34,7 @@ Scale: 1 px at 18 px = 5.6 units.
 - No fine detail: at most 3 simple shapes or about 8-12 path segments; no text, no hairlines, no dots smaller than 10 units, no shading or tiny serifs.
 - Corners: sharp corners are fine; rounded caps need `A` arcs of radius >= 5.
 - Optical balance: equal visual mass left/right and top/bottom around (50,50); circles may overshoot square shapes by 2-3 units, thin diagonals look lighter than bars so thicken them. Check with the 18 px zoom, not the 96 px one.
-- One idea per icon (checkmark in ring, bars, flame...). Existing family: an open ring (gap at top-right) with a symbol. A new plugin may reuse the ring idea but needs a different symbol and a different ring gap or no ring, so the sidebar stays scannable.
+- Every plugin logo sits INSIDE A CIRCLE (required house style): a ring (about 8-10 units wide, open or closed, outer radius about 46 around (50,50)) with one symbol inside that does not touch it (gap >= 8). Existing family: an open ring (gap at top-right) with a symbol. A new plugin keeps the ring but needs a different symbol and preferably a different ring gap, so the sidebar stays scannable. One idea per symbol (checkmark, bars, tree...).
 - It must work in light and dark themes (foreground fill), and must not rely on being coloured.
 
 ## Workflow
@@ -54,4 +54,5 @@ Scale: 1 px at 18 px = 5.6 units.
 - [ ] Valid per `IsValidPathData` (script says `valid`), 4096 max, preferably < 400 chars.
 - [ ] Bounding box about 4..96, centre about (50,50), reads at 18 px, 14 px and 24 px.
 - [ ] Strokes >= 10 units (>= 8 absolute minimum), gaps >= 8, no overlapping solids (even-odd).
+- [ ] Symbol inside a ring (circle), not touching it.
 - [ ] One colour, no detail, one idea; distinct from every other plugin icon.

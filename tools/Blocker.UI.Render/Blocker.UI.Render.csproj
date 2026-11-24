@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="..\..\plugins\Calendar\*.cs" Exclude="..\..\plugins\Calendar\*Tests.cs" LinkBase="Plugins\Calendar" />
     <Compile Include="..\..\plugins\GoalsTasks\*.cs" Exclude="..\..\plugins\GoalsTasks\*Tests.cs" LinkBase="Plugins\GoalsTasks" />
+    <Compile Include="..\..\plugins\FocusForest\*.cs" Exclude="..\..\plugins\FocusForest\*Tests.cs" LinkBase="Plugins\FocusForest" />
     <Compile Include="..\..\plugins\FocusInsights\*.cs" Exclude="..\..\plugins\FocusInsights\*Tests.cs" LinkBase="Plugins\FocusInsights" />
     <Content Include="..\..\plugins\*\plugin.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" LinkBase="plugins" />
     <Content Include="scenarios.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
