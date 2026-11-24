@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -22,6 +23,8 @@ def main() -> None:
     payload = lh.read_stdin_json()
     session_id = str(payload.get("session_id") or "default")
     agent_type = str(payload.get("agent_type") or "subagent")
+    agent_key = str(payload.get("agent_id") or agent_type)
+    now = time.time()
 
     sess_path = lh.session_state_path(session_id)
 
@@ -31,8 +34,10 @@ def main() -> None:
             active = list(state.get("active_subagents") or [])
             active.append(agent_type)
             state["active_subagents"] = active[-10:]
+            lh.busy_open(state, "subagent", agent_key, now)
         else:
             state["subagents_completed"] = int(state.get("subagents_completed") or 0) + 1
+            lh.busy_close(state, "subagent", agent_key, now)
         return state
 
     lh.locked_update_json(sess_path, _update)

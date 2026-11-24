@@ -26,6 +26,7 @@ def main() -> None:
         state["session_id"] = session_id
         state["project_root"] = str(project_root)
         state["turn_start_ts"] = time.time()
+        lh.busy_open(state, "turn", "main", state["turn_start_ts"])
         state["turn_active"] = True
         state["turn_counted"] = False
         state["stop_retry_count"] = 0

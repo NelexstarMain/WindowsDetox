@@ -54,12 +54,13 @@ def main() -> None:
     gate_decision: dict[str, str] | None = None
     turn_duration_s = 0
     should_count_time = False
+    busy_s = 0
 
     proj_cfg = lh.load_project_hygiene_config(project_root)
     tdd_gate_disabled = bool(proj_cfg.get("disable_tdd_gate", False))
 
     def _process_stop(state: dict) -> dict:
-        nonlocal gate_decision, turn_duration_s, should_count_time
+        nonlocal gate_decision, turn_duration_s, should_count_time, busy_s
 
         code_dirty = bool(state.get("code_dirty"))
         tests_ran = bool(state.get("tests_ran_since_dirty"))
@@ -94,6 +95,8 @@ def main() -> None:
             should_count_time = True
             state["turn_counted"] = True
             state["turn_active"] = False
+            lh.busy_close(state, "turn", "main", now_ts)
+        busy_s = lh.take_busy_seconds(state)
         return state
 
     sess_state = lh.locked_update_json(sess_path, _process_stop)
@@ -133,15 +136,16 @@ def main() -> None:
         }
         lh.append_jsonl_locked(queue_path, entry)
 
-    # Accumulate work time & evaluate 40m project / 10h global triggers with retry cooldown
-    if should_count_time and turn_duration_s > 0:
+    # Accumulate busy time (turns, commands, subagents; overlaps counted once) and evaluate the project / global
+    # triggers with retry cooldown. Runs on every Stop, also for turns a notification started.
+    if busy_s > 0:
         proj_meta_path = proj_dir / "project_meta.json"
         trigger_project_bg = False
 
         def _acc_proj(meta: dict) -> dict:
             nonlocal trigger_project_bg
             meta["project_root"] = str(project_root)
-            acc = int(meta.get("accumulated_s") or 0) + turn_duration_s
+            acc = int(meta.get("accumulated_s") or 0) + busy_s
             meta["accumulated_s"] = acc
             last_try = float(meta.get("last_bg_attempt_ts") or 0.0)
             if (
@@ -163,7 +167,7 @@ def main() -> None:
 
         def _acc_global(g: dict) -> dict:
             nonlocal trigger_global_bg
-            acc = int(g.get("accumulated_s") or 0) + turn_duration_s
+            acc = int(g.get("accumulated_s") or 0) + busy_s
             g["accumulated_s"] = acc
             last_try = float(g.get("last_bg_attempt_ts") or 0.0)
             if (

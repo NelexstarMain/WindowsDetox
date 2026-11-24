@@ -337,6 +337,96 @@ class HygieneHooksTest(unittest.TestCase):
         self.assertEqual(status, "applied")
         self.assertIn("Verified pytest command", claude_md.read_text(encoding="utf-8"))
 
+    def test_busy_clock_counts_overlapping_work_once(self) -> None:
+        state: dict = {}
+        lh.busy_open(state, "tool", "t1", 1000.0)
+        lh.busy_open(state, "subagent", "a1", 1010.0)
+        lh.busy_close(state, "tool", "t1", 1020.0)
+        self.assertEqual(state.get("unflushed_busy_s", 0), 0)  # subagent still running
+        lh.busy_close(state, "subagent", "a1", 1050.0)
+        self.assertEqual(state["unflushed_busy_s"], 50)
+
+    def test_busy_clock_ignores_unmatched_close(self) -> None:
+        state: dict = {}
+        lh.busy_close(state, "tool", "never-opened", 1000.0)
+        self.assertEqual(state.get("unflushed_busy_s", 0), 0)
+
+    def test_busy_clock_caps_an_entry_whose_end_event_never_arrived(self) -> None:
+        state: dict = {}
+        lh.busy_open(state, "tool", "denied", 0.0)  # no matching close, e.g. a permission-denied call
+        later = 100_000.0
+        lh.busy_open(state, "tool", "t2", later)
+        lh.busy_close(state, "tool", "t2", later + 5)
+        self.assertEqual(state["unflushed_busy_s"], lh.BUSY_TTL_SECONDS["tool"] + 5)
+
+    def _seed_session(self, sid: str, state: dict) -> None:
+        path = self.claude_home / "state" / "sessions" / f"{sid}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(state), encoding="utf-8")
+
+    def _accumulated(self) -> tuple[int, int]:
+        meta = self.claude_home / "state" / "projects" / lh.project_id_for(self.project_dir.resolve()) / "project_meta.json"
+        project = json.loads(meta.read_text(encoding="utf-8"))["accumulated_s"]
+        glob = json.loads((self.claude_home / "state" / "global_counters.json").read_text(encoding="utf-8"))["accumulated_s"]
+        return project, glob
+
+    def test_background_subagent_time_is_counted_without_a_user_prompt_turn(self) -> None:
+        import time
+
+        sid = "bg-subagent"
+        started = time.time() - 2700
+        self._seed_session(sid, {"busy_open": {"subagent:a1": started}, "busy_since_ts": started})
+        payload = {"session_id": sid, "cwd": str(self.project_dir), "agent_id": "a1", "agent_type": "general-purpose"}
+        run_hook("subagent_track.py", payload, self.claude_home, args=["--event", "stop"])
+        # The turn that ends here was started by a notification, so it has no UserPromptSubmit.
+        run_hook("stop_guard.py", {"session_id": sid, "cwd": str(self.project_dir)}, self.claude_home)
+
+        project, glob = self._accumulated()
+        self.assertGreaterEqual(project, 2699)
+        self.assertGreaterEqual(glob, 2699)
+
+    def test_command_time_is_counted_from_pre_and_post_tool_hooks(self) -> None:
+        import time
+
+        sid = "tool-time"
+        started = time.time() - 600
+        self._seed_session(sid, {"busy_open": {"tool:t1": started}, "busy_since_ts": started})
+        payload = {"session_id": sid, "cwd": str(self.project_dir), "tool_use_id": "t1", "tool_name": "Bash"}
+        run_hook("busy_track.py", payload, self.claude_home, args=["--event", "end"])
+        run_hook("stop_guard.py", {"session_id": sid, "cwd": str(self.project_dir)}, self.claude_home)
+
+        project, _ = self._accumulated()
+        self.assertGreaterEqual(project, 599)
+
+    def test_prompt_turn_with_tool_inside_is_not_double_counted(self) -> None:
+        import time
+
+        sid = "no-double-count"
+        turn_start = time.time() - 300
+        self._seed_session(sid, {
+            "turn_active": True, "turn_counted": False, "turn_start_ts": turn_start,
+            "busy_open": {"turn:main": turn_start, "tool:t1": time.time() - 200},
+            "busy_since_ts": turn_start,
+        })
+        base = {"session_id": sid, "cwd": str(self.project_dir)}
+        run_hook("busy_track.py", {**base, "tool_use_id": "t1", "tool_name": "Bash"}, self.claude_home, args=["--event", "end"])
+        run_hook("stop_guard.py", base, self.claude_home)
+
+        project, _ = self._accumulated()
+        self.assertTrue(299 <= project <= 330, project)
+
+    def test_subagent_own_tool_calls_do_not_open_a_second_interval(self) -> None:
+        sid = "agent-tools"
+        run_hook(
+            "busy_track.py",
+            {"session_id": sid, "cwd": str(self.project_dir), "agent_id": "a1", "tool_use_id": "t9", "tool_name": "Bash"},
+            self.claude_home,
+            args=["--event", "begin"],
+        )
+        state = json.loads((self.claude_home / "state" / "sessions" / f"{sid}.json").read_text(encoding="utf-8")) \
+            if (self.claude_home / "state" / "sessions" / f"{sid}.json").exists() else {}
+        self.assertEqual(state.get("busy_open", {}), {})
+
 
 if __name__ == "__main__":
     unittest.main()

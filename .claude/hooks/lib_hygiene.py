@@ -27,6 +27,9 @@ HAIKU_BUDGET_USD = 0.20
 PREFERENCES_MAX_LINES = 70
 HANDOFF_MAX_AGE_SECONDS = 24 * 3600
 BG_RETRY_COOLDOWN_SECONDS = 600
+# Longest plausible run per kind of work. An interval whose end event never arrives (denied tool call,
+# killed session) is dropped after this long instead of counting forever.
+BUSY_TTL_SECONDS = {"turn": 3600, "tool": 1800, "subagent": 4 * 3600}
 
 IGNORED_PATH_PATTERNS = (
     "*.md",
@@ -401,6 +404,48 @@ def compact_queue_for_haiku(entries: list[dict[str, Any]], max_chars: int = 7500
     if len(text) > max_chars:
         text = text[: max_chars - 20] + "\n... [truncated]"
     return text
+
+
+def _credit_busy(state: dict[str, Any], until: float) -> None:
+    since = float(state.pop("busy_since_ts", until))
+    state["unflushed_busy_s"] = int(state.get("unflushed_busy_s") or 0) + int(max(0.0, until - since))
+
+
+def _drop_expired_busy(state: dict[str, Any], now: float) -> None:
+    open_entries = state.get("busy_open") or {}
+    expired = {
+        key: ts for key, ts in open_entries.items()
+        if now - float(ts) > BUSY_TTL_SECONDS.get(key.split(":", 1)[0], BUSY_TTL_SECONDS["tool"])
+    }
+    for key in expired:
+        del open_entries[key]
+    if expired and not open_entries:
+        _credit_busy(state, max(
+            float(ts) + BUSY_TTL_SECONDS.get(key.split(":", 1)[0], BUSY_TTL_SECONDS["tool"])
+            for key, ts in expired.items()
+        ))
+
+
+def busy_open(state: dict[str, Any], kind: str, key: str, now: float) -> None:
+    """Start an interval of work (turn, tool or subagent); overlapping intervals are counted once."""
+    _drop_expired_busy(state, now)
+    open_entries = state.setdefault("busy_open", {})
+    if not open_entries:
+        state["busy_since_ts"] = now
+    open_entries.setdefault(f"{kind}:{key}", now)
+
+
+def busy_close(state: dict[str, Any], kind: str, key: str, now: float) -> None:
+    open_entries = state.get("busy_open") or {}
+    if open_entries.pop(f"{kind}:{key}", None) is not None and not open_entries:
+        _credit_busy(state, now)
+
+
+def take_busy_seconds(state: dict[str, Any]) -> int:
+    """Return the busy seconds credited since the last call and reset the counter."""
+    seconds = int(state.get("unflushed_busy_s") or 0)
+    state["unflushed_busy_s"] = 0
+    return seconds
 
 
 def utc_iso_now() -> str:
