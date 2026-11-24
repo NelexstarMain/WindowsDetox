@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Prints the USD cost of a project's Claude Code sessions as JSON, from the token usage in its transcripts."""
+"""Prints the USD cost of every Claude Code session of a repository as JSON.
+
+Sessions on this machine are read from their transcripts. Sessions from other machines come from the ledger,
+.claude/cost-ledger/ in the repository (one file per session), which this script keeps up to date and git carries between machines."""
 
 from __future__ import annotations
 
@@ -9,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +24,9 @@ PRICES = {
     "claude-haiku-5-5": {"label": "Haiku 5.5", "in": 0.10, "out": 0.50, "read": 0.01},
 }
 DAYS_SHOWN = 7
+LEDGER_VERSION = 1
+LEDGER_STEP_USD = 1.0
+IDLE_SECONDS = 600
 
 
 def projects_dir(project_root: str) -> str:
@@ -41,12 +48,29 @@ def message_cost(price: dict, usage: dict) -> float:
     ) / 1_000_000
 
 
-def build_report(root: str) -> dict:
+def parse_ts(stamp: str) -> float:
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def new_session(day_cost: dict | None = None) -> dict:
+    return {"cost": 0.0, "mainCost": 0.0, "subagentCost": 0.0, "subagents": 0, "messages": 0,
+            "lastActivity": "", "days": day_cost or {}, "models": {}}
+
+
+def scan_sessions(root: str) -> tuple[dict[str, dict], set[str]]:
+    """Costs per session from the transcripts on this machine, plus the models that have no price."""
     base = projects_dir(root)
-    files = glob.glob(os.path.join(base, "**", "*.jsonl"), recursive=True)
-    latest: dict[str, tuple] = {}  # message id -> (model, usage, timestamp, is_subagent); streamed copies repeat an id
-    for path in files:
-        is_subagent = f"{os.sep}subagents{os.sep}" in path
+    occurrences: dict[str, tuple] = {}  # message id -> (session, model, usage, timestamp, is_subagent)
+    first_seen: dict[str, float] = {}
+    subagent_files: dict[str, int] = defaultdict(int)
+    for path in sorted(glob.glob(os.path.join(base, "**", "*.jsonl"), recursive=True)):
+        parts = os.path.relpath(path, base).split(os.sep)
+        is_subagent = len(parts) > 1
+        session = parts[0] if is_subagent else parts[0][: -len(".jsonl")]
+        subagent_files[session] += is_subagent
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 if '"usage"' not in line:
@@ -56,52 +80,140 @@ def build_report(root: str) -> dict:
                 except ValueError:
                     continue
                 msg = entry.get("message")
-                if isinstance(msg, dict) and msg.get("id") and isinstance(msg.get("usage"), dict):
-                    latest[msg["id"]] = (msg.get("model") or "", msg["usage"], entry.get("timestamp") or "", is_subagent)
+                if not (isinstance(msg, dict) and msg.get("id") and isinstance(msg.get("usage"), dict)):
+                    continue
+                stamp = entry.get("timestamp") or ""
+                first_seen[session] = min(first_seen.get(session, float("inf")), parse_ts(stamp))
+                held = occurrences.get(msg["id"])
+                # A resumed session can hold a copy of an earlier one's messages: the earliest session owns them.
+                # Within one session the last copy of a streamed message carries its final usage.
+                if held is None or held[0] == session or first_seen[session] < first_seen[held[0]]:
+                    occurrences[msg["id"]] = (session, msg.get("model") or "", msg["usage"], stamp, is_subagent)
 
-    today = datetime.now(timezone.utc).date()
-    day_keys = [(today - timedelta(days=n)).isoformat() for n in range(DAYS_SHOWN - 1, -1, -1)]
-    per_day = dict.fromkeys(day_keys, 0.0)
-    models: dict[str, dict] = defaultdict(lambda: {"cost": 0.0, "input": 0, "output": 0, "cacheWrite": 0, "cacheRead": 0, "messages": 0})
+    sessions: dict[str, dict] = {}
     unpriced: set[str] = set()
-    main_cost = sub_cost = 0.0
-    for model, usage, stamp, is_subagent in latest.values():
+    for session, model, usage, stamp, is_subagent in occurrences.values():
         price = PRICES.get(model)
         if price is None:
             if model and not model.startswith("<"):
                 unpriced.add(model)
             continue
+        entry = sessions.setdefault(session, new_session())
         cost = message_cost(price, usage)
-        row = models[model]
+        entry["cost"] += cost
+        entry["subagentCost" if is_subagent else "mainCost"] += cost
+        entry["messages"] += 1
+        entry["lastActivity"] = max(entry["lastActivity"], stamp, key=parse_ts)
+        if stamp[:10]:
+            entry["days"][stamp[:10]] = entry["days"].get(stamp[:10], 0.0) + cost
+        row = entry["models"].setdefault(model, {"cost": 0.0, "input": 0, "output": 0, "cacheWrite": 0, "cacheRead": 0, "messages": 0})
         row["cost"] += cost
         row["input"] += usage.get("input_tokens") or 0
         row["output"] += usage.get("output_tokens") or 0
         row["cacheWrite"] += usage.get("cache_creation_input_tokens") or 0
         row["cacheRead"] += usage.get("cache_read_input_tokens") or 0
         row["messages"] += 1
-        if is_subagent:
-            sub_cost += cost
-        else:
-            main_cost += cost
-        if stamp[:10] in per_day:
-            per_day[stamp[:10]] += cost
+    for session, entry in sessions.items():
+        entry["subagents"] = subagent_files[session]
+        for key in ("cost", "mainCost", "subagentCost"):
+            entry[key] = round(entry[key], 4)
+        entry["days"] = {day: round(value, 4) for day, value in sorted(entry["days"].items())}
+        for row in entry["models"].values():
+            row["cost"] = round(row["cost"], 4)
+    return sessions, unpriced
+
+
+def ledger_dir(root: str) -> str:
+    return os.path.join(root, ".claude", "cost-ledger")
+
+
+def read_ledger(root: str) -> dict[str, dict]:
+    """One file per session, so two machines never edit the same file and git has nothing to conflict on."""
+    sessions = {}
+    for path in glob.glob(os.path.join(ledger_dir(root), "*.json")):
+        entry = _read_json(path)
+        if entry:
+            sessions[os.path.basename(path)[: -len(".json")]] = entry
+    return sessions
+
+
+def merge_sessions(stored: dict[str, dict], local: dict[str, dict]) -> dict[str, dict]:
+    """Every session either side knows. A local copy wins unless it has lost messages the ledger still holds."""
+    merged = dict(stored)
+    for session, entry in local.items():
+        old = stored.get(session)
+        if old is None or entry["messages"] >= old.get("messages", 0):
+            merged[session] = entry
+    return merged
+
+
+def sessions_to_store(stored: dict[str, dict], merged: dict[str, dict], now: float) -> dict[str, dict]:
+    """What the ledger file should hold. The file is tracked by git, so an active session is rewritten only after
+    LEDGER_STEP_USD of drift; a session that has been quiet for IDLE_SECONDS is written in full."""
+    result = dict(stored)
+    for session, entry in merged.items():
+        old = stored.get(session)
+        if old is None:
+            result[session] = entry
+        elif entry != old:
+            is_idle = now - parse_ts(entry.get("lastActivity", "")) > IDLE_SECONDS
+            if is_idle or abs(entry["cost"] - old["cost"]) >= LEDGER_STEP_USD:
+                result[session] = entry
+    return result
+
+
+def write_ledger(root: str, stored: dict[str, dict], to_store: dict[str, dict]) -> None:
+    for session, entry in to_store.items():
+        if stored.get(session) == entry:
+            continue
+        path = os.path.join(ledger_dir(root), f"{session}.json")
+        try:
+            os.makedirs(ledger_dir(root), exist_ok=True)
+            with open(f"{path}.tmp", "w", encoding="utf-8") as fh:
+                json.dump(entry, fh, indent=1, sort_keys=True)
+                fh.write("\n")
+            os.replace(f"{path}.tmp", path)
+        except OSError:
+            pass  # a read-only checkout still gets its report
+
+
+def build_report(root: str, now: float | None = None) -> dict:
+    now = time.time() if now is None else now
+    local, unpriced = scan_sessions(root)
+    stored = read_ledger(root)
+    merged = merge_sessions(stored, local)
+    to_store = sessions_to_store(stored, merged, now)
+    write_ledger(root, stored, to_store)
+
+    today = datetime.fromtimestamp(now, timezone.utc).date()
+    day_keys = [(today - timedelta(days=n)).isoformat() for n in range(DAYS_SHOWN - 1, -1, -1)]
+    per_day = dict.fromkeys(day_keys, 0.0)
+    models: dict[str, dict] = {}
+    for entry in merged.values():
+        for day, value in entry.get("days", {}).items():
+            if day in per_day:
+                per_day[day] += value
+        for model, row in entry.get("models", {}).items():
+            total_row = models.setdefault(model, {"cost": 0.0, "input": 0, "output": 0, "cacheWrite": 0, "cacheRead": 0, "messages": 0})
+            for key in total_row:
+                total_row[key] += row.get(key, 0)
 
     return {
-        "total": round(main_cost + sub_cost, 4),
+        "total": round(sum(e["cost"] for e in merged.values()), 4),
         "today": round(per_day[day_keys[-1]], 4),
-        "mainCost": round(main_cost, 4),
-        "subagentCost": round(sub_cost, 4),
-        "sessions": sum(1 for f in files if f"{os.sep}subagents{os.sep}" not in f),
-        "subagents": sum(1 for f in files if f"{os.sep}subagents{os.sep}" in f),
+        "mainCost": round(sum(e["mainCost"] for e in merged.values()), 4),
+        "subagentCost": round(sum(e["subagentCost"] for e in merged.values()), 4),
+        "sessions": len(merged),
+        "subagents": sum(e.get("subagents", 0) for e in merged.values()),
         "days": [{"date": d, "cost": round(per_day[d], 4)} for d in day_keys],
         "models": sorted(
-            ({"model": m, "label": PRICES[m]["label"], **{k: (round(v, 4) if k == "cost" else v) for k, v in r.items()}}
+            ({"model": m, "label": PRICES.get(m, {}).get("label", m), **{k: (round(v, 4) if k == "cost" else v) for k, v in r.items()}}
              for m, r in models.items()),
             key=lambda r: -r["cost"],
         ),
         "unpriced": sorted(unpriced),
         "hygiene": hygiene_status(root),
-        "updatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "updatedAt": datetime.fromtimestamp(now, timezone.utc).isoformat(timespec="seconds"),
     }
 
 

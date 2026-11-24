@@ -1,0 +1,21 @@
+{
+ "cost": 2.3079,
+ "days": {
+  "2026-11-22": 2.3079
+ },
+ "lastActivity": "2026-11-22T21:39:26.333Z",
+ "mainCost": 0.0,
+ "messages": 93,
+ "models": {
+  "claude-sonnet-5-5": {
+   "cacheRead": 10875536,
+   "cacheWrite": 309894,
+   "cost": 2.3079,
+   "input": 182,
+   "messages": 93,
+   "output": 44525
+  }
+ },
+ "subagentCost": 2.3079,
+ "subagents": 3
+}

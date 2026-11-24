@@ -105,7 +105,7 @@ export function buildCard(report: CostReport, W: number): { svg: string; height:
   const parts: string[] = []
 
   // Header: the total, today and how much work it covers.
-  parts.push(caption(PAD, 32, 'PROJECT COST'))
+  parts.push(caption(PAD, 32, 'REPOSITORY COST'))
   parts.push(`<rect x="${W - PAD - 62}" y="20" width="62" height="18" rx="9" fill="none" stroke="${EDGE}"/>`)
   parts.push(text(W - PAD - 31, 32.5, 'estimate', `font-size="10" text-anchor="middle" fill="${MUTED}"`))
   parts.push(text(PAD - 1, 78, usd(report.total), `font-size="40" font-weight="700" fill="${TEXT}" letter-spacing="-1"`))

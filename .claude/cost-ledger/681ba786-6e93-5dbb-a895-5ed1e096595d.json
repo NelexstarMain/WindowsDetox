@@ -1,0 +1,42 @@
+{
+ "cost": 293.5706,
+ "days": {
+  "2026-11-17": 26.2798,
+  "2026-11-18": 112.7385,
+  "2026-11-19": 52.4024,
+  "2026-11-22": 42.8286,
+  "2026-11-23": 43.4331,
+  "2026-11-24": 15.8881
+ },
+ "lastActivity": "2026-11-24T14:49:44.701Z",
+ "mainCost": 145.3755,
+ "messages": 4280,
+ "models": {
+  "claude-haiku-5-5": {
+   "cacheRead": 62786,
+   "cacheWrite": 495075,
+   "cost": 0.0998,
+   "input": 2,
+   "messages": 1,
+   "output": 280
+  },
+  "claude-opus-5-5": {
+   "cacheRead": 336885246,
+   "cacheWrite": 5546817,
+   "cost": 129.1384,
+   "input": 2647,
+   "messages": 1207,
+   "output": 868810
+  },
+  "claude-sonnet-5-5": {
+   "cacheRead": 659428561,
+   "cacheWrite": 17716198,
+   "cost": 164.3324,
+   "input": 6234,
+   "messages": 3072,
+   "output": 5052753
+  }
+ },
+ "subagentCost": 148.1951,
+ "subagents": 61
+}
