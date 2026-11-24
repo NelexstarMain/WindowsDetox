@@ -4,6 +4,7 @@ using Blocker.Core.AppRules;
 using Blocker.Core.Policy;
 using Blocker.Core.Ports;
 using Blocker.Sdk.Events;
+using Microsoft.Extensions.Logging;
 using static Blocker.Core.Tests.AppRules.AppRuleEnforcerHarness;
 using static Blocker.Core.Tests.AppRules.AppRuleTestData;
 
@@ -462,6 +463,92 @@ public sealed class AppRuleEnforcerTests
 
         Assert.Equal([(21, 21_000L)], h.Controller.Terminated);
     }
+
+    [Fact]
+    public async Task A_terminate_that_fails_is_retried_by_the_next_pass_and_only_then_replaced_by_the_block_screen()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        await h.SetRulesAsync(AllWeekBlock());
+        await h.Enforcer.StartAsync(Ct);
+        h.Controller.TerminateFault = new InvalidOperationException("sharing violation");
+
+        await h.SpawnAsync(P(20, GamePath));
+
+        Assert.Equal(1, h.Controller.TerminateAttempts);
+        Assert.Empty(h.Launcher.Launches); // the process is still there: no block screen over a running app
+        Assert.Empty(h.BlockedEvents);
+
+        h.Controller.TerminateFault = null;
+        await h.TickAfterAsync(ReconcileInterval);
+
+        Assert.Equal([(20, 20_000L)], h.Controller.Terminated);
+        Assert.Single(h.Launcher.Launches);
+        Assert.Single(h.BlockedEvents);
+
+        await h.TickAfterAsync(ReconcileInterval);
+        Assert.Equal(2, h.Controller.TerminateAttempts); // a terminated process is not attacked again
+    }
+
+    [Fact]
+    public async Task A_process_that_cannot_be_terminated_is_given_up_after_three_attempts()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        await h.SetRulesAsync(AllWeekBlock());
+        await h.Enforcer.StartAsync(Ct);
+        h.Controller.TerminateFault = new InvalidOperationException("access denied");
+
+        await h.SpawnAsync(P(20, GamePath)); // attempt 1
+        await h.TickAfterAsync(ReconcileInterval); // attempt 2
+        Assert.Empty(h.Launcher.Launches);
+        await h.TickAfterAsync(ReconcileInterval); // attempt 3: out of attempts, so the block screen is shown after all
+        Assert.Single(h.Launcher.Launches);
+        await h.TickAfterAsync(ReconcileInterval);
+        await h.TickAfterAsync(ReconcileInterval);
+
+        Assert.Equal(3, h.Controller.TerminateAttempts);
+        Assert.Single(h.BlockedEvents);
+    }
+
+    [Fact]
+    public async Task The_warning_about_a_full_queue_is_logged_at_most_once_a_minute()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        await h.SetRulesAsync(AllWeekBlock());
+        await h.Enforcer.StartAsync(Ct);
+        using var gate = new ManualResetEventSlim(false);
+        h.Controller.TerminateGate = gate;
+        try
+        {
+            h.Monitor.Spawn(P(1, GamePath)); // the consumer takes it and stays inside TryTerminate while the queue is filled
+            Assert.True(h.Controller.TerminateEntered.Wait(TimeSpan.FromSeconds(30), Ct));
+            for (int i = 0; i < 4096; i++)
+            {
+                h.Monitor.Spawn(P(1000 + i, @"C:\Apps\unrelated.exe"));
+            }
+
+            Assert.Empty(QueueFullWarnings(h));
+            for (int i = 0; i < 10; i++)
+            {
+                h.Monitor.Spawn(P(9000 + i, @"C:\Apps\unrelated.exe")); // none of these fits
+            }
+
+            Assert.Single(QueueFullWarnings(h));
+            h.Time.Advance(TimeSpan.FromSeconds(61));
+            h.Monitor.Spawn(P(9100, @"C:\Apps\unrelated.exe"));
+            h.Monitor.Spawn(P(9101, @"C:\Apps\unrelated.exe"));
+
+            Assert.Equal(2, QueueFullWarnings(h).Count);
+        }
+        finally
+        {
+            gate.Set(); // the consumer must be free again, or disposing the enforcer would wait for it forever
+        }
+
+        await h.Enforcer.DrainAsync().WaitAsync(TimeSpan.FromSeconds(60), Ct);
+    }
+
+    private static List<(LogLevel Level, string Message, Exception? Exception)> QueueFullWarnings(AppRuleEnforcerHarness h) =>
+        [.. h.Log.Entries.Where(static e => e.Level == LogLevel.Warning && e.Message.Contains("queue is full", StringComparison.Ordinal))];
 
     // ---- metering ----
 

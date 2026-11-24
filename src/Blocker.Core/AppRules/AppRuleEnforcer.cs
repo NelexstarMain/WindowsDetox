@@ -60,10 +60,12 @@ internal sealed partial class AppRuleEnforcer(
     private const int MaxHandled = 4096;
     private const int MaxStubLaunches = 256;
     private const int MaxHashGiveUps = 256;
+    private const int MaxTerminateAttempts = 3;
     private static readonly TimeSpan PersistInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxMeterStep = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan HashRetryDelay = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan QueueFullWarningInterval = TimeSpan.FromMinutes(1);
     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
 
     private readonly SemaphoreSlim _tickGate = new(1, 1);
@@ -74,6 +76,10 @@ internal sealed partial class AppRuleEnforcer(
         new BoundedChannelOptions(QueueCapacity) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
     private readonly Lock _handledGate = new();
     private readonly HashSet<ProcessKey> _handled = [];
+    private readonly HashSet<ProcessKey> _inFlight = [];
+    private readonly Dictionary<ProcessKey, int> _failedAttempts = [];
+    private readonly Lock _warnGate = new();
+    private long? _queueFullWarnedAt;
     private readonly Lock _stubGate = new();
     private readonly Dictionary<string, long> _stubLaunches = new(StringComparer.Ordinal);
     private readonly Lock _hashGate = new();
@@ -246,7 +252,10 @@ internal sealed partial class AppRuleEnforcer(
         if (!_queue.Writer.TryWrite(e.Process))
         {
             _work.Done();
-            LogQueueFull(logger);
+            if (TryReserveQueueFullWarning())
+            {
+                LogQueueFull(logger);
+            }
         }
     }
 
@@ -424,10 +433,11 @@ internal sealed partial class AppRuleEnforcer(
 
     private async ValueTask BlockAsync(ProcessInfo process, AppRuleState state, string? sha256, string? package, CancellationToken cancellationToken)
     {
-        // Looked at again right before acting: a session that just started decides on its own. A process is acted on once: after a successful
-        // kill it may linger in the snapshot for a moment, and a failed kill (almost always a process that is already gone) is not worth a
-        // block screen every few seconds.
-        if (sessionRunning() || !TryMarkHandled(ProcessKey.Of(process)))
+        // Looked at again right before acting: a session that just started decides on its own. A process is attacked by one thread at a time,
+        // and it is finished once it was terminated or after a few failed attempts (a transient failure is retried by the next reconcile pass;
+        // a process that is already gone is not in the snapshot any more). Only then does the block screen replace it.
+        ProcessKey key = ProcessKey.Of(process);
+        if (sessionRunning() || !TryBeginAttempt(key))
         {
             return;
         }
@@ -442,8 +452,14 @@ internal sealed partial class AppRuleEnforcer(
             LogStepFailed(logger, ex, "Terminating a process");
         }
 
-        VerdictReason reason = state == AppRuleState.ScheduledBlock ? VerdictReason.AppScheduledBlock : VerdictReason.AppBudgetExhausted;
         ProcessDescriptor descriptor = Describe(process, sha256, package);
+        if (!EndAttempt(key, terminated, out int failures))
+        {
+            LogTerminateRetry(logger, descriptor.ImageName, process.ProcessId, failures, MaxTerminateAttempts);
+            return;
+        }
+
+        VerdictReason reason = state == AppRuleState.ScheduledBlock ? VerdictReason.AppScheduledBlock : VerdictReason.AppBudgetExhausted;
         LogBlocked(logger, descriptor.ImageName, process.ProcessId, reason, terminated);
         LaunchStub(process.ImagePath, reason);
         try
@@ -525,20 +541,58 @@ internal sealed partial class AppRuleEnforcer(
     {
         lock (_handledGate)
         {
-            return _handled.Contains(key);
+            return _handled.Contains(key) || _inFlight.Contains(key);
         }
     }
 
-    private bool TryMarkHandled(ProcessKey key)
+    private bool TryBeginAttempt(ProcessKey key)
     {
         lock (_handledGate)
         {
+            return !_handled.Contains(key) && _inFlight.Add(key);
+        }
+    }
+
+    /// <summary>Ends an attempt; true when the process is finished (terminated, or out of attempts) and will not be attacked again.</summary>
+    private bool EndAttempt(ProcessKey key, bool terminated, out int failures)
+    {
+        lock (_handledGate)
+        {
+            _ = _inFlight.Remove(key);
+            failures = terminated ? 0 : _failedAttempts.GetValueOrDefault(key) + 1;
+            if (!terminated && failures < MaxTerminateAttempts)
+            {
+                if (_failedAttempts.Count >= MaxHandled)
+                {
+                    _failedAttempts.Clear(); // bounded: forgetting at worst allows one more attempt
+                }
+
+                _failedAttempts[key] = failures;
+                return false;
+            }
+
+            _ = _failedAttempts.Remove(key);
             if (_handled.Count >= MaxHandled)
             {
                 _handled.Clear(); // bounded: forgetting at worst repeats one kill attempt
             }
 
-            return _handled.Add(key);
+            _ = _handled.Add(key);
+            return true;
+        }
+    }
+
+    private bool TryReserveQueueFullWarning()
+    {
+        lock (_warnGate)
+        {
+            if (_queueFullWarnedAt is { } last && time.GetElapsedTime(last) < QueueFullWarningInterval)
+            {
+                return false;
+            }
+
+            _queueFullWarnedAt = time.GetTimestamp();
+            return true;
         }
     }
 
@@ -680,13 +734,16 @@ internal sealed partial class AppRuleEnforcer(
     [LoggerMessage(Level = LogLevel.Information, Message = "App rule blocked {Image} (pid {ProcessId}, {Reason}, terminated: {Terminated}).")]
     private static partial void LogBlocked(ILogger logger, string image, int processId, VerdictReason reason, bool terminated);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Terminating {Image} (pid {ProcessId}) failed (attempt {Attempt} of {MaxAttempts}); the next pass tries again.")]
+    private static partial void LogTerminateRetry(ILogger logger, string image, int processId, int attempt, int maxAttempts);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The process monitor could not be started for the app rules; running programs are still checked every few seconds.")]
     private static partial void LogMonitorFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Hashing {Image} took longer than {Seconds} s and was given up; it is not recognized by hash for a minute.")]
     private static partial void LogHashTimedOut(ILogger logger, string image, double seconds);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The app rule queue is full; the next reconcile pass finds the process that did not fit.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The app rule queue is full; the next reconcile pass finds the process that did not fit (this warning is logged at most once a minute).")]
     private static partial void LogQueueFull(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Handling process {ProcessId} for the app rules failed.")]

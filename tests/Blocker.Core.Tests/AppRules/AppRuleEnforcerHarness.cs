@@ -6,6 +6,7 @@ using Blocker.Core.Policy;
 using Blocker.Core.Ports;
 using Blocker.Core.Security;
 using Blocker.Core.Tests.Clock;
+using Blocker.Core.Tests.Ipc;
 using Blocker.Core.Tests.Orchestration;
 using Blocker.Core.Tests.Security;
 using Blocker.Sdk.Events;
@@ -48,7 +49,7 @@ internal sealed class RecordingHasher(IFileSystem fileSystem) : FileHasher(fileS
         if (Hang)
         {
             _ = HangStarted.TrySetResult();
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            await new TaskCompletionSource().Task.WaitAsync(cancellationToken); // never completed: only the caller giving up ends it
         }
 
         return await base.GetSha256Async(path, maxBytes, cancellationToken);
@@ -91,7 +92,7 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
             () => SessionRunning,
             () => AgentConnected,
             Time,
-            NullLogger<AppRuleEnforcer>.Instance);
+            Log);
     }
 
     public static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -99,6 +100,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
     public MockFileSystem Fs { get; } = new();
 
     public RecordingHasher Hasher { get; }
+
+    public CapturingLogger<AppRuleEnforcer> Log { get; } = new();
 
     public FakeTimeProvider Time { get; }
 

@@ -131,8 +131,22 @@ internal sealed class FakeProcessController : IProcessController
 
     public Exception? TerminateFault { get; set; }
 
+    /// <summary>Gets or sets what <see cref="TryTerminate"/> waits for before it answers (to hold a pipeline thread).</summary>
+    public ManualResetEventSlim? TerminateGate { get; set; }
+
+    /// <summary>Gets the signal that <see cref="TryTerminate"/> was entered.</summary>
+    public ManualResetEventSlim TerminateEntered { get; } = new(false);
+
+    /// <summary>Gets how many times <see cref="TryTerminate"/> was called, whatever it answered.</summary>
+    public int TerminateAttempts => Volatile.Read(ref _terminateAttempts);
+
+    private int _terminateAttempts;
+
     public bool TryTerminate(int processId, long startTimeTicks)
     {
+        _ = Interlocked.Increment(ref _terminateAttempts);
+        TerminateEntered.Set();
+        TerminateGate?.Wait();
         if (TerminateFault is { } fault)
         {
             throw fault;
