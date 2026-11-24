@@ -1,5 +1,5 @@
 {
-  // One entry per screenshot. target: "main:<dashboard|allowlist|setup|plugins|settings>" or "plugin:<calendar|goals|insights>".
+  // One entry per screenshot. target: "main:<dashboard|setup|appLimits|plugins|settings>" or "plugin:<calendar|goals|insights>".
   // size: window size in DIPs. session: idle (default) | active | pass.
   // steps: { "action": "<UiAction element id>", "args": { form fields } } | { "click": [x, y] } | { "drag": [[x1, y1], [x2, y2]] } | { "wait": ms }.
   // The fake clock is Monday 2026-11-23 10:30; plugins are seeded with a work week of data.
@@ -7,8 +7,13 @@
     { "name": "dashboard-idle", "target": "main:dashboard", "size": [1280, 1080] },
     { "name": "dashboard-session", "target": "main:dashboard", "size": [1280, 1080], "session": "active" },
     { "name": "dashboard-pass", "target": "main:dashboard", "size": [1280, 1080], "session": "pass" },
-    { "name": "allowlist", "target": "main:allowlist", "size": [1280, 1080] },
-    { "name": "setup", "target": "main:setup", "size": [1280, 1080] },
+    { "name": "setup", "target": "main:setup", "size": [1280, 800] },
+    { "name": "setup-websites", "target": "main:setup", "size": [1280, 800], "steps": [ { "click": [380, 154] }, { "wait": 200 } ] },
+    { "name": "setup-save-set", "target": "main:setup", "size": [1100, 700], "steps": [ { "click": [675, 252] }, { "wait": 300 } ] },
+    { "name": "setup-session", "target": "main:setup", "size": [1280, 800], "session": "active" },
+    { "name": "app-limits", "target": "main:appLimits", "size": [1280, 1000], "steps": [ { "click": [321, 227] }, { "wait": 300 } ] },
+    { "name": "app-limits-small", "target": "main:appLimits", "size": [1100, 700], "steps": [ { "click": [321, 227] }, { "wait": 300 } ] },
+    { "name": "app-limits-pool", "target": "main:appLimits", "size": [1280, 1000], "steps": [ { "click": [321, 267] }, { "click": [721, 206] }, { "wait": 200 } ] },
     { "name": "plugins", "target": "main:plugins", "size": [1280, 1080] },
     { "name": "settings", "target": "main:settings", "size": [1280, 1300] },
     { "name": "calendar-week", "target": "plugin:calendar", "size": [1280, 1500] },

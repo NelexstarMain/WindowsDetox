@@ -4,47 +4,472 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:vm="clr-namespace:Blocker.UI.ViewModels"
       Title="Session setup" Background="Transparent">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="{StaticResource Blocker.Thickness.Page}">
+    <!-- DataContext is the SetupViewModel (length, passes, summary). The picker and the saved-set row take the allowlist and set view models in code-behind. -->
+    <!-- The navigation host measures pages without a height limit, so the page takes the visible height itself: the lists and panels
+         below scroll on their own and the primary actions stay in view. -->
+    <Border Padding="{StaticResource Blocker.Thickness.Page}"
+            Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Margin="0,0,0,20" Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" />
+
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.4*" />
+                <ColumnDefinition Width="*" MinWidth="320" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" MinWidth="280" />
+                <ColumnDefinition Width="300" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Style="{DynamicResource Blocker.Text.Title}" Text="Session setup" />
-                <TextBlock Style="{DynamicResource Blocker.Text.Subtitle}" Margin="0,4,0,24" Text="Choose how long the next session runs and how emergency exits work." />
+            <!-- Picker: apps and websites that stay available during the session. -->
+            <Grid x:Name="PickerHost" Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24">
+                <Border Grid.Row="0" Margin="0,0,0,12" Padding="16,8" CornerRadius="6" BorderThickness="1"
+                        Background="{DynamicResource Blocker.Accent.Soft}" BorderBrush="{DynamicResource Blocker.Accent}"
+                        Visibility="{Binding IsLocked, Converter={StaticResource BoolToVisible}}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="LockClosed24" Foreground="{DynamicResource Blocker.Accent.Text}" Margin="0,0,8,0" />
+                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" Foreground="{DynamicResource Blocker.Text.Primary}"
+                                   Text="{Binding LockMessage}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="1" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ListBox x:Name="PickerTabs" Grid.Column="0" Style="{StaticResource App.SegmentedList}" SelectedIndex="0"
+                             AutomationProperties.Name="Allowlist section">
+                        <ListBoxItem AutomationProperties.Name="Apps">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Apps" />
+                                <TextBlock Margin="8,0,0,0" Text="{Binding SelectedCount}" Foreground="{DynamicResource Blocker.Accent.Text}" />
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem AutomationProperties.Name="Websites">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Websites" />
+                                <TextBlock Margin="8,0,0,0" Text="{Binding Domains.Count}" Foreground="{DynamicResource Blocker.Accent.Text}" />
+                            </StackPanel>
+                        </ListBoxItem>
+                    </ListBox>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Command="{Binding ScanCommand}" ToolTip="Look for installed apps again">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource Blocker.Button.SubtleCompact}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedIndex, ElementName=PickerTabs}" Value="1">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <ui:SymbolIcon Symbol="ArrowSync24" AutomationProperties.Name="Rescan" />
+                        </Button>
+                        <Button Style="{DynamicResource Blocker.Button.SecondaryCompact}" Margin="8,0,0,0" Command="{Binding SaveCommand}"
+                                Content="Save as default"
+                                ToolTip="Store this selection as your default allowlist" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Apps -->
+                <Grid Grid.Row="2" x:Name="AppsView">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedIndex, ElementName=PickerTabs}" Value="1">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox Grid.Column="0" PlaceholderText="Search apps by name or path"
+                                    Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                    AutomationProperties.Name="Search apps" />
+                        <Button Grid.Column="1" Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Secondary}"
+                                Command="{Binding SelectAllFilteredCommand}">
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Select all shown" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding AreAllFilteredSelected}" Value="True">
+                                                <Setter Property="Text" Value="Clear all shown" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
+                    </Grid>
+
+                    <!-- Saved sets: click a chip to replace the selection with it. -->
+                    <Grid Grid.Row="1" x:Name="SetsHost" Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0">
+                            <ItemsControl ItemsSource="{Binding Sets}" AutomationProperties.Name="Saved sets">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:AppSetItemViewModel}">
+                                        <Border x:Name="Chip" Height="30" Margin="0,0,8,8" Padding="4,0,2,0" CornerRadius="15" BorderThickness="1"
+                                                Background="#181A15" BorderBrush="Transparent" ToolTip="{Binding Summary}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button x:Name="Apply" Style="{StaticResource App.ChipButton}" Padding="10,0" Content="{Binding Name}"
+                                                        Command="{Binding DataContext.ApplySetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Style="{StaticResource App.ChipButton}" Padding="6,0"
+                                                        Command="{Binding DataContext.RemoveSetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" AutomationProperties.Name="Remove set">
+                                                    <ui:SymbolIcon Symbol="Dismiss12" FontSize="10" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                <Setter TargetName="Chip" Property="Background" Value="{DynamicResource Blocker.Accent.Soft}" />
+                                                <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                                                <Setter TargetName="Apply" Property="Foreground" Value="{DynamicResource Blocker.Accent.Text}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                        <Grid Grid.Column="1" VerticalAlignment="Top">
+                            <Button Style="{DynamicResource Blocker.Button.GhostPill}" MinHeight="30" Padding="14,0" FontSize="13"
+                                    Command="{Binding BeginSaveCommand}" Content="Save as set"
+                                    Visibility="{Binding IsNaming, Converter={StaticResource BoolToCollapsed}}" />
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding IsNaming, Converter={StaticResource BoolToVisible}}">
+                                <ui:TextBox x:Name="SetNameBox" Width="170" PlaceholderText="Set name" MaxLength="{x:Static vm:AppSetsViewModel.MaxNameLength}"
+                                            Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"
+                                            IsVisibleChanged="OnSetNameVisibleChanged" AutomationProperties.Name="Set name">
+                                    <ui:TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding ConfirmSaveCommand}" />
+                                        <KeyBinding Key="Escape" Command="{Binding CancelSaveCommand}" />
+                                    </ui:TextBox.InputBindings>
+                                </ui:TextBox>
+                                <Button Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Primary}" Command="{Binding ConfirmSaveCommand}">
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="Save" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding NameExists}" Value="True">
+                                                        <Setter Property="Text" Value="Replace" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Button>
+                                <Button Margin="4,0,0,0" Style="{DynamicResource Blocker.Button.Subtle}" Padding="10,0"
+                                        Command="{Binding CancelSaveCommand}" AutomationProperties.Name="Cancel">
+                                    <ui:SymbolIcon Symbol="Dismiss24" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <!-- Tiles toggle IsSelected on the view model directly (code-behind); the ListBox selection stays unused because a
+                             two-way container binding would deselect apps whenever the search filter rebuilds the list. -->
+                        <ListBox ItemsSource="{Binding FilteredApps}" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Single"
+                                 AutomationProperties.Name="Apps">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Margin" Value="0,0,8,8" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}" />
+                                    <Setter Property="IsEnabled" Value="{Binding DataContext.CanEditSelection, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                    <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnTileMouseDown" />
+                                    <EventSetter Event="KeyDown" Handler="OnTileKeyDown" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="Tile" Width="80" Height="82" Padding="4,8,4,6" CornerRadius="{StaticResource Blocker.Radius.Card}"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource Blocker.Border.Subtle}"
+                                                        Background="{DynamicResource Blocker.Bg.Card}" SnapsToDevicePixels="True" RenderTransformOrigin="0.5,0.5">
+                                                    <Border.RenderTransform>
+                                                        <TranslateTransform />
+                                                    </Border.RenderTransform>
+                                                    <Grid>
+                                                        <ContentPresenter />
+                                                        <Border x:Name="Check" Width="16" Height="16" CornerRadius="8" Visibility="Hidden"
+                                                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,-1,0"
+                                                                Background="{DynamicResource Blocker.Accent}">
+                                                            <ui:SymbolIcon Symbol="Checkmark12" FontSize="10" Foreground="{DynamicResource Blocker.Text.OnAccent}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Blocker.Logo.Brush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Tile" Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
+                                                        <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Blocker.Border.Strong}" />
+                                                        <Trigger.EnterActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="Tile" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                                                     To="-2" Duration="0:0:0.12" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.EnterActions>
+                                                        <Trigger.ExitActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="Tile" Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                                                     To="0" Duration="0:0:0.12" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.ExitActions>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter TargetName="Tile" Property="Background" Value="{DynamicResource Blocker.Accent.Soft}" />
+                                                        <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                                                        <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter TargetName="Tile" Property="Opacity" Value="0.6" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:AppEntryViewModel}">
+                                    <Grid>
+                                        <Grid.ToolTip>
+                                            <ToolTip Style="{DynamicResource Blocker.InfoTip.ToolTip}">
+                                                <StackPanel MaxWidth="360">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                               Visibility="{Binding Subtitle, Converter={StaticResource HasTextToVisible}}" />
+                                                    <ItemsControl ItemsSource="{Binding Badges}" Margin="0,6,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Style="{StaticResource App.Chip}" Margin="0,0,4,0" Padding="8,2">
+                                                                    <TextBlock Text="{Binding}" Style="{StaticResource App.ChipText}" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </ToolTip>
+                                        </Grid.ToolTip>
+                                        <Ellipse Width="6" Height="6" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,-2,0,0"
+                                                 Fill="{DynamicResource Blocker.Accent.Text}"
+                                                 Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisible}}" />
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <Image Width="28" Height="28" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality">
+                                                <Image.Style>
+                                                    <Style TargetType="Image">
+                                                        <Setter Property="Source" Value="{Binding IconPng, Converter={StaticResource PngToMutedIcon}}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Source" Value="{Binding IconPng, Converter={StaticResource PngToActiveIcon}}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Image.Style>
+                                            </Image>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" Margin="0,6,0,0"
+                                                       TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="30">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="{Binding HasNoApps, Converter={StaticResource BoolToVisible}}">
+                            <ui:ProgressRing IsIndeterminate="True" Width="32" Height="32"
+                                             Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisible}}" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,16,0,0" TextAlignment="Center"
+                                       Text="Scanning..."
+                                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisible}}" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Margin="0,16,0,0" TextAlignment="Center"
+                                       Text="No apps"
+                                       Visibility="{Binding IsScanning, Converter={StaticResource BoolToCollapsed}}" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- Websites -->
+                <Grid Grid.Row="2" x:Name="WebsitesView">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedIndex, ElementName=PickerTabs}" Value="1">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBox PlaceholderText="example.com or *.example.com" FontFamily="{DynamicResource Blocker.Font.Mono}"
+                                    Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                    IsEnabled="{Binding CanEditSelection}"
+                                    AutomationProperties.Name="Domain to allow">
+                            <ui:TextBox.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding AddDomainCommand}" />
+                            </ui:TextBox.InputBindings>
+                        </ui:TextBox>
+                        <Button Grid.Column="1" Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Primary}"
+                                Command="{Binding AddDomainCommand}" Content="Add" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="{Binding DomainHint}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasDomainError}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ScrollViewer Grid.Row="2" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto">
+                        <Grid>
+                            <ItemsControl ItemsSource="{Binding Domains}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,6" Padding="14,2,4,2" CornerRadius="{StaticResource Blocker.Radius.Control}"
+                                                Background="{DynamicResource Blocker.Bg.Card}" BorderBrush="{DynamicResource Blocker.Border.Subtle}" BorderThickness="1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding}" Style="{DynamicResource Blocker.Text.Mono}" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <Button Grid.Column="1" Style="{DynamicResource Blocker.Button.Subtle}" Padding="8,4" MinHeight="32"
+                                                        Command="{Binding DataContext.RemoveDomainCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" AutomationProperties.Name="Remove domain">
+                                                    <ui:SymbolIcon Symbol="Dismiss24" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No websites yet">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Blocker.Text.Caption}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Domains.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+
+            <Border Grid.Column="1" Width="1" Margin="24,0" Background="{DynamicResource Blocker.Border.Subtle}" />
+
+            <!-- Session: length, passes, and the summary with the single primary action pinned below them. -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
                     <StackPanel>
                         <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Session length" />
-                        <ListBox Margin="0,16,0,0" Style="{StaticResource App.PillList}"
+                        <ListBox Margin="0,12,0,0" Style="{StaticResource App.PillList}"
                                  ItemsSource="{Binding DurationOptions}" SelectedItem="{Binding SelectedDuration}"
                                  DisplayMemberPath="Label" AutomationProperties.Name="Session length" />
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                     Visibility="{Binding IsCustomDuration, Converter={StaticResource BoolToVisible}}">
                             <StackPanel>
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Hours" Margin="0,0,0,4" />
-                                <ui:NumberBox Width="120" Minimum="0" Maximum="720" SmallChange="1" MaxDecimalPlaces="0"
+                                <ui:NumberBox Width="128" Minimum="0" Maximum="720" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding CustomHours, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
-                            <StackPanel Margin="16,0,0,0">
+                            <StackPanel Margin="12,0,0,0">
                                 <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Minutes" Margin="0,0,0,4" />
-                                <ui:NumberBox Width="120" Minimum="0" Maximum="59" SmallChange="5" MaxDecimalPlaces="0"
+                                <ui:NumberBox Width="128" Minimum="0" Maximum="59" SmallChange="5" MaxDecimalPlaces="0"
                                               Value="{Binding CustomMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                         </StackPanel>
                         <TextBlock Margin="0,8,0,0" Style="{DynamicResource Blocker.Text.Caption}"
-                                   Foreground="{DynamicResource Blocker.Danger}" Text="{Binding DurationError}"
+                                   Foreground="{DynamicResource Blocker.Text.Primary}" Text="{Binding DurationError}"
                                    Visibility="{Binding DurationError, Converter={StaticResource HasTextToVisible}}" />
-                    </StackPanel>
-                </Border>
 
-                <Border Margin="0,24,0,0">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
                             <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Emergency passes" VerticalAlignment="Center" />
                             <ContentControl Style="{DynamicResource Blocker.InfoBadge}" Margin="8,-1,0,0">
                                 <ContentControl.ToolTip>
@@ -53,53 +478,73 @@
                                 </ContentControl.ToolTip>
                             </ContentControl>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Passes per day" Margin="0,0,0,4" />
-                                <ui:NumberBox Width="140" Minimum="0" Maximum="10" SmallChange="1" MaxDecimalPlaces="0"
+                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Per day" Margin="0,0,0,4" />
+                                <ui:NumberBox Width="128" Minimum="0" Maximum="10" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding PassesPerDay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
-                            <StackPanel Margin="16,0,0,0">
-                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Minutes per pass" Margin="0,0,0,4" />
-                                <ui:NumberBox Width="140" Minimum="1" Maximum="30" SmallChange="1" MaxDecimalPlaces="0"
+                            <StackPanel Margin="12,0,0,0">
+                                <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="Minutes each" Margin="0,0,0,4" />
+                                <ui:NumberBox Width="128" Minimum="1" Maximum="30" SmallChange="1" MaxDecimalPlaces="0"
                                               Value="{Binding PassMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                         </StackPanel>
-                        <ui:ToggleSwitch Margin="0,16,0,0" Content="Carry unused passes over to the next day"
+                        <ui:ToggleSwitch Margin="0,12,0,0" Content="Carry over unused passes"
                                          IsChecked="{Binding CarryOverUnusedPasses, Mode=TwoWay}" />
                         <TextBlock Margin="0,8,0,0" Style="{DynamicResource Blocker.Text.Caption}"
-                                   Foreground="{DynamicResource Blocker.Danger}" Text="{Binding PassError}"
+                                   Foreground="{DynamicResource Blocker.Text.Primary}" Text="{Binding PassError}"
                                    Visibility="{Binding PassError, Converter={StaticResource HasTextToVisible}}" />
                     </StackPanel>
+                </ScrollViewer>
+
+                <Border Grid.Row="1" Margin="0,16,0,0" Padding="0,16,0,0" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Blocker.Border.Subtle}">
+                    <StackPanel>
+                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Summary" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="26" FontWeight="Light" Text="{Binding DurationText}" VerticalAlignment="Bottom" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="10,0,0,4" Text="{Binding EndsAtText, StringFormat='ends {0}'}" VerticalAlignment="Bottom"
+                                       Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />
+                        </StackPanel>
+                        <WrapPanel Margin="0,12,0,0">
+                            <Border Style="{StaticResource App.Chip}" Margin="0,0,6,0" Padding="9,4" ToolTip="{Binding AppsText}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Window24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource Blocker.Text.Secondary}" />
+                                    <TextBlock Style="{StaticResource App.ChipText}" Text="{Binding DataContext.SelectedCount, ElementName=PickerHost}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource App.Chip}" Margin="0,0,6,0" Padding="9,4" ToolTip="{Binding DomainsText}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Earth24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource Blocker.Text.Secondary}" />
+                                    <TextBlock Style="{StaticResource App.ChipText}" Text="{Binding DataContext.Domains.Count, ElementName=PickerHost}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource App.Chip}" Margin="0,0,6,0" Padding="9,4" ToolTip="{Binding PassesText}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Flash24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource Blocker.Text.Secondary}" />
+                                    <TextBlock Style="{StaticResource App.ChipText}">
+                                        <Run Text="{Binding PassesPerDayValue, Mode=OneWay}" /><Run Text=" &#215; " /><Run Text="{Binding PassMinutesValue, Mode=OneWay}" /><Run Text=" min" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <Button Margin="0,16,0,0" HorizontalAlignment="Stretch" Style="{DynamicResource Blocker.Button.Primary}"
+                                Command="{Binding StartSessionCommand}" Content="Start session" />
+                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,8,0,0" Text="{Binding StartBlockedReason}"
+                                   Visibility="{Binding StartBlockedReason, Converter={StaticResource HasTextToVisible}}" />
+                        <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding StartErrors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Style="{DynamicResource Blocker.Text.Caption}"
+                                               Foreground="{DynamicResource Blocker.Text.Primary}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </Border>
-            </StackPanel>
-
-            <!-- Summary and the single primary action. -->
-            <Border Grid.Column="1" Width="1" Margin="32,0,32,0" Background="{DynamicResource Blocker.Border.Subtle}" />
-            <Border Grid.Column="2" VerticalAlignment="Top" Margin="0,78,0,0">
-                <StackPanel>
-                    <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Summary" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="34" FontWeight="Light" Margin="0,12,0,0" Text="{Binding DurationText}" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,4,0,16" Text="{Binding EndsAtText, StringFormat='Ends: {0}'}"
-                               Visibility="{Binding EndsAtText, Converter={StaticResource HasTextToVisible}}" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding AppsText}" Margin="0,4,0,0" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding DomainsText}" Margin="0,4,0,0" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding PassesText}" Margin="0,4,0,0" />
-
-                    <Button Margin="0,24,0,0" HorizontalAlignment="Stretch" Style="{DynamicResource Blocker.Button.Primary}"
-                            Command="{Binding StartSessionCommand}" Content="Start session" />
-                    <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,8,0,0" Text="{Binding StartBlockedReason}"
-                               Visibility="{Binding StartBlockedReason, Converter={StaticResource HasTextToVisible}}" />
-                    <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding StartErrors}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" Style="{DynamicResource Blocker.Text.Caption}"
-                                           Foreground="{DynamicResource Blocker.Danger}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
+            </Grid>
         </Grid>
-    </ScrollViewer>
+    </Grid>
+    </Border>
 </Page>

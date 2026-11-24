@@ -35,6 +35,8 @@ internal sealed class StubServiceConnection : IServiceConnection
     ];
 
     private readonly Func<PluginWorld> _world;
+    private AppSetsDto _sets = SeedSets();
+    private AppRulesDto _rules = SeedRules();
 
     public StubServiceConnection(Func<PluginWorld> world) => _world = world;
 
@@ -84,6 +86,8 @@ internal sealed class StubServiceConnection : IServiceConnection
             IpcMethods.UiGetContributions => await _world().RenderSlotAsync(((GetContributionsRequest)(object)request!).Slot, cancellationToken),
             IpcMethods.UiSendAction => await SendAsync((SendActionRequest)(object)request!, cancellationToken),
             IpcMethods.AllowlistSet => new OperationResponse(true, []),
+            IpcMethods.AppSetsSet => SaveSets((AppSetsDto)(object)request!),
+            IpcMethods.AppRulesSet => SaveRules((AppRulesDto)(object)request!),
             IpcMethods.SessionStart => new StartSessionResponse(true, [], SessionId, "WD7K-9QXM-2PLA-4HTR"),
             _ => throw new IpcException(IpcErrorCode.NotFound, $"The render harness has no answer for {method}."),
         };
@@ -97,6 +101,9 @@ internal sealed class StubServiceConnection : IServiceConnection
             IpcMethods.PluginsList => new ListPluginsResponse(PluginList()),
             IpcMethods.AllowlistScanApps => new ScanAppsResponse(InstalledApps),
             IpcMethods.AllowlistGet => StoredAllowlist(),
+            IpcMethods.AppSetsGet => _sets,
+            IpcMethods.AppRulesGet => _rules,
+            IpcMethods.AppRulesStatus => new AppRulesStatusResponse([.. _rules.Rules.Select(RuleStatus)]),
             IpcMethods.SettingsGet => new SettingsDto(new Dictionary<string, string>()),
             _ => throw new IpcException(IpcErrorCode.NotFound, $"The render harness has no answer for {method}."),
         };
@@ -107,6 +114,49 @@ internal sealed class StubServiceConnection : IServiceConnection
         [.. InstalledApps.Where(a => a.DisplayName is "Visual Studio Code" or "Microsoft Edge" or "Windows Terminal" or "Obsidian" or "Microsoft Word")
             .Select(a => new AllowlistEntryDto(a.DisplayName, a.ExecutablePath, a.Sha256, a.PackageFamilyName))],
         ["github.com", "learn.microsoft.com", "*.stackoverflow.com", "docs.rs"]);
+
+    private static AllowlistEntryDto Entry(string name)
+    {
+        InstalledAppDto app = InstalledApps.First(a => a.DisplayName == name);
+        return new AllowlistEntryDto(app.DisplayName, app.ExecutablePath, app.Sha256, app.PackageFamilyName);
+    }
+
+    private static AppSetsDto SeedSets() => new(
+    [
+        new AppSetDto("Daily setup", [.. new[] { "Visual Studio Code", "Microsoft Edge", "Windows Terminal", "Obsidian", "Microsoft Word" }.Select(Entry)], ["github.com", "learn.microsoft.com", "*.stackoverflow.com", "docs.rs"]),
+        new AppSetDto("Deep work", [Entry("Visual Studio Code"), Entry("Windows Terminal"), Entry("Obsidian")], ["github.com", "docs.rs"]),
+        new AppSetDto("Writing", [Entry("Obsidian"), Entry("Microsoft Word")], []),
+    ]);
+
+    // Discord is blocked on weekdays 9-17 (it is Monday 10:30 in every render), Spotify has a 60 minute pool, Steam a weekly one.
+    private static AppRulesDto SeedRules() => new(
+    [
+        new AppRuleDto(
+            Entry("Discord"),
+            [.. Enumerable.Range(0, 5).Select(day => new WeeklyRangeDto(day, 9 * 60, 17 * 60))],
+            new AppBudgetDto(AppBudgetMode.None, 0, null, 0)),
+        new AppRuleDto(Entry("Spotify"), [], new AppBudgetDto(AppBudgetMode.Daily, 60, null, 0)),
+        new AppRuleDto(Entry("Steam"), [new WeeklyRangeDto(5, 10 * 60, 12 * 60)], new AppBudgetDto(AppBudgetMode.Weekly, 0, null, 300)),
+    ]);
+
+    private static AppRuleStatusDto RuleStatus(AppRuleDto rule) => rule.App.DisplayName switch
+    {
+        "Discord" => new AppRuleStatusDto(rule.App, AppRuleState.ScheduledBlock, 0, null, ScenarioRunner.Now.Date.AddHours(17)),
+        "Spotify" => new AppRuleStatusDto(rule.App, AppRuleState.Allowed, 42 * 60, 18 * 60, null),
+        _ => new AppRuleStatusDto(rule.App, AppRuleState.Allowed, 190 * 60, 110 * 60, null),
+    };
+
+    private OperationResponse SaveSets(AppSetsDto sets)
+    {
+        _sets = sets;
+        return new OperationResponse(true, []);
+    }
+
+    private OperationResponse SaveRules(AppRulesDto rules)
+    {
+        _rules = rules;
+        return new OperationResponse(true, []);
+    }
 
     private static InstalledAppDto App(string name, string? path, char letter, int color, AppSourceDto sources, string? family = null) =>
         new(name, path, path is null ? null : Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(path))), family, AppIcons.Png(letter, color), sources);

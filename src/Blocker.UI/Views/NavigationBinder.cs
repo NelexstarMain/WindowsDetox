@@ -41,8 +41,8 @@ internal sealed class NavigationBinder
 
     private static Type ToType(AppPage page) => page switch
     {
-        AppPage.Allowlist => typeof(AllowlistPage),
-        AppPage.Setup => typeof(SetupPage),
+        AppPage.Allowlist or AppPage.Setup => typeof(SetupPage),
+        AppPage.AppLimits => typeof(AppLimitsPage),
         AppPage.Plugins => typeof(PluginsPage),
         AppPage.Settings => typeof(SettingsPage),
         _ => typeof(DashboardPage),
