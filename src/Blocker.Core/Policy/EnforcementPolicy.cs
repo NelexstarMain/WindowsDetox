@@ -110,8 +110,10 @@ public sealed class EnforcementPolicy
     private readonly CriticalProcesses _critical;
     private readonly BypassTools _bypass;
     private readonly Allowlist _allowlist;
+    private readonly string _windowsRoot;
     private readonly string[] _baselineRoots;
     private readonly string[] _writableSubtrees;
+    private readonly string _driverRepository;
 
     /// <summary>
     /// Subtrees below the Windows directory that standard users can write to and run programs from (the classic AppLocker-bypass folders),
@@ -129,7 +131,9 @@ public sealed class EnforcementPolicy
     /// <param name="critical">Critical process classifier.</param>
     /// <param name="bypass">Bypass tool matcher.</param>
     /// <param name="allowlist">Session allowlist.</param>
-    /// <param name="windowsDirectory"><c>%SystemRoot%</c>; baseline = <c>System32</c>, <c>SysWOW64</c> and <c>SystemApps</c> below it.</param>
+    /// <param name="windowsDirectory">
+    /// <c>%SystemRoot%</c>; baseline = <c>System32</c>, <c>SysWOW64</c> and <c>SystemApps</c> below it plus the images directly in it.
+    /// </param>
     public EnforcementPolicy(CriticalProcesses critical, BypassTools bypass, Allowlist allowlist, string windowsDirectory)
     {
         ArgumentNullException.ThrowIfNull(critical);
@@ -138,8 +142,10 @@ public sealed class EnforcementPolicy
         ArgumentException.ThrowIfNullOrWhiteSpace(windowsDirectory);
         (_critical, _bypass, _allowlist) = (critical, bypass, allowlist);
         string root = WinPath.Normalize(windowsDirectory);
+        _windowsRoot = root;
         _baselineRoots = [root + @"\system32", root + @"\syswow64", root + @"\systemapps"];
         _writableSubtrees = [.. WritableSubtrees.Select(relative => root + @"\" + relative)];
+        _driverRepository = root + @"\system32\driverstore\filerepository";
     }
 
     /// <summary>Decides what to do with a process.</summary>
@@ -185,6 +191,12 @@ public sealed class EnforcementPolicy
             return Allow(VerdictReason.InheritedFromAllowed);
         }
 
+        // Driver package helpers (audio, graphics, input) are signed by their vendor, not by Microsoft; only SYSTEM can write the repository.
+        if (SystemPackages.IsSystemPackage(facts.PackageFamilyName) || WinPath.IsUnder(WinPath.Normalize(process.ImagePath), _driverRepository))
+        {
+            return Allow(VerdictReason.SystemBaseline);
+        }
+
         if (facts.IsMicrosoftSigned && IsSystemBaselinePath(process.ImagePath))
         {
             return Allow(VerdictReason.SystemBaseline);
@@ -217,9 +229,16 @@ public sealed class EnforcementPolicy
 
     private static ProcessVerdict Allow(VerdictReason reason) => new(VerdictKind.Allow, reason);
 
-    private bool IsSystemBaselinePath(string imagePath)
+    /// <summary>True when a Microsoft-signed image at <paramref name="imagePath"/> is allowed by the system baseline.</summary>
+    public bool IsSystemBaselinePath(string imagePath)
     {
         string path = WinPath.Normalize(imagePath);
+        int separator = path.LastIndexOf('\\');
+        if (separator > 0 && path[..separator] == _windowsRoot)
+        {
+            return true; // only administrators can create files directly in the Windows directory
+        }
+
         foreach (string root in _baselineRoots)
         {
             if (WinPath.IsUnder(path, root))
