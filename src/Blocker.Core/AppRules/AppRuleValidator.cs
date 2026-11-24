@@ -42,6 +42,11 @@ public static class AppRuleValidator
     public static AppRulesValidation Validate(AppRulesDto rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
+        if (rules.Rules is null)
+        {
+            return new AppRulesValidation(null, ["The rules are missing."]);
+        }
+
         if (rules.Rules.Count > MaxRules)
         {
             return new AppRulesValidation(null, [$"At most {MaxRules} app rules are allowed."]);
@@ -52,6 +57,13 @@ public static class AppRuleValidator
         Dictionary<string, string> owners = new(StringComparer.Ordinal);
         foreach (AppRuleDto rule in rules.Rules)
         {
+            // The wire format rejects nulls, but a rule built in code or read from a file must not crash the service.
+            if (rule?.App is null || rule.BlockedRanges is null || rule.BlockedRanges.Any(static r => r is null) || rule.Budget is null)
+            {
+                errors.Add("A rule is incomplete.");
+                continue;
+            }
+
             string label = Label(rule.App);
             int errorsBefore = errors.Count;
             AllowlistEntryDto app = NormalizeApp(rule.App, errors);
@@ -161,7 +173,8 @@ public static class AppRuleValidator
         return new AppBudgetDto(AppBudgetMode.None, 0, null, 0);
     }
 
-    private static string Label(AllowlistEntryDto app)
+    /// <summary>The name of an app as shown in messages: trimmed, without control characters, bounded.</summary>
+    internal static string Label(AllowlistEntryDto app)
     {
         string name = Printable(app.DisplayName?.Trim() ?? string.Empty);
         if (name.Length == 0)

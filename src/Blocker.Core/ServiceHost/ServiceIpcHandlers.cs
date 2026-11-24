@@ -1,5 +1,6 @@
 using Blocker.Contracts;
 using Blocker.Core.Abstractions;
+using Blocker.Core.AppRules;
 using Blocker.Core.Clock;
 using Blocker.Core.Ipc;
 using Blocker.Core.Orchestration;
@@ -32,6 +33,8 @@ namespace Blocker.Core.ServiceHost;
 /// <param name="DevMode">Whether <c>session.devAbort</c> works.</param>
 /// <param name="PluginTemplate">Produces the plugin starter ZIP.</param>
 /// <param name="StateChanged">Called after an operation that may have changed the session state.</param>
+/// <param name="AppSets">Saved app sets.</param>
+/// <param name="AppRules">Per-app rules, their usage ledger and every decision on them.</param>
 internal sealed record ServiceHandlerDependencies(
     EnforcementCoordinator Coordinator,
     ISessionPolicyStore SessionPolicies,
@@ -48,7 +51,9 @@ internal sealed record ServiceHandlerDependencies(
     AgentLink Agent,
     bool DevMode,
     Func<CancellationToken, ValueTask<byte[]>> PluginTemplate,
-    Func<CancellationToken, ValueTask> StateChanged);
+    Func<CancellationToken, ValueTask> StateChanged,
+    AppSetsStore AppSets,
+    AppRuleEngine AppRules);
 
 /// <summary>
 /// Every client-callable IPC method of the service. Roles, the session gate and payload sizes are enforced by <see cref="IpcServer"/> from
@@ -84,6 +89,11 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             server.Register<EmptyDto, ScanAppsResponse>(IpcMethods.AllowlistScanApps, ScanAppsAsync),
             server.Register<EmptyDto, AllowlistDto>(IpcMethods.AllowlistGet, GetAllowlistAsync),
             server.Register<AllowlistDto, OperationResponse>(IpcMethods.AllowlistSet, SetAllowlistAsync),
+            server.Register<EmptyDto, AppSetsDto>(IpcMethods.AppSetsGet, GetAppSetsAsync),
+            server.Register<AppSetsDto, OperationResponse>(IpcMethods.AppSetsSet, SetAppSetsAsync),
+            server.Register<EmptyDto, AppRulesDto>(IpcMethods.AppRulesGet, GetAppRulesAsync),
+            server.Register<AppRulesDto, OperationResponse>(IpcMethods.AppRulesSet, SetAppRulesAsync),
+            server.Register<EmptyDto, AppRulesStatusResponse>(IpcMethods.AppRulesStatus, GetAppRulesStatusAsync),
             server.Register<EmptyDto, SettingsDto>(IpcMethods.SettingsGet, GetSettingsAsync),
             server.Register<SettingsDto, OperationResponse>(IpcMethods.SettingsSet, SetSettingsAsync),
             server.Register<EmptyDto, ListPluginsResponse>(IpcMethods.PluginsList, ListPluginsAsync),

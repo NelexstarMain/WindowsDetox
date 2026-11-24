@@ -171,6 +171,16 @@ public sealed class AppRuleValidatorTests
     }
 
     [Fact]
+    public void A_rule_with_missing_parts_is_rejected_instead_of_crashing()
+    {
+        Assert.False(Validate(new AppRuleDto(null!, [], NoBudget)).IsValid);
+        Assert.False(Validate(new AppRuleDto(Game, null!, NoBudget)).IsValid);
+        Assert.False(Validate(new AppRuleDto(Game, [null!], NoBudget)).IsValid);
+        Assert.False(Validate(new AppRuleDto(Game, [], null!)).IsValid);
+        Assert.False(Validate(null!).IsValid);
+    }
+
+    [Fact]
     public void Errors_are_capped_and_never_echo_control_characters()
     {
         AppRuleDto[] bad = [.. Enumerable.Range(0, 100).Select(i => RuleFor(new AllowlistEntryDto($"App\n{i}", $@"C:\Apps\{i}.exe", null, null), null, Range(9, 0, 10)))];

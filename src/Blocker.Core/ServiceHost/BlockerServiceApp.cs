@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using System.Text.Json;
 using Blocker.Contracts;
+using Blocker.Core.AppRules;
 using Blocker.Core.Clock;
 using Blocker.Core.Ipc;
 using Blocker.Core.Journal;
@@ -39,6 +40,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private readonly VerifiedTimeService _verified;
     private readonly SecureSessionStore _sessionStore;
     private readonly AppScanCache _scanCache;
+    private readonly AppRuleEngine _appRules;
     private readonly SupervisionStatusFile _supervisionFile;
     private readonly IPluginHostGateway _gateway;
     private readonly IpcServer? _pluginServer;
@@ -70,6 +72,11 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         _sessionStore = new SecureSessionStore(secure, paths.SessionStorePath);
         _supervisionFile = new SupervisionStatusFile(secure, paths.SupervisionStatusPath, loggers.CreateLogger<SupervisionStatusFile>());
         var policyStore = new SecureSessionPolicyStore(secure, paths.SessionPolicyPath);
+        _appRules = new AppRuleEngine(
+            new AppRulesStore(secure, paths.AppRulesPath),
+            new AppUsageStore(secure, paths.AppUsagePath),
+            VerifiedOrSystemNow,
+            static () => TimeZoneInfo.Local.Id);
         var pluginStore = new PluginStore(ports.FileSystem, paths.PluginsDirectory, paths.PluginDataDirectory);
 
         if (ports.PluginHostGateway is { } gateway)
@@ -143,7 +150,9 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 agent,
                 ports.DevMode,
                 ports.PluginTemplate,
-                SyncStatusAsync),
+                SyncStatusAsync,
+                new AppSetsStore(secure, paths.AppSetsPath),
+                _appRules),
             loggers.CreateLogger<ServiceIpcHandlers>());
         _registrations.AddRange(handlers.RegisterAll(Server));
         _handlers = handlers;
@@ -279,6 +288,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private async Task InitializeAsync(bool scanIfNoCache, CancellationToken cancellationToken)
     {
         _ = await _verified.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        await _appRules.LoadAsync(cancellationToken).ConfigureAwait(false);
         await RecoverAsync(cancellationToken).ConfigureAwait(false);
         Server.Start();
         if (_pluginServer is not null && _supervisor is not null)
