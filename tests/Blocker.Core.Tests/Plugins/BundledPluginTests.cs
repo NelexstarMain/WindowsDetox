@@ -45,7 +45,7 @@ public sealed class BundledPluginTests
         Assert.Equal(PluginInstallStage.Ready, report.Stage);
         PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
         Assert.Equal("com.windowsdetox.insights", manifest.Id.Value);
-        Assert.Equal(new Version(1, 0, 1), manifest.Version);
+        Assert.Equal(new Version(1, 2, 0), manifest.Version);
         Assert.Equal("FocusInsights.InsightsPlugin", manifest.EntryType);
         Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
         PluginTestReport tests = Assert.IsType<PluginTestReport>(report.TestReport);
@@ -65,6 +65,33 @@ public sealed class BundledPluginTests
         PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
         Assert.Equal(
             ["events.process", "events.session", "ui.dashboard", "ui.page", "ui.settings"],
+            manifest.Capabilities.Select(PluginCapabilities.ToManifestName).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task Focus_Forest_passes_every_install_stage_and_all_of_its_tests()
+    {
+        using MemoryStream zip = ZipOfFolder("FocusForest");
+
+        PluginInstallReport report = await PluginInstallPipeline.EvaluateAsync(zip, TestContext.Current.CancellationToken);
+
+        Assert.True(report.Errors.Count == 0, string.Join(Environment.NewLine, report.Errors));
+        Assert.True(report.Succeeded);
+        Assert.Equal(PluginInstallStage.Ready, report.Stage);
+        PluginManifest manifest = Assert.IsType<PluginManifest>(report.Manifest);
+        Assert.Equal("com.windowsdetox.forest", manifest.Id.Value);
+        Assert.Equal("Focus Forest", manifest.Name);
+        Assert.Equal(new Version(1, 0, 0), manifest.Version);
+        Assert.Equal("FocusForest.ForestPlugin", manifest.EntryType);
+        Assert.True(Blocker.UI.Sdk.UiTreeValidator.IsValidPathData(manifest.Icon));
+        Assert.NotEqual(FocusInsightsIcon(), manifest.Icon);
+        PluginTestReport tests = Assert.IsType<PluginTestReport>(report.TestReport);
+        Assert.True(tests.Succeeded, string.Join(Environment.NewLine, tests.Results.Where(r => r.Outcome != PluginTestOutcome.Passed).Select(r => r.DisplayName + ": " + r.Message)));
+        Assert.True(tests.Passed >= 60, $"Only {tests.Passed} plugin tests ran.");
+        Assert.Equal(tests.Results.Count, tests.Passed);
+        Assert.Equal(0, tests.Failed + tests.TimedOut + tests.NotSupported);
+        Assert.Equal(
+            ["events.session", "ui.dashboard", "ui.page", "ui.settings"],
             manifest.Capabilities.Select(PluginCapabilities.ToManifestName).Order(StringComparer.Ordinal));
     }
 
@@ -126,7 +153,7 @@ public sealed class BundledPluginTests
     public void Every_bundled_plugin_folder_has_a_unique_id_and_icon_and_is_covered_by_these_tests()
     {
         string[] folders = [.. Directory.EnumerateDirectories(Path.Combine(RepositoryRoot(), "plugins")).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal)];
-        Assert.Equal(["Calendar", "FocusInsights", "GoalsTasks"], folders);
+        Assert.Equal(["Calendar", "FocusForest", "FocusInsights", "GoalsTasks"], folders);
 
         List<JsonElement> manifests = [.. folders.Select(f => JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "plugins", f, "plugin.json"))).RootElement)];
 

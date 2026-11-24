@@ -34,4 +34,26 @@ public class UiActionValidatorTests
     [Fact]
     public void IsValid_ClickWithOtherValues_Rejected() =>
         Assert.False(UiActionValidator.IsValid(new UiAction("e1", UiActionKind.Click, null, new Dictionary<string, string> { ["name"] = "x" })));
+
+    private static UiAction Pick(params (string Key, string Value)[] values) =>
+        new("forest", UiActionKind.Pick, null, values.ToDictionary(v => v.Key, v => v.Value));
+
+    [Fact]
+    public void IsValid_PickWithColumnAndRow_Accepted() =>
+        Assert.True(UiActionValidator.IsValid(Pick(("column", "0"), ("row", "23"))));
+
+    [Theory]
+    [InlineData("24", "0")]
+    [InlineData("-1", "0")]
+    [InlineData("1.5", "0")]
+    [InlineData("", "0")]
+    public void IsValid_PickOutOfRangeOrMalformed_Rejected(string column, string row) =>
+        Assert.False(UiActionValidator.IsValid(Pick(("column", column), ("row", row))));
+
+    [Fact]
+    public void IsValid_PickWithValueOrExtraField_Rejected()
+    {
+        Assert.False(UiActionValidator.IsValid(Pick(("column", "1"), ("row", "1"), ("x", "1"))));
+        Assert.False(UiActionValidator.IsValid(new UiAction("forest", UiActionKind.Pick, "1", new Dictionary<string, string> { ["column"] = "1", ["row"] = "1" })));
+    }
 }

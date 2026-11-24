@@ -209,8 +209,9 @@ public sealed class InsightsPage(InsightsStore store) : InsightsContribution(sto
     public ValueTask<UiPage> RenderAsync(UiRenderContext context, CancellationToken cancellationToken)
     {
         Remember(context);
+        bool example = Volatile.Read(ref _showExample) == 1;
         List<UiNode> children = [];
-        if (Volatile.Read(ref _showExample) == 1)
+        if (example)
         {
             children.Add(Ui.Row(Ui.Text(ExampleCaption, UiTextStyle.Caption), Ui.Button(HideExampleButtonId, "Hide example", UiButtonVariant.Secondary)));
             children.AddRange(InsightsLayout.Body(ExampleView(), Store.LocalTimeZone));

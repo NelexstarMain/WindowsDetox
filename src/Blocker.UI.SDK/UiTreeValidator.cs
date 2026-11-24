@@ -39,6 +39,11 @@ public static partial class UiTreeValidator
     private const int MaxMonthChips = 4;
     private const int MaxChipOptions = 4;
     private const int MinutesPerDay = 1440;
+    private const int MaxSceneTiles = 24;
+    private const int MaxSceneModels = 128;
+    private const int MaxSceneModelFaces = 400;
+    private const int MaxSceneFaces = 12000;
+    private const int MaxSceneFaceVertices = 16;
 
     /// <summary>Checks SVG path data as accepted for <see cref="UiGlyph"/> and plugin icons: 1-4096 characters of path commands, numbers, spaces and commas.</summary>
     /// <param name="pathData">Path data.</param>
@@ -240,6 +245,9 @@ public static partial class UiTreeValidator
                 case UiTimeGrid timeGrid:
                     TimeGrid(timeGrid, depth);
                     break;
+                case UiScene scene:
+                    Scene(scene);
+                    break;
                 case UiGlyph glyph:
                     if (!IsValidPathData(glyph.PathData))
                     {
@@ -406,6 +414,154 @@ public static partial class UiTreeValidator
                         RequiredText(chip, "UiMonthCell.Chips");
                     }
                 }
+            }
+        }
+
+        private void Scene(UiScene scene)
+        {
+            Id(scene.Id);
+            OptionalText(scene.Label, "UiScene.Label");
+            if (scene.Columns is < 1 or > MaxSceneTiles || scene.Rows is < 1 or > MaxSceneTiles)
+            {
+                Errors.Add($"UiScene.Columns and Rows must be between 1 and {MaxSceneTiles}.");
+                return;
+            }
+
+            if (!double.IsFinite(scene.Height) || scene.Height is < 64 or > 720)
+            {
+                Errors.Add("UiScene.Height must be between 64 and 720.");
+            }
+
+            Colour(scene.GroundColor, "UiScene.GroundColor");
+            HashSet<string> keys = SceneModels(scene.Models);
+            if (scene.Items is null || !Count(scene.Items.Count))
+            {
+                if (scene.Items is null)
+                {
+                    Errors.Add("UiScene.Items is required.");
+                }
+
+                return;
+            }
+
+            var occupied = new HashSet<int>();
+            foreach (UiSceneItem item in scene.Items)
+            {
+                if (item is null)
+                {
+                    Errors.Add("UiScene.Items contains null.");
+                    continue;
+                }
+
+                Id(item.Id);
+                OptionalText(item.Label, "UiSceneItem.Label");
+                if (item.Model is null || !keys.Contains(item.Model))
+                {
+                    Errors.Add($"UiSceneItem '{item.Id}' uses an unknown model.");
+                }
+
+                if (item.Column < 0 || item.Column >= scene.Columns || item.Row < 0 || item.Row >= scene.Rows)
+                {
+                    Errors.Add($"UiSceneItem '{item.Id}' lies outside the grid.");
+                }
+                else if (!occupied.Add((item.Row * MaxSceneTiles) + item.Column))
+                {
+                    Errors.Add($"UiSceneItem '{item.Id}' stands on the same tile as another item.");
+                }
+
+                if (item.Rotation is < 0 or > 3)
+                {
+                    Errors.Add("UiSceneItem.Rotation must be between 0 and 3.");
+                }
+
+                if (!double.IsFinite(item.Scale) || item.Scale is < 0.25 or > 2)
+                {
+                    Errors.Add("UiSceneItem.Scale must be between 0.25 and 2.");
+                }
+            }
+        }
+
+        private HashSet<string> SceneModels(IReadOnlyList<UiSceneModel>? models)
+        {
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            if (models is null || models.Count > MaxSceneModels)
+            {
+                Errors.Add($"UiScene.Models must contain at most {MaxSceneModels} models.");
+                return keys;
+            }
+
+            int totalFaces = 0;
+            foreach (UiSceneModel model in models)
+            {
+                if (model is null)
+                {
+                    Errors.Add("UiScene.Models contains null.");
+                    continue;
+                }
+
+                if (model.Key is null || !ElementIdPattern().IsMatch(model.Key))
+                {
+                    Errors.Add($"UiSceneModel key '{model.Key}' is invalid (letter first, then letters, digits, '_' or '-', max 64).");
+                }
+                else if (!keys.Add(model.Key))
+                {
+                    Errors.Add($"UiSceneModel key '{model.Key}' is used more than once.");
+                }
+
+                if (model.Faces is null || model.Faces.Count is < 1 or > MaxSceneModelFaces)
+                {
+                    Errors.Add($"UiSceneModel.Faces must contain 1-{MaxSceneModelFaces} faces.");
+                    continue;
+                }
+
+                totalFaces += model.Faces.Count;
+                if (totalFaces > MaxSceneFaces)
+                {
+                    Errors.Add($"UiScene models exceed {MaxSceneFaces} faces in total.");
+                    return keys;
+                }
+
+                foreach (UiSceneFace face in model.Faces)
+                {
+                    SceneFace(face);
+                }
+            }
+
+            return keys;
+        }
+
+        private void SceneFace(UiSceneFace? face)
+        {
+            if (face is null)
+            {
+                Errors.Add("UiSceneModel.Faces contains null.");
+                return;
+            }
+
+            Colour(face.Color, "UiSceneFace.Color");
+            IReadOnlyList<double>? p = face.Points;
+            if (p is null || p.Count % 3 != 0 || p.Count / 3 is < 3 or > MaxSceneFaceVertices)
+            {
+                Errors.Add($"UiSceneFace.Points must hold 3-{MaxSceneFaceVertices} x, y, z triples.");
+                return;
+            }
+
+            for (int i = 0; i < p.Count; i += 3)
+            {
+                double x = p[i], y = p[i + 1], z = p[i + 2];
+                if (!double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(z) || Math.Abs(x) > 1 || Math.Abs(z) > 1 || y is < -0.5 or > 8)
+                {
+                    Errors.Add("UiSceneFace.Points must be finite with x and z within -1..1 and y within -0.5..8.");
+                    return;
+                }
+            }
+        }
+
+        private void Colour(string? colour, string name)
+        {
+            if (colour is not { Length: 7 } || colour[0] != '#' || !colour[1..].All(char.IsAsciiHexDigit))
+            {
+                Errors.Add($"{name} must be a colour in the form #RRGGBB.");
             }
         }
 

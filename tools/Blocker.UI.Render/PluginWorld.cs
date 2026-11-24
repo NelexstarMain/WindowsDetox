@@ -38,7 +38,7 @@ internal sealed class LoadedPlugin
 /// </summary>
 internal sealed class PluginWorld
 {
-    private static readonly string[] Folders = ["Calendar", "GoalsTasks", "FocusInsights"];
+    private static readonly string[] Folders = ["Calendar", "GoalsTasks", "FocusInsights", "FocusForest"];
 
     private PluginWorld(IReadOnlyList<LoadedPlugin> plugins) => Plugins = plugins;
 
@@ -63,9 +63,9 @@ internal sealed class PluginWorld
 
             await PluginSeeds.SeedAsync(folder, context, now, cancellationToken);
             await instance.InitializeAsync(context, cancellationToken);
-            if (folder == "FocusInsights")
+            if (folder is "FocusInsights" or "FocusForest")
             {
-                await PluginSeeds.ReplayInsightsAsync(context, now, cancellationToken);
+                await PluginSeeds.ReplaySessionsAsync(context, now, cancellationToken);
             }
 
             context.FakeTime.SetUtcNow(now);

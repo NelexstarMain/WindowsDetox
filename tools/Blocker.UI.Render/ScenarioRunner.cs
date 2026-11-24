@@ -56,6 +56,13 @@ internal sealed class ScenarioRunner
                 _world = await PluginWorld.CreateAsync(pluginsDirectory, Now, CancellationToken.None);
                 connection.SetSession(shot.Session ?? "idle");
                 await shell.RefreshPluginsAsync();
+                if (ForestGallery.TryParse(shot.Target, out int galleryTurns, out double galleryHeight, out int galleryColumns, out string[] galleryIds))
+                {
+                    await RenderForestGalleryAsync(shot, galleryTurns, galleryHeight, galleryColumns, galleryIds);
+                    log($"{shot.Name,-24} {watch.ElapsedMilliseconds,5} ms");
+                    continue;
+                }
+
                 SizeWindow(window, shot.Size);
                 await NavigateAsync(shell, shot.Target);
                 Func<Task>? frame = shot.Animate ? StartFrames(window, shot.Name) : null;
@@ -86,6 +93,26 @@ internal sealed class ScenarioRunner
     {
         window.Width = size is { Length: 2 } ? size[0] : 1100;
         window.Height = size is { Length: 2 } ? size[1] : 700;
+    }
+
+    // The Focus Forest model sheet is not a plugin page: it is drawn in a window of its own so that every model can be reviewed at once.
+    private async Task RenderForestGalleryAsync(Scenario shot, int turns, double height, int columns, string[] ids)
+    {
+        var gallery = new Window
+        {
+            Width = shot.Size is { Length: 2 } ? shot.Size[0] : 1900,
+            Height = shot.Size is { Length: 2 } ? shot.Size[1] : 1800,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = 0,
+            Top = 0,
+            ShowInTaskbar = false,
+            Background = Brushes.White,
+            Content = new Blocker.UI.Controls.Rendering.UiNodeView { Node = ForestGallery.Build(turns, height, columns, ids) },
+        };
+        gallery.Show();
+        await Interaction.SettleAsync(gallery);
+        Save(gallery, Path.Combine(_options.OutputDirectory, shot.Name + ".png"));
+        gallery.Close();
     }
 
     private async Task NavigateAsync(RenderShell shell, string target)

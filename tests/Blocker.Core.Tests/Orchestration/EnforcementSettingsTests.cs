@@ -83,10 +83,15 @@ public sealed class EnforcementSettingsTests
                 new InstalledApp("Library", @"C:\x\lib.dll", null, null, null, AppSource.Running),
                 new InstalledApp("Own UI", @"C:\Program Files\Blocker\Blocker.UI.exe", null, null, null, AppSource.Running),
                 new InstalledApp("Game again", @"D:\Mirror\GAME.EXE", null, null, null, AppSource.Running),
+                new InstalledApp("Notepad", @"C:\Windows\System32\notepad.exe", null, null, null, AppSource.StartMenu),
+                new InstalledApp("Help", @"C:\Windows\HelpPane.exe", null, null, null, AppSource.Running),
+                new InstalledApp("Calculator", @"C:\Program Files\WindowsApps\Calc\CalculatorApp.exe", null, "Microsoft.WindowsCalculator_8wekyb3d8bbwe", null, AppSource.StorePackage),
+                new InstalledApp("Widgets", @"C:\Program Files\WindowsApps\Web\Widgets.exe", null, "MicrosoftWindows.Client.WebExperience_cw5n1h2txyewy", null, AppSource.Running),
             ],
         };
 
-        // services.exe and explorer.exe are critical; editor.exe and tool.exe are allowlisted (IFEO matches by name only).
+        // services.exe and explorer.exe are critical; editor.exe and tool.exe are allowlisted (IFEO matches by name only). Windows images and
+        // inbox packages are left to the policy.
         Assert.Equal(["cmd.exe", "game.exe", "regedit.exe", "taskmgr.exe"], settings.BuildIfeoImageNames(allowlist));
     }
 }

@@ -24,6 +24,9 @@ internal sealed class TimeGridViewState
 
     /// <summary>Gets or sets the anchor id of the popover that already focused its first input.</summary>
     public string? PopoverFocusedFor { get; set; }
+
+    /// <summary>Gets the camera turn chosen per <see cref="UiScene"/> id.</summary>
+    public Dictionary<string, int> SceneTurns { get; } = [];
 }
 
 /// <summary>
