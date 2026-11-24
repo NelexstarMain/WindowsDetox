@@ -47,11 +47,14 @@ internal enum AppPage
     /// <summary>Session dashboard.</summary>
     Dashboard,
 
-    /// <summary>Allowlist.</summary>
+    /// <summary>The allowlist, now part of the session setup page.</summary>
     Allowlist,
 
-    /// <summary>Session and protection setup.</summary>
+    /// <summary>Session setup: allowlist, length and emergency passes.</summary>
     Setup,
+
+    /// <summary>Per-app scheduled blocks and usage pools.</summary>
+    AppLimits,
 
     /// <summary>Plugins.</summary>
     Plugins,
