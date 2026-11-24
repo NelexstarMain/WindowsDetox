@@ -11,6 +11,16 @@ namespace Blocker.UI.ViewModels;
 /// <summary>Main window: connection banner, plugin navigation pages and service notifications as snackbars.</summary>
 internal sealed partial class ShellViewModel : ServiceViewModel
 {
+    /// <summary>
+    /// The plugin host starts after the service and answers an empty slot until it is up, so a UI that connects early would otherwise show
+    /// no plugin pages until the next reconnect.
+    /// </summary>
+    private static readonly TimeSpan[] EmptyPagesRetryDelays =
+        [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(30)];
+
+    private readonly TimeProvider _time;
+    private int _loadGeneration;
+
     [ObservableProperty]
     private bool _isDisconnected;
 
@@ -21,9 +31,11 @@ internal sealed partial class ShellViewModel : ServiceViewModel
     /// <param name="connection">Service connection.</param>
     /// <param name="plugins">Plugins page, whose changes reload plugin pages.</param>
     /// <param name="snackbar">Snackbars.</param>
-    public ShellViewModel(IServiceConnection connection, PluginsViewModel plugins, ISnackbarService snackbar)
+    /// <param name="time">Time source for the retry delays.</param>
+    public ShellViewModel(IServiceConnection connection, PluginsViewModel plugins, ISnackbarService snackbar, TimeProvider time)
         : base(connection, snackbar)
     {
+        _time = time;
         IsDisconnected = !connection.IsConnected;
         connection.ConnectionChanged += OnConnectionChanged;
         connection.NotificationReceived += OnNotification;
@@ -87,7 +99,23 @@ internal sealed partial class ShellViewModel : ServiceViewModel
         IsDisconnected = !Connection.IsConnected;
         if (Connection.IsConnected)
         {
-            _ = RefreshPagesAsync(CancellationToken.None);
+            _ = LoadPagesAfterConnectAsync();
+        }
+    }
+
+    private async Task LoadPagesAfterConnectAsync()
+    {
+        int generation = ++_loadGeneration;
+        await RefreshPagesAsync(CancellationToken.None);
+        foreach (TimeSpan delay in EmptyPagesRetryDelays)
+        {
+            if (PluginPages.Count > 0 || generation != _loadGeneration || !Connection.IsConnected)
+            {
+                return;
+            }
+
+            await Task.Delay(delay, _time);
+            await RefreshPagesAsync(CancellationToken.None);
         }
     }
 
