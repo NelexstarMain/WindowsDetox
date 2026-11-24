@@ -153,20 +153,67 @@ public sealed class AppRuleEngineTests
     }
 
     [Fact]
-    public async Task Changing_the_identity_of_a_blocked_app_carries_its_usage_over()
+    public async Task Widening_the_identity_of_a_blocked_app_carries_its_usage_over()
     {
         AppRuleEngine engine = await LoadedEngineAsync();
-        var byPath = new AllowlistEntryDto("Store game", GamePath, null, "Pkg.Game_abc");
-        Assert.Empty(await SetAsync(engine, RuleFor(byPath, Daily(60))));
-        Assert.True(engine.AddUsage([AppRuleIdentity.LedgerKey(byPath)], 3600));
+        var byPackage = new AllowlistEntryDto("Store game", null, null, "Pkg.Game_abc");
+        Assert.Empty(await SetAsync(engine, RuleFor(byPackage, Daily(60))));
+        Assert.True(engine.AddUsage([AppRuleIdentity.LedgerKey(byPackage)], 3600));
 
-        // The new entry shares the package but no longer the path, so its ledger key differs.
-        IReadOnlyList<string> errors = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", null, null, "Pkg.Game_abc"), Daily(60)));
+        // The new entry keeps the package and adds a path, so the app is still matched everywhere it was, and its ledger key moves to the path.
+        IReadOnlyList<string> errors = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", GamePath, null, "Pkg.Game_abc"), Daily(60)));
 
         Assert.Empty(errors);
         AppRuleStatusDto status = Assert.Single(engine.GetStatus(sessionRunning: false).Items);
         Assert.Equal(AppRuleState.BudgetExhausted, status.State);
         Assert.Equal(3600, status.UsedSeconds);
+    }
+
+    [Fact]
+    public async Task A_blocked_app_cannot_move_its_rule_to_an_identity_that_only_shares_a_key_with_the_old_one()
+    {
+        AppRuleEngine engine = await LoadedEngineAsync();
+        var original = new AllowlistEntryDto("Store game", GamePath, null, "Pkg.Game_abc");
+        Assert.Empty(await SetAsync(engine, RuleFor(original, Daily(60))));
+        Assert.True(engine.AddUsage([AppRuleIdentity.LedgerKey(original)], 3600));
+
+        // Two saves would otherwise walk the rule to a path nothing runs from: each step shares one key with the previous entry.
+        IReadOnlyList<string> toDeadPath = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", @"C:\Gone\game.exe", null, "Pkg.Game_abc"), Daily(60)));
+        IReadOnlyList<string> droppedPath = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", null, null, "Pkg.Game_abc"), Daily(60)));
+        IReadOnlyList<string> droppedPackage = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", GamePath, null, null), Daily(60)));
+        IReadOnlyList<string> otherPackage = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", GamePath, null, "Pkg.Other_xyz"), Daily(60)));
+
+        foreach (IReadOnlyList<string> errors in new[] { toDeadPath, droppedPath, droppedPackage, otherPackage })
+        {
+            string error = Assert.Single(errors);
+            Assert.Contains("Store game", error, StringComparison.Ordinal);
+            Assert.Contains("widen", error, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(original, Assert.Single(engine.Rules.Rules).App);
+        Assert.Equal(3600, Assert.Single(engine.GetStatus(sessionRunning: false).Items).UsedSeconds);
+    }
+
+    [Fact]
+    public async Task A_blocked_app_cannot_swap_a_hash_for_another_hash_that_keeps_only_its_package()
+    {
+        AppRuleEngine engine = await LoadedEngineAsync();
+        string hash = new('a', 64);
+        Assert.Empty(await SetAsync(engine, RuleFor(new AllowlistEntryDto("Hashed", null, hash, "Pkg.Game_abc"), Daily(0))));
+
+        IReadOnlyList<string> errors = await SetAsync(engine, RuleFor(new AllowlistEntryDto("Hashed", null, new string('b', 64), "Pkg.Game_abc"), Daily(0)));
+
+        Assert.Contains(errors, static e => e.Contains("widen", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task An_app_that_is_not_blocked_can_change_its_identity_freely()
+    {
+        AppRuleEngine engine = await LoadedEngineAsync();
+        Assert.Empty(await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", GamePath, null, "Pkg.Game_abc"), Daily(60))));
+
+        Assert.Empty(await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", @"C:\Moved\game.exe", null, "Pkg.Game_abc"), Daily(60))));
+        Assert.Empty(await SetAsync(engine, RuleFor(new AllowlistEntryDto("Store game", null, null, "Pkg.Game_abc"), Daily(60))));
     }
 
     [Fact]

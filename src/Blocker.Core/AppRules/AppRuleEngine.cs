@@ -63,8 +63,9 @@ internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usag
 
     /// <summary>
     /// Validates and replaces the rules. While an app is blocked (a scheduled block, or its pool used up) its new rule must be identical or
-    /// stricter, and it cannot be removed; apps that are not blocked can be changed freely. The zone is captured from the machine unless an
-    /// app is blocked, in which case the frozen zone stays.
+    /// stricter, it cannot be removed, and its identity may only be widened (the new entry answers to every identity of the old one); apps that
+    /// are not blocked can be changed freely. The zone is captured from the machine unless an app is blocked, in which case the frozen zone
+    /// stays.
     /// </summary>
     /// <param name="request">The rules as sent.</param>
     /// <param name="cancellationToken">Cancellation.</param>
@@ -252,7 +253,11 @@ internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usag
                 {
                     refused.Add($"'{name}' is blocked right now, so its rule cannot be removed.");
                 }
-                else if (!replacements.All(r => AppRuleTightness.IsNotLooserThan(r, old)))
+                else if (replacements.Find(r => AppRuleIdentity.Covers(r.App, old.App)) is not { } replacement)
+                {
+                    refused.Add($"'{name}' is blocked right now, so its identity can only be widened (keep its path, hash and package and add more), not changed.");
+                }
+                else if (!AppRuleTightness.IsNotLooserThan(replacement, old))
                 {
                     refused.Add($"'{name}' is blocked right now, so its rule can only be made stricter, not looser.");
                 }

@@ -35,6 +35,12 @@ internal static class AppRuleIdentity
     public static string LedgerKey(AllowlistEntryDto app) =>
         Keys(app) is [{ } first, ..] ? first : throw new ArgumentException("The entry has no identity.", nameof(app));
 
-    /// <summary>True when the two entries share at least one identity, which makes them the same app for rules.</summary>
+    /// <summary>True when the two entries share at least one identity, which makes them the same app for rules while nothing is blocked.</summary>
     public static bool Overlap(AllowlistEntryDto a, AllowlistEntryDto b) => Keys(a).Intersect(Keys(b), StringComparer.Ordinal).Any();
+
+    /// <summary>
+    /// True when <paramref name="wider"/> answers to every identity of <paramref name="narrower"/> (and possibly more), so it matches every process
+    /// the narrower entry matched. Sharing one key is not enough: a chain of such steps could walk a rule to an identity nothing runs under.
+    /// </summary>
+    public static bool Covers(AllowlistEntryDto wider, AllowlistEntryDto narrower) => !Keys(narrower).Except(Keys(wider), StringComparer.Ordinal).Any();
 }
