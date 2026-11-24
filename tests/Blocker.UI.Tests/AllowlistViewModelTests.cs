@@ -214,4 +214,37 @@ public sealed class AllowlistViewModelTests
         Assert.Equal(["example.com"], vm.Domains);
         Assert.False(vm.IsScanning);
     }
+
+    [Fact]
+    public void Apply_selection_replaces_apps_and_domains_and_notifies_once()
+    {
+        AllowlistViewModel vm = CreateWithApps();
+        vm.FilteredApps.First(a => a.DisplayName == "Firefox").IsSelected = true;
+        vm.NewDomain = "old.example";
+        vm.AddDomainCommand.Execute(null);
+        int notifications = 0;
+        vm.SelectionChanged += (_, _) => notifications++;
+
+        vm.ApplySelection(
+            [new AllowlistEntryDto("Notepad", @"C:\Windows\notepad.exe", "cc", null), new AllowlistEntryDto("Portable", @"D:\p.exe", null, null)],
+            ["new.example"]);
+
+        Assert.Equal(["Notepad", "Portable"], vm.BuildSelectedEntries().Select(e => e.DisplayName));
+        Assert.Equal(["new.example"], vm.Domains);
+        Assert.Equal(2, vm.SelectedCount);
+        Assert.Equal(1, notifications);
+        Assert.Contains(vm.FilteredApps, a => a.DisplayName == "Portable");
+    }
+
+    [Fact]
+    public void Selection_equals_compares_apps_by_identity_and_domains_ignoring_case_and_order()
+    {
+        AllowlistViewModel vm = CreateWithApps();
+        vm.ApplySelection([new AllowlistEntryDto("Firefox", @"C:\Apps\Firefox\firefox.exe", "bb", null)], ["a.example", "B.example"]);
+
+        Assert.True(vm.SelectionEquals([new AllowlistEntryDto("Firefox", "elsewhere.exe", "bb", null)], ["b.example", "a.example"]));
+        Assert.False(vm.SelectionEquals([new AllowlistEntryDto("Firefox", "x", "bb", null)], ["a.example"]));
+        Assert.False(vm.SelectionEquals([new AllowlistEntryDto("Notepad", "x", "cc", null)], ["a.example", "b.example"]));
+        Assert.False(vm.SelectionEquals([], ["a.example", "b.example"]));
+    }
 }
