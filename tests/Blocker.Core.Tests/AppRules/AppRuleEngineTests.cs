@@ -328,6 +328,24 @@ public sealed class AppRuleEngineTests
     }
 
     [Fact]
+    public async Task A_stored_usage_dated_far_in_the_future_does_not_lock_the_pool()
+    {
+        AppRuleEngine first = await LoadedEngineAsync();
+        Assert.Empty(await SetAsync(first, Rule(Daily(60))));
+        var glitched = new AppUsageState(new Dictionary<string, AppUsageEntry>
+        {
+            [GameKey] = new(DateOnly.FromDateTime(At(400, 0)), 99_999, DateOnly.FromDateTime(At(400, 0)), 99_999),
+        });
+        await new AppUsageStore(_store, _fs.Path.Combine(Root, "usage.bin"), NullLogger<AppUsageStore>.Instance).SaveAsync(glitched, Ct);
+
+        AppRuleEngine restarted = await LoadedEngineAsync();
+
+        AppRuleStatusDto status = Assert.Single(restarted.GetStatus(sessionRunning: false).Items);
+        Assert.Equal((AppRuleState.Allowed, 0L), (status.State, status.UsedSeconds));
+        Assert.Empty(restarted.CurrentBlocks());
+    }
+
+    [Fact]
     public async Task Setting_rules_raises_the_changed_event()
     {
         AppRuleEngine engine = await LoadedEngineAsync();

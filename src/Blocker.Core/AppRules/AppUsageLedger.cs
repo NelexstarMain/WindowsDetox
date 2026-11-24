@@ -15,7 +15,9 @@ public sealed record AppUsageState(Dictionary<string, AppUsageEntry> Entries);
 
 /// <summary>
 /// Foreground time per app, split by local day and by week (Monday to Sunday). Counters roll when the local date moves forward; a clock that
-/// moved backwards never rolls them back, so winding the clock back cannot give time back. Mutated only by its owner (not thread-safe).
+/// moved backwards by up to a day never rolls them back, so winding the clock back cannot give time back. A stored day or week that is further
+/// ahead than that is a clock glitch (or damage) and is reset instead: it would otherwise keep a pool used up until the real date caught up.
+/// Mutated only by its owner (not thread-safe).
 /// </summary>
 /// <param name="initial">State to continue from, or <see langword="null"/> for none.</param>
 public sealed class AppUsageLedger(AppUsageState? initial = null)
@@ -39,7 +41,7 @@ public sealed class AppUsageLedger(AppUsageState? initial = null)
 
         DateOnly today = DateOnly.FromDateTime(localNow);
         DateOnly week = WeekStart(today);
-        AppUsageEntry entry = _entries.GetValueOrDefault(key) ?? new AppUsageEntry(today, 0, week, 0);
+        AppUsageEntry entry = _entries.TryGetValue(key, out AppUsageEntry? stored) ? WithoutFuture(stored, today) : new AppUsageEntry(today, 0, week, 0);
         if (today > entry.Day)
         {
             entry = entry with { Day = today, DaySeconds = 0 };
@@ -54,12 +56,30 @@ public sealed class AppUsageLedger(AppUsageState? initial = null)
     }
 
     /// <summary>Gets the seconds counted for <paramref name="key"/> on the local day of <paramref name="localNow"/>.</summary>
-    public long DaySeconds(string key, DateTime localNow) =>
-        _entries.TryGetValue(key, out AppUsageEntry? entry) && DateOnly.FromDateTime(localNow) <= entry.Day ? entry.DaySeconds : 0;
+    public long DaySeconds(string key, DateTime localNow)
+    {
+        DateOnly today = DateOnly.FromDateTime(localNow);
+        if (!_entries.TryGetValue(key, out AppUsageEntry? stored))
+        {
+            return 0;
+        }
+
+        AppUsageEntry entry = WithoutFuture(stored, today);
+        return today <= entry.Day ? entry.DaySeconds : 0;
+    }
 
     /// <summary>Gets the seconds counted for <paramref name="key"/> in the week of <paramref name="localNow"/>.</summary>
-    public long WeekSeconds(string key, DateTime localNow) =>
-        _entries.TryGetValue(key, out AppUsageEntry? entry) && WeekStart(DateOnly.FromDateTime(localNow)) <= entry.Week ? entry.WeekSeconds : 0;
+    public long WeekSeconds(string key, DateTime localNow)
+    {
+        DateOnly today = DateOnly.FromDateTime(localNow);
+        if (!_entries.TryGetValue(key, out AppUsageEntry? stored))
+        {
+            return 0;
+        }
+
+        AppUsageEntry entry = WithoutFuture(stored, today);
+        return WeekStart(today) <= entry.Week ? entry.WeekSeconds : 0;
+    }
 
     /// <summary>Gets the seconds counted in the period a pool of <paramref name="mode"/> uses; 0 without a pool.</summary>
     public long Used(string key, AppBudgetMode mode, DateTime localNow) => mode switch
@@ -82,16 +102,36 @@ public sealed class AppUsageLedger(AppUsageState? initial = null)
         _entries[to] = _entries.TryGetValue(to, out AppUsageEntry? existing) ? Merge(existing, moved) : moved;
     }
 
-    /// <summary>Forgets the entries that are stale for both the day and the week; entries of apps without a rule are kept until then.</summary>
+    /// <summary>Forgets the entries that are stale for both the day and the week (entries of apps without a rule are kept until then) and resets the counters whose key is ahead.</summary>
     /// <param name="localNow">Local wall-clock time.</param>
     public void Prune(DateTime localNow)
     {
         DateOnly today = DateOnly.FromDateTime(localNow);
         DateOnly week = WeekStart(today);
-        foreach (string key in _entries.Where(p => p.Value.Day < today && p.Value.Week < week).Select(static p => p.Key).ToList())
+        foreach ((string key, AppUsageEntry stored) in _entries.ToList())
         {
-            _ = _entries.Remove(key);
+            AppUsageEntry entry = WithoutFuture(stored, today);
+            if (entry.Day < today && entry.Week < week)
+            {
+                _ = _entries.Remove(key);
+            }
+            else
+            {
+                _entries[key] = entry;
+            }
         }
+    }
+
+    /// <summary>Resets the day or the week counter whose key is further ahead than tomorrow (the day's tolerance for a clock that moved back).</summary>
+    private static AppUsageEntry WithoutFuture(AppUsageEntry entry, DateOnly today)
+    {
+        DateOnly tomorrow = today.AddDays(1);
+        if (entry.Day > tomorrow)
+        {
+            entry = entry with { Day = today, DaySeconds = 0 };
+        }
+
+        return entry.Week > WeekStart(tomorrow) ? entry with { Week = WeekStart(today), WeekSeconds = 0 } : entry;
     }
 
     private static AppUsageEntry Merge(AppUsageEntry a, AppUsageEntry b)
