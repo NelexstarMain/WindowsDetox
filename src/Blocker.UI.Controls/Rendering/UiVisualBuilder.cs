@@ -74,6 +74,7 @@ internal sealed class UiVisualBuilder
         UiHeatmap heatmap => BuildHeatmap(heatmap),
         UiMonthGrid month => BuildMonthGrid(month),
         UiTimeGrid timeGrid => BuildTimeGrid(timeGrid),
+        UiScene scene => new SceneElement(scene, _raise, _timeGridState.SceneTurns),
         UiGlyph glyph => BuildGlyph(glyph),
         UiTable table => BuildTable(table),
         UiButton button => BuildButton(button),

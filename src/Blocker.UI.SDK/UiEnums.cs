@@ -252,4 +252,7 @@ public enum UiActionKind
 
     /// <summary>A block of a <see cref="UiTimeGrid"/> was created, moved or resized; <c>FormValues</c> holds <c>day</c>, <c>start</c> and <c>end</c>.</summary>
     Schedule,
+
+    /// <summary>An empty tile of a <see cref="UiScene"/> with <c>AllowPick</c> was clicked; <c>FormValues</c> holds <c>column</c> and <c>row</c>.</summary>
+    Pick,
 }
