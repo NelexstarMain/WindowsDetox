@@ -166,7 +166,7 @@ public sealed class ForestTests
 
         ForestView view = (await LoadAsync(ctx)).GetView();
         Assert.Equal(0, view.Coins);
-        Assert.Empty(view.Objects);
+        Assert.True(Assert.Single(view.Objects).Growing);   // the running session's sapling is untouched
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public sealed class ForestTests
     // ---- placement and moving ------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task New_plants_spiral_out_from_the_centre()
+    public async Task New_plants_are_placed_by_the_layout_and_never_move_when_another_one_is_added()
     {
         ForestStore store = await NewStoreAsync();
 
@@ -351,9 +351,13 @@ public sealed class ForestTests
             await GiveCoinsAsync(store, 10);
         }
 
-        Assert.Equal(
-            [(2, 2), (3, 2), (2, 3), (3, 3), (2, 1), (3, 1)],
-            store.GetView().Objects.Select(o => (o.Column, o.Row)).ToArray());
+        ForestView before = store.GetView();
+        await GiveCoinsAsync(store, 10);
+        ForestView after = store.GetView();
+
+        Assert.Equal(6, before.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
+        Assert.DoesNotContain(before.Objects, o => (o.Column, o.Row) == (before.Size / 2, before.Size / 2));
+        Assert.Equal(before.Objects.Select(o => (o.Id, o.Column, o.Row)), after.Objects.Take(6).Select(o => (o.Id, o.Column, o.Row)));
     }
 
     [Fact]
@@ -363,14 +367,20 @@ public sealed class ForestTests
         await GiveCoinsAsync(store, 130);
         await store.BuyDecorationAsync("bench", CancellationToken.None);
 
+        ForestObject oak = store.GetView().Objects.Single();
+        int size = store.GetView().Size;
+        (int column, int row) = (oak.Column == 0 && oak.Row == 0) ? (1, 0) : (0, 0);
+
         store.TogglePlacing("bench");
         Assert.True(store.GetView().IsPicking);
-        Assert.False(await store.PickAsync(2, 2, CancellationToken.None));   // occupied by the oak
-        Assert.False(await store.PickAsync(6, 0, CancellationToken.None));   // outside the field
-        Assert.True(await store.PickAsync(0, 0, CancellationToken.None));
+        Assert.False(await store.PickAsync(oak.Column, oak.Row, CancellationToken.None));   // occupied by the oak
+        Assert.False(await store.PickAsync(size / 2, size / 2, CancellationToken.None));    // the plaza belongs to the village
+        Assert.False(await store.PickAsync(size, 0, CancellationToken.None));               // outside the field
+        Assert.True(await store.PickAsync(column, row, CancellationToken.None));
 
         ForestView view = store.GetView();
-        Assert.Equal("bench", ObjectAt(view, 0, 0).Species);
+        Assert.Equal("bench", ObjectAt(view, column, row).Species);
+        Assert.True(ObjectAt(view, column, row).Pinned);
         Assert.Empty(view.Inventory);
         Assert.False(view.IsPicking);
     }
@@ -452,30 +462,34 @@ public sealed class ForestTests
     // ---- growing field -------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task The_field_grows_at_three_quarters_full_and_objects_stay_centred()
+    public async Task The_field_grows_when_less_than_a_third_of_it_would_stay_free_and_objects_keep_their_place()
     {
         ForestStore store = await NewStoreAsync();
-        for (int i = 0; i < 26; i++)
+        for (int i = 0; i < 20; i++)
         {
             await GiveCoinsAsync(store, 10);
         }
 
         ForestView before = store.GetView();
         Assert.Equal(6, before.Size);
-        (int column, int row) first = (before.Objects[0].Column, before.Objects[0].Row);
+        (int, int)[] tiles = [.. before.Objects.Select(o => (o.Column, o.Row))];
 
-        await GiveCoinsAsync(store, 10);
+        for (int i = 0; i < 6; i++)
+        {
+            await GiveCoinsAsync(store, 10);
+        }
 
         ForestView after = store.GetView();
         Assert.Equal(8, after.Size);
-        Assert.Equal(27, after.Objects.Count);
-        Assert.Equal((first.column + 1, first.row + 1), (after.Objects[0].Column, after.Objects[0].Row));
+        Assert.Equal(26, after.Objects.Count);
+        Assert.Equal(tiles.Select(t => (t.Item1 + 1, t.Item2 + 1)), after.Objects.Take(20).Select(o => (o.Column, o.Row)));
+        Assert.Equal(26, after.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
         Assert.All(after.Objects, o => Assert.InRange(o.Column, 0, 7));
-        Assert.Equal(27, after.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
+        Assert.True(after.Objects.Count + after.Paths.Count <= after.Size * after.Size * 0.65);
     }
 
     [Fact]
-    public async Task The_field_stops_at_sixteen_and_the_object_count_is_bounded()
+    public async Task The_field_stops_at_sixteen_and_the_forest_stops_taking_plants_when_it_is_full()
     {
         FakePluginContext ctx = await StartAsync();
         for (int i = 0; i < ForestLimits.MaxObjects + 4; i++)
@@ -486,9 +500,331 @@ public sealed class ForestTests
         ForestView view = (await LoadAsync(ctx)).GetView();
 
         Assert.Equal(ForestLimits.MaxSize, view.Size);
-        Assert.Equal(ForestLimits.MaxObjects, view.Objects.Count);
+        Assert.Equal((ForestLimits.MaxSize * ForestLimits.MaxSize) - 1, view.Objects.Count);   // every tile but the plaza
+        Assert.Equal(view.Objects.Count, view.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
         Assert.Contains(ctx.FakeLogger.Entries, e => e.Level == PluginLogLevel.Warning);
         Assert.True(UiTreeValidator.Validate(await RenderPageAsync(ctx)).IsValid);
+    }
+
+    // ---- village: paths, pins, arranging -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_removed_decoration_returns_to_the_inventory_without_refund_and_its_path_goes_away()
+    {
+        ForestStore store = await NewStoreAsync();
+        await GiveCoinsAsync(store, 400);
+        await store.BuyDecorationAsync("well", CancellationToken.None);
+        (int column, int row) = await PlaceAsync(store, "well", 0, 0);
+        int coins = store.GetView().Coins;
+        int wellId = store.GetView().Objects.Single(o => (o.Column, o.Row) == (column, row)).Id;
+        int paths = store.GetView().Paths.Count;
+        Assert.True(paths > 1);
+
+        Assert.True(await store.RemoveDecorationAsync(wellId, CancellationToken.None));
+
+        ForestView view = store.GetView();
+        Assert.DoesNotContain(view.Objects, o => o.Id == wellId);
+        Assert.Equal(1, view.Inventory["well"]);
+        Assert.Equal(coins, view.Coins);
+        Assert.Single(view.Paths);   // only the plaza is left
+    }
+
+    [Fact]
+    public async Task Removing_a_plant_or_an_unknown_id_as_a_decoration_does_nothing()
+    {
+        ForestStore store = await NewStoreAsync();
+        await GiveCoinsAsync(store, 30);
+        int plantId = store.GetView().Objects.Single().Id;
+
+        Assert.False(await store.RemoveDecorationAsync(plantId, CancellationToken.None));
+        Assert.False(await store.RemoveDecorationAsync(9999, CancellationToken.None));
+
+        Assert.Single(store.GetView().Objects);
+        Assert.Empty(store.GetView().Inventory);
+    }
+
+    private static async Task<ForestStore> VillageAsync()
+    {
+        ForestStore store = await NewStoreAsync();
+        await GiveCoinsAsync(store, 2000);
+        foreach (string decoration in new[] { "bench", "lantern", "flowers", "well", "pond", "cabin" })
+        {
+            await store.BuyDecorationAsync(decoration, CancellationToken.None);
+        }
+
+        for (int i = 0; i < 8; i++)
+        {
+            await GiveCoinsAsync(store, 30);
+        }
+
+        return store;
+    }
+
+    // The free tile (not the plaza) nearest to the wanted one.
+    private static (int Column, int Row) FreeTileNear(ForestView view, int column, int row)
+    {
+        HashSet<(int, int)> taken = [.. view.Objects.Select(o => (o.Column, o.Row)), (view.Size / 2, view.Size / 2)];
+        return Enumerable.Range(0, view.Size * view.Size)
+            .Select(i => (Column: i % view.Size, Row: i / view.Size))
+            .Where(t => !taken.Contains(t))
+            .OrderBy(t => Math.Abs(t.Column - column) + Math.Abs(t.Row - row))
+            .First();
+    }
+
+    private static async Task<(int Column, int Row)> PlaceAsync(ForestStore store, string decoration, int column, int row)
+    {
+        (int Column, int Row) tile = FreeTileNear(store.GetView(), column, row);
+        store.TogglePlacing(decoration);
+        Assert.True(await store.PickAsync(tile.Column, tile.Row, CancellationToken.None));
+        return tile;
+    }
+
+    private static HashSet<(int, int)> PathTilesOf(ForestView view) => [.. view.Paths.Select(p => (p.Column, p.Row))];
+
+    [Fact]
+    public async Task Decorations_get_paths_that_lead_to_the_plaza_and_plants_keep_off_them()
+    {
+        ForestStore store = await VillageAsync();
+        await PlaceAsync(store, "cabin", 0, 0);
+        await PlaceAsync(store, "well", 1, 5);
+
+        ForestView view = store.GetView();
+
+        HashSet<(int, int)> paths = PathTilesOf(view);
+        Assert.Contains((view.Size / 2, view.Size / 2), paths);
+        Assert.DoesNotContain(view.Objects, o => paths.Contains((o.Column, o.Row)));
+        foreach (ForestObject decoration in view.Objects.Where(o => ForestCatalog.Find(o.Species)!.Kind == ForestKind.Decoration))
+        {
+            Assert.True(new[] { (1, 0), (-1, 0), (0, 1), (0, -1) }.Any(d => paths.Contains((decoration.Column + d.Item1, decoration.Row + d.Item2))), decoration.Species);
+        }
+    }
+
+    [Fact]
+    public async Task A_manual_move_pins_the_object_and_paths_route_around_it()
+    {
+        ForestStore store = await VillageAsync();
+        ForestObject tree = store.GetView().Objects.First();
+        (int column, int row) = FreeTileNear(store.GetView(), 0, 5);
+        store.ToggleSelect(tree.Id);
+
+        Assert.True(await store.PickAsync(column, row, CancellationToken.None));
+
+        ForestView view = store.GetView();
+        ForestObject moved = view.Objects.Single(o => o.Id == tree.Id);
+        Assert.Equal((column, row, true), (moved.Column, moved.Row, moved.Pinned));
+        Assert.DoesNotContain((column, row), PathTilesOf(view));
+        Assert.Single(view.Objects, o => o.Pinned);
+    }
+
+    [Fact]
+    public async Task Arranging_lays_out_the_unpinned_objects_again_and_keeps_the_pinned_ones()
+    {
+        ForestStore store = await VillageAsync();
+        int pinnedId = store.GetView().Objects.First().Id;
+        (int column, int row) = FreeTileNear(store.GetView(), 0, 5);
+        store.ToggleSelect(pinnedId);
+        await store.PickAsync(column, row, CancellationToken.None);
+        ForestView before = store.GetView();
+
+        Assert.True(await store.ArrangeAsync(unpinAll: false, CancellationToken.None));
+
+        ForestView after = store.GetView();
+        ForestObject pinned = after.Objects.Single(o => o.Id == pinnedId);
+        Assert.Equal((column, row, true), (pinned.Column, pinned.Row, pinned.Pinned));
+        Assert.Equal(before.Objects.Count, after.Objects.Count);
+        Assert.Equal(after.Objects.Count, after.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
+        Assert.DoesNotContain(after.Objects, o => PathTilesOf(after).Contains((o.Column, o.Row)));
+    }
+
+    [Fact]
+    public async Task Arranging_with_unpin_all_releases_every_pin_and_equals_a_fresh_layout_of_the_same_objects()
+    {
+        ForestStore store = await VillageAsync();
+        await PlaceAsync(store, "cabin", 0, 0);
+        await store.SetPinnedAsync(store.GetView().Objects.First().Id.ToString(), true, CancellationToken.None);
+
+        Assert.True(await store.ArrangeAsync(unpinAll: true, CancellationToken.None));
+
+        ForestView view = store.GetView();
+        Assert.All(view.Objects, o => Assert.False(o.Pinned));
+        WorldObject[] world = [.. view.Objects.Select(o => new WorldObject(o.Id, o.Species, ForestCatalog.Find(o.Species)!.Kind, o.StageValue, null, false))];
+        WorldLayout fresh = ForestWorld.Arrange(ForestLimits.StartSize, world);
+        Assert.Equal(fresh.Size, view.Size);
+        Assert.Equal(view.Objects.Select(o => fresh.Positions[o.Id]), view.Objects.Select(o => new GridTile(o.Column, o.Row)));
+        Assert.Equal(fresh.Paths, view.Paths);
+    }
+
+    // ---- growing sapling -----------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Starting_a_session_plants_a_growing_sapling_of_the_chosen_species_that_grows_up_on_completion()
+    {
+        FakePluginContext ctx = await StartAsync();
+        ForestStore store = await LoadAsync(ctx);
+        await GiveCoinsAsync(store, 400);
+        await store.UnlockAsync("birch", CancellationToken.None);
+        await store.SelectSpeciesAsync("birch", CancellationToken.None);
+        int before = store.GetView().Objects.Count;
+        Guid id = Guid.NewGuid();
+
+        await store.OnSessionStartedAsync(new SessionStarted(id, TimeSpan.FromMinutes(60), SessionStart), CancellationToken.None);
+
+        ForestView running = store.GetView();
+        ForestObject sapling = running.Objects.Single(o => o.Growing);
+        Assert.Equal(before + 1, running.Objects.Count);
+        Assert.Equal(("birch", ForestStage.Sapling, false), (sapling.Species, sapling.StageValue, sapling.Pinned));
+        Assert.DoesNotContain(PathTilesOf(running), t => t == (sapling.Column, sapling.Row));
+
+        await store.OnSessionEndedAsync(new SessionEnded(id, SessionEndReason.Expired, SessionStart.AddMinutes(60)), CancellationToken.None);
+
+        ForestView done = store.GetView();
+        ForestObject grown = done.Objects.Single(o => o.Id == sapling.Id);
+        Assert.Equal(before + 1, done.Objects.Count);
+        Assert.Equal((false, ForestStage.Mature, 60, sapling.Column, sapling.Row), (grown.Growing, grown.StageValue, grown.Minutes, grown.Column, grown.Row));
+    }
+
+    [Fact]
+    public async Task Break_glass_withers_the_growing_sapling_and_any_other_end_takes_it_away()
+    {
+        ForestStore store = await NewStoreAsync();
+        Guid first = Guid.NewGuid();
+        await store.OnSessionStartedAsync(new SessionStarted(first, TimeSpan.FromMinutes(60), SessionStart), CancellationToken.None);
+        int saplingId = store.GetView().Objects.Single().Id;
+
+        await store.OnSessionEndedAsync(new SessionEnded(first, SessionEndReason.BreakGlass, SessionStart.AddMinutes(20)), CancellationToken.None);
+
+        ForestObject withered = Assert.Single(store.GetView().Objects);
+        Assert.Equal((saplingId, ForestStage.Withered, 20, false), (withered.Id, withered.StageValue, withered.Minutes, withered.Growing));
+
+        Guid second = Guid.NewGuid();
+        await store.OnSessionStartedAsync(new SessionStarted(second, TimeSpan.FromMinutes(60), SessionStart), CancellationToken.None);
+        Assert.Equal(2, store.GetView().Objects.Count);
+        await store.OnSessionEndedAsync(new SessionEnded(second, SessionEndReason.DeveloperAbort, SessionStart.AddMinutes(5)), CancellationToken.None);
+
+        Assert.Equal([saplingId], store.GetView().Objects.Select(o => o.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task The_growing_sapling_survives_a_restart_and_a_new_start_replaces_a_stale_one()
+    {
+        FakePluginContext ctx = await StartAsync();
+        Guid id = Guid.NewGuid();
+        await ctx.PublishAsync(new SessionStarted(id, TimeSpan.FromMinutes(45), ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        ForestStore reloaded = await LoadAsync(ctx);
+        ForestObject sapling = reloaded.GetView().Objects.Single();
+        Assert.True(sapling.Growing);
+
+        await reloaded.OnSessionStartedAsync(new SessionStarted(Guid.NewGuid(), TimeSpan.FromMinutes(10), SessionStart), CancellationToken.None);
+
+        ForestObject replacement = reloaded.GetView().Objects.Single();
+        Assert.True(replacement.Growing);
+        Assert.NotEqual(sapling.Id, replacement.Id);
+    }
+
+    [Fact]
+    public async Task Resetting_during_a_session_plants_a_fresh_growing_sapling()
+    {
+        ForestStore store = await NewStoreAsync();
+        Guid id = Guid.NewGuid();
+        await store.OnSessionStartedAsync(new SessionStarted(id, TimeSpan.FromMinutes(30), SessionStart), CancellationToken.None);
+        await store.ResetAsync(CancellationToken.None);
+
+        Assert.True(Assert.Single(store.GetView().Objects).Growing);
+
+        await store.OnSessionEndedAsync(new SessionEnded(id, SessionEndReason.Expired, SessionStart.AddMinutes(30)), CancellationToken.None);
+
+        ForestObject grown = Assert.Single(store.GetView().Objects);
+        Assert.Equal((false, ForestStage.Young), (grown.Growing, grown.StageValue));
+    }
+
+    // ---- streak and persistence of the new fields ----------------------------------------------------------------
+
+    [Fact]
+    public async Task Consecutive_days_add_ten_percent_each_up_to_fifty_and_a_gap_starts_over()
+    {
+        FakePluginContext ctx = await StartAsync();
+        int[] earned = new int[8];
+        for (int day = 0; day < 8; day++)
+        {
+            int before = (await LoadAsync(ctx)).GetView().Coins;
+            await RunSessionAsync(ctx, 100);
+            earned[day] = (await LoadAsync(ctx)).GetView().Coins - before;
+            ctx.FakeTime.Advance(TimeSpan.FromHours(24) - TimeSpan.FromMinutes(100));
+        }
+
+        Assert.Equal([100, 110, 120, 130, 140, 150, 150, 150], earned);
+
+        ctx.FakeTime.Advance(TimeSpan.FromDays(2));
+        int coins = (await LoadAsync(ctx)).GetView().Coins;
+        await RunSessionAsync(ctx, 100);
+
+        ForestView view = (await LoadAsync(ctx)).GetView();
+        Assert.Equal(coins + 100, view.Coins);
+        Assert.Equal(1, view.Streak);
+    }
+
+    [Fact]
+    public async Task A_second_session_on_the_same_day_does_not_raise_the_streak()
+    {
+        ForestStore store = await NewStoreAsync();
+
+        await GiveCoinsAsync(store, 50);
+        await GiveCoinsAsync(store, 50);
+
+        Assert.Equal((100, 1), (store.GetView().Coins, store.GetView().Streak));
+    }
+
+    [Fact]
+    public async Task Pins_growing_flag_streak_and_plant_id_survive_a_restart()
+    {
+        FakePluginContext ctx = await StartAsync();
+        await RunSessionAsync(ctx, 60);
+        ForestStore first = await LoadAsync(ctx);
+        await first.OnSessionStartedAsync(new SessionStarted(Guid.NewGuid(), TimeSpan.FromMinutes(30), ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+        int pinnedId = first.GetView().Objects.First(o => !o.Growing).Id;
+        await first.SetPinnedAsync(pinnedId.ToString(), true, CancellationToken.None);
+
+        ForestView expected = first.GetView();
+        ForestView reloaded = (await LoadAsync(ctx)).GetView();
+
+        Assert.Equal(
+            expected.Objects.Select(o => (o.Id, o.Column, o.Row, o.Pinned, o.Growing)),
+            reloaded.Objects.Select(o => (o.Id, o.Column, o.Row, o.Pinned, o.Growing)));
+        Assert.Equal(expected.Paths, reloaded.Paths);
+        Assert.Equal(expected.Streak, reloaded.Streak);
+        Assert.Equal(expected.Size, reloaded.Size);
+        using JsonDocument doc = JsonDocument.Parse((await ctx.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None))!);
+        Assert.Contains(doc.RootElement.GetProperty("o").EnumerateArray(), o => o.TryGetProperty("pn", out JsonElement pn) && pn.GetBoolean());
+        Assert.Contains(doc.RootElement.GetProperty("o").EnumerateArray(), o => o.TryGetProperty("gw", out JsonElement gw) && gw.GetBoolean());
+        Assert.True(doc.RootElement.GetProperty("p").GetProperty("o").GetInt32() > 0);
+    }
+
+    [Fact]
+    public async Task Documents_written_before_paths_and_pins_load_and_are_laid_out_on_load()
+    {
+        const string json = """{"v":1,"c":40,"z":6,"n":4,"o":[{"i":1,"k":"oak","g":2,"c":3,"r":3,"m":50},{"i":2,"k":"pine","g":1,"c":1,"r":1,"m":30},{"i":3,"k":"bench","g":2,"c":2,"r":3}]}""";
+        FakePluginContext ctx = await StartAsync(c => c.Storage.WriteAsync(ForestStore.DataKey, json, CancellationToken.None));
+
+        ForestView view = (await LoadAsync(ctx)).GetView();
+
+        Assert.Equal(40, view.Coins);
+        Assert.Equal(3, view.Objects.Count);
+        Assert.All(view.Objects, o => Assert.False(o.Pinned || o.Growing));
+        Assert.Equal((1, 1), (view.Objects.Single(o => o.Id == 2).Column, view.Objects.Single(o => o.Id == 2).Row));   // kept: not on a path
+        Assert.DoesNotContain(view.Objects, o => PathTilesOf(view).Contains((o.Column, o.Row)));
+        Assert.Contains((view.Size / 2, view.Size / 2), PathTilesOf(view));
+    }
+
+    [Fact]
+    public async Task A_growing_flag_without_a_running_session_is_dropped_on_load()
+    {
+        const string json = """{"v":1,"o":[{"i":1,"k":"oak","g":0,"c":1,"r":1,"gw":true},{"i":2,"k":"pine","g":2,"c":2,"r":2}]}""";
+        FakePluginContext ctx = await StartAsync(c => c.Storage.WriteAsync(ForestStore.DataKey, json, CancellationToken.None));
+
+        ForestView view = (await LoadAsync(ctx)).GetView();
+
+        Assert.Equal([2], view.Objects.Select(o => o.Id).ToArray());
     }
 
     // ---- persistence ---------------------------------------------------------------------------------------------
@@ -611,87 +947,6 @@ public sealed class ForestTests
     // ---- page ----------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task The_page_shows_coins_scene_and_shop()
-    {
-        FakePluginContext ctx = await StartAsync();
-        await RunSessionAsync(ctx, 52);
-
-        UiPage page = await RenderPageAsync(ctx);
-
-        Assert.True(UiTreeValidator.Validate(page).IsValid);
-        Assert.Empty(Descendants(page).OfType<UiGlyph>());
-        UiStatTile coins = Descendants(page).OfType<UiStatTile>().First();
-        Assert.Equal(("Coins", "52"), (coins.Label, coins.Value));
-        UiScene garden = Garden(page);
-        Assert.Equal(720, garden.Height);
-        Assert.False(garden.AllowPick);
-        UiSceneItem item = Assert.Single(garden.Items);
-        Assert.Equal("Oak · 52 min · Jan 1", item.Label);
-        UiSceneModel model = Assert.Single(garden.Models);
-        Assert.Equal(item.Model, model.Key);
-        Assert.Contains(Descendants(page).OfType<UiCard>(), c => c is { Title: "Your forest", Subtitle: "Planting next: Oak" });
-    }
-
-    [Fact]
-    public async Task The_shop_lists_one_category_at_a_time_with_a_thumbnail_and_the_right_button_per_entry()
-    {
-        FakePluginContext ctx = await StartAsync();
-        await RunSessionAsync(ctx, 160);
-        IUiPagePlugin plugin = ctx.GetExtension<IUiPagePlugin>();
-
-        UiPage trees = await RenderPageAsync(ctx);
-
-        UiScene[] thumbnails = [.. Descendants(trees).OfType<UiScene>().Where(s => s.Id != ForestIds.Scene)];
-        Assert.Equal(ForestCatalog.All.Count(s => s.Kind == ForestKind.Tree), thumbnails.Length);
-        Assert.All(thumbnails, t => Assert.Equal((1, 1, false, false, 150d), (t.Columns, t.Rows, t.ShowGround, t.AllowRotate, t.Height)));
-        Assert.Equal(new UiButton("forest-select-oak", "Planting", UiButtonVariant.Primary, UiIcon.Checkmark, false), ButtonWithId(trees, "forest-select-oak"));
-        Assert.True(ButtonWithId(trees, "forest-select-pine").IsEnabled);
-        Assert.Equal("Unlock", ButtonWithId(trees, "forest-unlock-birch").Label);
-        Assert.True(ButtonWithId(trees, "forest-unlock-birch").IsEnabled);
-        Assert.False(ButtonWithId(trees, "forest-unlock-maple").IsEnabled);   // 250 coins
-
-        await ctx.SendActionAsync(plugin, UiAction.Click(ForestIds.ShopTab(ShopCategory.Decorations)), CancellationToken.None);
-        UiPage decorations = await RenderPageAsync(ctx);
-
-        Assert.Equal(ForestCatalog.All.Count(s => s.Kind == ForestKind.Decoration), Descendants(decorations).OfType<UiScene>().Count(s => s.Id != ForestIds.Scene));
-        Assert.True(ButtonWithId(decorations, "forest-buy-bench").IsEnabled);
-        Assert.False(ButtonWithId(decorations, "forest-buy-cabin").IsEnabled);
-
-        await ctx.SendActionAsync(plugin, UiAction.Click(ForestIds.ShopTab(ShopCategory.Bushes)), CancellationToken.None);
-
-        Assert.Equal("Select", ButtonWithId(await RenderPageAsync(ctx), "forest-select-bush").Label);
-    }
-
-    [Fact]
-    public async Task A_forest_with_every_species_and_stage_still_fits_the_document_limit()
-    {
-        List<string> objects = [];
-        int index = 0;
-        foreach (ForestSpecies species in ForestCatalog.All)
-        {
-            foreach (int stage in species.Kind == ForestKind.Decoration ? [2] : new[] { 0, 1, 2, 3, 4 })
-            {
-                objects.Add($$"""{"i":{{index + 1}},"k":"{{species.Id}}","g":{{stage}},"c":{{index % 10}},"r":{{index / 10}},"m":30}""");
-                index++;
-            }
-        }
-
-        string json = $$"""{"v":1,"z":10,"o":[{{string.Join(",", objects)}}]}""";
-        FakePluginContext ctx = await StartAsync(c => c.Storage.WriteAsync(ForestStore.DataKey, json, CancellationToken.None));
-
-        foreach (ShopCategory category in Enum.GetValues<ShopCategory>())
-        {
-            await ctx.SendActionAsync(ctx.GetExtension<IUiPagePlugin>(), UiAction.Click(ForestIds.ShopTab(category)), CancellationToken.None);
-            UiPage page = await RenderPageAsync(ctx);
-
-            Assert.True(UiTreeValidator.Validate(page).IsValid);
-            UiScene garden = Garden(page);
-            Assert.Equal(index, garden.Items.Count);
-            Assert.All(garden.Items, i => Assert.Contains(garden.Models, m => m.Key == i.Model));
-        }
-    }
-
-    [Fact]
     public async Task Shop_actions_unlock_select_and_buy_through_the_page()
     {
         FakePluginContext ctx = await StartAsync();
@@ -713,80 +968,6 @@ public sealed class ForestTests
         Assert.Empty(view.Inventory);
         UiButton buy = ButtonWithId(await RenderPageAsync(ctx), "forest-buy-rock");
         Assert.False(buy.IsEnabled);
-    }
-
-    [Fact]
-    public async Task Moving_through_the_page_selects_then_picks_and_cancel_clears()
-    {
-        FakePluginContext ctx = await StartAsync();
-        await RunSessionAsync(ctx, 30);
-        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.RenderAsync(page, CancellationToken.None);
-        string objectId = ForestIds.ObjectPrefix + "1";
-
-        await ctx.SendActionAsync(page, UiAction.Click(objectId), CancellationToken.None);
-        UiPage selected = await RenderPageAsync(ctx);
-        Assert.True(Garden(selected).AllowPick);
-        Assert.True(Assert.Single(Garden(selected).Items).IsSelected);
-        Assert.NotNull(ButtonWithId(selected, ForestIds.Cancel));
-
-        await ctx.SendActionAsync(page, UiAction.Click(ForestIds.Cancel), CancellationToken.None);
-        Assert.False(Garden(await RenderPageAsync(ctx)).AllowPick);
-
-        await ctx.SendActionAsync(page, UiAction.Click(objectId), CancellationToken.None);
-        await ctx.SendActionAsync(page, Pick(4, 1), CancellationToken.None);
-        await ctx.SendActionAsync(page, new UiAction(ForestIds.Scene, UiActionKind.Pick, null, new Dictionary<string, string> { ["column"] = "x", ["row"] = "-1" }), CancellationToken.None);
-
-        UiSceneItem moved = Assert.Single(Garden(await RenderPageAsync(ctx)).Items);
-        Assert.Equal((4, 1, false), (moved.Column, moved.Row, moved.IsSelected));
-    }
-
-    [Fact]
-    public async Task A_selected_withered_tree_offers_removal_that_needs_the_fee()
-    {
-        FakePluginContext ctx = await StartAsync();
-        await RunSessionAsync(ctx, 30, SessionEndReason.BreakGlass);
-        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.RenderAsync(page, CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click(ForestIds.ObjectPrefix + "1"), CancellationToken.None);
-
-        UiPage withCoinsMissing = await RenderPageAsync(ctx);
-        Assert.False(ButtonWithId(withCoinsMissing, ForestIds.Remove).IsEnabled);
-        Assert.Equal("Withered Oak · 30 min · Jan 1", Assert.Single(Garden(withCoinsMissing).Items).Label);
-
-        await ctx.SendActionAsync(page, UiAction.Click(ForestIds.Remove), CancellationToken.None);
-        Assert.Single((await LoadAsync(ctx)).GetView().Objects);
-
-        await RunSessionAsync(ctx, 30);
-        await ctx.SendActionAsync(page, UiAction.Click(ForestIds.Remove), CancellationToken.None);
-
-        ForestView view = (await LoadAsync(ctx)).GetView();
-        Assert.Equal(30 - ForestLimits.WitheredRemovalFee, view.Coins);
-        Assert.Equal(ForestStage.Young, Assert.Single(view.Objects).StageValue);
-    }
-
-    [Fact]
-    public async Task Choosing_an_owned_decoration_places_it_on_the_next_picked_tile()
-    {
-        FakePluginContext ctx = await StartAsync();
-        await RunSessionAsync(ctx, 60);
-        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.RenderAsync(page, CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click("forest-buy-mushrooms"), CancellationToken.None);
-
-        UiPage inventory = await RenderPageAsync(ctx);
-        UiButton entry = ButtonWithId(inventory, "forest-place-mushrooms");
-        Assert.Equal("Mushrooms ×1", entry.Label);
-
-        await ctx.SendActionAsync(page, UiAction.Click("forest-place-mushrooms"), CancellationToken.None);
-        Assert.True(Garden(await RenderPageAsync(ctx)).AllowPick);
-
-        await ctx.SendActionAsync(page, Pick(0, 5), CancellationToken.None);
-
-        UiPage done = await RenderPageAsync(ctx);
-        Assert.Contains(Garden(done).Items, i => i is { Column: 0, Row: 5 } && i.Model == "mushrooms" && i.Label == "Mushrooms");
-        Assert.DoesNotContain(Descendants(done).OfType<UiButton>(), b => b.Id == "forest-place-mushrooms");
-        Assert.True(UiTreeValidator.Validate(done).IsValid);
     }
 
     [Fact]
@@ -813,7 +994,7 @@ public sealed class ForestTests
             UiPage page = Ui.Page("Forest", [.. ForestLayout.Body(view, TimeZoneInfo.Utc, false, category)]);
             UiScene garden = Descendants(page).OfType<UiScene>().Single(s => s.Id == ForestIds.Scene);
 
-            Assert.Equal(view.Objects.Count, garden.Items.Count);
+            Assert.Equal(view.Objects.Count, garden.Items.Count(i => i.Id.StartsWith(ForestIds.ObjectPrefix, StringComparison.Ordinal)));
             foreach (ForestObject o in view.Objects)
             {
                 UiSceneItem item = garden.Items.Single(i => i.Id == ForestIds.ObjectPrefix + o.Id);

@@ -6,7 +6,7 @@
   "description": "Every finished detox session earns coins and plants a tree in your own isometric forest; spend coins on new trees, bushes and decorations.",
   "sdkVersion": "1.0",
   "entryType": "FocusForest.ForestPlugin",
-  "icon": "M50 4 A46 46 0 1 1 50 96 A46 46 0 1 1 50 4 Z M50 12 A38 38 0 1 0 50 88 A38 38 0 1 0 50 12 Z M50 24 L63 42 H57 L70 62 H30 L43 42 H37 Z M45 70 H55 V80 H45 Z",
+  "icon": "M87.68 23.62 A46 46 0 1 1 54.01 4.17 L53.31 12.14 A38 38 0 1 0 81.13 28.2 Z M50 20 L64 38 H58 L70 54 H62 L74 70 H55 V80 H45 V70 H26 L38 54 H30 L42 38 H36 Z",
   "capabilities": [
     "events.session",
     "ui.page",

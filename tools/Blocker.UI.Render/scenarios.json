@@ -21,8 +21,11 @@
     { "name": "calendar-multiselect", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" }, { "action": "cal-ev-5-739943-0", "kind": "click", "args": { "extend": "true" } } ] },
     { "name": "goals", "target": "plugin:goals", "size": [1280, 1200] },
     { "name": "insights", "target": "plugin:insights", "size": [1280, 1800] },
-    { "name": "forest", "target": "plugin:forest", "size": [1280, 1900] },
-    { "name": "forest-select", "target": "plugin:forest", "size": [1280, 1000], "steps": [ { "action": "forest-obj-30" } ] },
+    { "name": "forest", "target": "plugin:forest", "size": [1280, 2600] },
+    { "name": "forest-select", "target": "plugin:forest", "size": [1280, 1500], "steps": [ { "action": "forest-obj-30" } ] },
+    { "name": "forest-move", "target": "plugin:forest", "size": [1280, 1500], "steps": [ { "action": "forest-obj-30" }, { "action": "forest-move" } ] },
+    { "name": "forest-shop", "target": "plugin:forest", "size": [1280, 2600], "steps": [ { "action": "forest-shop-decorations" } ] },
+    { "name": "forest-empty", "target": "gallery:forest:0:165:2:empty", "size": [1280, 1700] },
     { "name": "goals-complete", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-done-29", "kind": "toggle", "value": "true" }, { "action": "goals-done-30", "kind": "toggle", "value": "true" } ] },
     { "name": "goals-add", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-add", "args": { "goals-add-text": "Prepare quarterly planning notes" } } ] },
     { "name": "goals-goal-up", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-goal-up" }, { "action": "goals-goal-up" } ] },
@@ -38,10 +41,10 @@
     { "name": "anim-allowlist-select", "target": "main:allowlist", "size": [1280, 1000], "animate": true, "steps": [ { "move": [300, 310] }, { "click": [300, 310] }, { "wait": 200 }, { "click": [410, 310] }, { "wait": 200 }, { "click": [300, 310] }, { "wait": 300 } ] },
     { "name": "anim-shell-nav", "target": "main:dashboard", "size": [1280, 1000], "animate": true, "steps": [ { "move": [70, 124] }, { "click": [70, 124] }, { "click": [63, 271] }, { "click": [70, 313] }, { "click": [70, 376] }, { "click": [70, 1272] }, { "click": [70, 229] }, { "click": [70, 82] } ] },
     { "name": "anim-settings-click", "target": "main:settings", "size": [1280, 1100], "animate": true, "steps": [ { "click": [954, 321] }, { "click": [336, 546] }, { "wait": 300 }, { "click": [336, 546] }, { "wait": 300 }, { "click": [317, 775] }, { "click": [317, 775] } ] },
-    { "name": "anim-insights-hover", "target": "plugin:insights", "size": [1280, 1300], "animate": true, "steps": [ { "action": "insights-tab-stats" }, { "move": [441, 410] }, { "move": [400, 800] }, { "move": [862, 770] }, { "move": [650, 1034] }, { "move": [790, 1084] } ] },
+    { "name": "anim-insights-hover", "target": "plugin:insights", "size": [1280, 1300], "animate": true, "steps": [ { "move": [441, 410] }, { "move": [400, 800] }, { "move": [862, 770] }, { "move": [650, 1034] }, { "move": [790, 1084] } ] },
     { "name": "dashboard-session-narrow", "target": "main:dashboard", "size": [820, 1000], "session": "active" },
     { "name": "anim-wheel-goals", "target": "plugin:goals", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [750, 475, -360] }, { "wheel": [750, 475, -360] }, { "wheel": [750, 475, 360] } ] },
-    { "name": "anim-wheel-insights", "target": "plugin:insights", "size": [1280, 800], "animate": true, "steps": [ { "action": "insights-tab-stats" }, { "wheel": [470, 425, -360] }, { "wheel": [470, 425, -360] }, { "wheel": [470, 425, 360] } ] },
+    { "name": "anim-wheel-insights", "target": "plugin:insights", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [470, 425, -360] }, { "wheel": [470, 425, -360] }, { "wheel": [470, 425, 360] } ] },
     { "name": "anim-wheel-settings", "target": "main:settings", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [450, 375, -360] }, { "wheel": [450, 375, -360] }, { "wheel": [450, 375, 360] } ] },
     { "name": "anim-wheel-allowlist", "target": "main:allowlist", "size": [1280, 560], "animate": true, "steps": [ { "wheel": [407, 412, -360] }, { "wheel": [407, 412, -360] }, { "wheel": [407, 412, 360] } ] },
     { "name": "anim-wheel-plugins", "target": "main:plugins", "size": [1280, 520], "animate": true, "steps": [ { "wheel": [500, 325, -360] }, { "wheel": [500, 325, -360] }, { "wheel": [500, 325, 360] } ] },
@@ -50,6 +53,8 @@
     ,{ "name": "plugins-narrow", "target": "main:plugins", "size": [900, 800] }
     ,{ "name": "forest-example", "target": "gallery:forest:0:165:2:example", "size": [1280, 1900] }
     ,{ "name": "forest-models", "target": "gallery:forest", "size": [1900, 1700] }
+    ,{ "name": "forest-paths", "target": "gallery:forest:0:165:2:paths", "size": [1400, 1100] }
+    ,{ "name": "forest-world", "target": "gallery:forest:0:165:2:world", "size": [1400, 1100] }
     ,{ "name": "forest-models-back", "target": "gallery:forest:2", "size": [1900, 1700] }
   ]
 }

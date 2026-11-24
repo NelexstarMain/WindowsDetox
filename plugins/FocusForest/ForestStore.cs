@@ -3,6 +3,9 @@
 // A completed session earns coins and plants one tree or bush; a session ended with break-glass plants a withered one.
 // The state is small and bounded (at most 16 x 16 objects), kept in memory and written through to plugin storage after
 // every change. Selection state (which object is being moved, which decoration is being placed) is never persisted.
+//
+// Positions come from ForestWorld: a new object is placed by the layout, a manual move pins the object where the user put it,
+// and the path tiles are derived from the objects (never stored). A running session shows as a growing sapling.
 
 using System.IO;
 using System.Text.Json;
@@ -25,7 +28,7 @@ public static class ForestLimits
     /// <summary>How much the edge grows when the field fills up; objects stay centred.</summary>
     public const int GrowStep = 2;
 
-    /// <summary>Hard cap of stored objects (a full maximum field).</summary>
+    /// <summary>Hard cap of stored objects; in practice the paths and the free share of a field allow fewer.</summary>
     public const int MaxObjects = MaxSize * MaxSize;
 
     /// <summary>Coins charged for removing a withered plant.</summary>
@@ -42,6 +45,12 @@ public static class ForestLimits
 
     /// <summary>Longest session length that is stored for a plant.</summary>
     public const int MaxMinutes = 7 * 24 * 60;
+
+    /// <summary>Extra coins per consecutive day of completed sessions, in percent of the session's minutes.</summary>
+    public const int StreakBonusStepPercent = 10;
+
+    /// <summary>Largest streak bonus, in percent.</summary>
+    public const int StreakBonusMaxPercent = 50;
 }
 
 /// <summary>One plant or decoration standing on the field. Short JSON names keep the stored data compact.</summary>
@@ -75,6 +84,14 @@ public sealed class ForestObject
     [JsonPropertyName("m")]
     public int Minutes { get; set; }
 
+    /// <summary>The user put it here: the layout never moves it and paths route around it.</summary>
+    [JsonPropertyName("pn")]
+    public bool Pinned { get; set; }
+
+    /// <summary>A sapling that stands for the running session; it grows up when the session completes.</summary>
+    [JsonPropertyName("gw")]
+    public bool Growing { get; set; }
+
     /// <summary>The stage as an enum.</summary>
     [JsonIgnore]
     public ForestStage StageValue => (ForestStage)Stage;
@@ -96,6 +113,10 @@ public sealed class PendingSession
     /// <summary>Planned length in seconds.</summary>
     [JsonPropertyName("p")]
     public int Planned { get; set; }
+
+    /// <summary>Id of the growing sapling that stands for this session (0: none).</summary>
+    [JsonPropertyName("o")]
+    public int PlantId { get; set; }
 }
 
 /// <summary>The persisted document.</summary>
@@ -139,6 +160,14 @@ public sealed class ForestData
     /// <summary>Running session, if any.</summary>
     [JsonPropertyName("p")]
     public PendingSession? Pending { get; set; }
+
+    /// <summary>Consecutive days with a completed session, up to <see cref="LastDay"/>.</summary>
+    [JsonPropertyName("sk")]
+    public int Streak { get; set; }
+
+    /// <summary>Local day number of the last completed session (0: none).</summary>
+    [JsonPropertyName("ld")]
+    public int LastDay { get; set; }
 }
 
 /// <summary>An immutable snapshot of the forest for rendering.</summary>
@@ -152,6 +181,12 @@ public sealed record ForestView(
     int? SelectedObject,
     string? PlacingDecoration)
 {
+    /// <summary>The path tiles of the village, derived from the objects.</summary>
+    public IReadOnlyList<ForestPathTile> Paths { get; init; } = [];
+
+    /// <summary>Consecutive days with a completed session as of the last one.</summary>
+    public int Streak { get; init; }
+
     /// <summary>Whether a click on an empty tile would do something.</summary>
     public bool IsPicking => SelectedObject is not null || PlacingDecoration is not null;
 }
@@ -175,6 +210,7 @@ public sealed class ForestStore
     private readonly object _gate = new();
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private ForestData _data = Fresh();
+    private IReadOnlyList<ForestPathTile> _paths = [];
     private bool _readOnly;
     private int? _selectedObject;
     private string? _placingDecoration;
@@ -236,6 +272,8 @@ public sealed class ForestStore
         {
             _readOnly = readOnly;
             _data = Sanitize(loaded);
+            _paths = [];
+            TryLayout(keepUnpinned: true);
         }
     }
 
@@ -252,30 +290,37 @@ public sealed class ForestStore
                 _data.Size,
                 [.. _data.Objects.Select(o => o.Clone())],
                 _selectedObject,
-                _placingDecoration);
+                _placingDecoration)
+            {
+                Paths = _paths,
+                Streak = _data.Streak,
+            };
         }
     }
 
-    /// <summary>Remembers a started session.</summary>
+    /// <summary>Remembers a started session and plants a growing sapling of the chosen species for it.</summary>
     public async ValueTask OnSessionStartedAsync(SessionStarted started, CancellationToken cancellationToken)
     {
         lock (_gate)
         {
+            _data.Objects.RemoveAll(o => o.Growing);   // a start without an end leaves its sapling behind
             _data.Pending = new PendingSession
             {
                 Id = started.SessionId.ToString("N"),
                 Start = started.OccurredAt.ToUnixTimeSeconds(),
                 Planned = ClampSeconds(started.PlannedDuration),
             };
+            PlantGrowingSapling();
         }
 
         await PersistAsync(cancellationToken);
+        Changed?.Invoke();
     }
 
     /// <summary>
-    /// Applies a finished session: running to its planned end earns one coin per minute and plants the chosen species at the
-    /// stage of its length, break-glass plants a withered one, anything else changes nothing. Ends without a matching start
-    /// (plugin installed mid-session) are ignored.
+    /// Applies a finished session: running to its planned end earns one coin per minute (plus the streak bonus) and grows the sapling to
+    /// the stage of its length, break-glass withers it, anything else takes it away. Ends without a matching start (plugin installed
+    /// mid-session) are ignored.
     /// </summary>
     public async ValueTask OnSessionEndedAsync(SessionEnded ended, CancellationToken cancellationToken)
     {
@@ -287,19 +332,31 @@ public sealed class ForestStore
             }
 
             _data.Pending = null;
+            ForestObject? sapling = _data.Objects.FirstOrDefault(o => o.Growing && o.Id == pending.PlantId);
             if (ended.Reason is SessionEndReason.Expired or SessionEndReason.BreakGlass)
             {
                 int minutes = Math.Clamp(ClampSeconds(ended.OccurredAt - DateTimeOffset.FromUnixTimeSeconds(pending.Start)) / 60, 0, ForestLimits.MaxMinutes);
                 bool completed = ended.Reason == SessionEndReason.Expired;
                 if (completed)
                 {
-                    _data.Coins = (int)Math.Min((long)_data.Coins + minutes, ForestLimits.MaxCoins);
+                    _data.Coins = (int)Math.Min((long)_data.Coins + EarnedCoins(minutes, ended.OccurredAt), ForestLimits.MaxCoins);
                 }
 
-                if (!AddAutoPlaced(_data.Chosen, completed ? ForestCatalog.StageFor(minutes) : ForestStage.Withered, minutes, pending.Start))
+                ForestStage stage = completed ? ForestCatalog.StageFor(minutes) : ForestStage.Withered;
+                if (sapling is not null)
+                {
+                    sapling.Growing = false;
+                    sapling.Stage = (int)stage;
+                    sapling.Minutes = minutes;
+                }
+                else if (!TryAdd(new ForestObject { Species = _data.Chosen, Stage = (int)stage, Planted = pending.Start, Minutes = minutes, Column = -1, Row = -1 }))
                 {
                     _logger.Warn("The forest is full; this session's plant was not placed.");
                 }
+            }
+            else if (sapling is not null)
+            {
+                _data.Objects.Remove(sapling);
             }
         }
 
@@ -313,8 +370,10 @@ public sealed class ForestStore
         lock (_gate)
         {
             _data = new ForestData { Unlocked = [.. FreeSpecies()], Pending = _data.Pending };
+            _paths = [];
             _selectedObject = null;
             _placingDecoration = null;
+            PlantGrowingSapling();
         }
 
         await PersistAsync(cancellationToken);
@@ -391,6 +450,30 @@ public sealed class ForestStore
         return await FinishAsync(done, cancellationToken);
     }
 
+    /// <summary>
+    /// Takes a placed decoration off the field and puts it back into the inventory (no refund, no coin change), so it can be placed again;
+    /// the paths re-route. Plants and unknown ids change nothing.
+    /// </summary>
+    public async ValueTask<bool> RemoveDecorationAsync(int objectId, CancellationToken cancellationToken)
+    {
+        bool done;
+        lock (_gate)
+        {
+            ForestObject? target = _data.Objects.FirstOrDefault(o => o.Id == objectId);
+            done = target is not null && ForestCatalog.Find(target.Species)?.Kind == ForestKind.Decoration
+                && _data.Inventory.GetValueOrDefault(target.Species) < ForestLimits.MaxInventoryPerItem;
+            if (done)
+            {
+                _data.Objects.Remove(target!);
+                _data.Inventory[target!.Species] = _data.Inventory.GetValueOrDefault(target.Species) + 1;
+                _selectedObject = null;
+                TryLayout(keepUnpinned: true);   // the street to it disappears; a full field simply keeps its paths
+            }
+        }
+
+        return await FinishAsync(done, cancellationToken);
+    }
+
     /// <summary>Starts or stops placing an owned decoration; the next click on an empty tile puts it there.</summary>
     public void TogglePlacing(string decorationId)
     {
@@ -427,7 +510,7 @@ public sealed class ForestStore
         Changed?.Invoke();
     }
 
-    /// <summary>Handles a click on an empty tile: places the pending decoration or moves the selected object there.</summary>
+    /// <summary>Handles a click on an empty tile: places the pending decoration or moves the selected object there. Either way the object is pinned.</summary>
     public async ValueTask<bool> PickAsync(int column, int row, CancellationToken cancellationToken)
     {
         bool done = false;
@@ -437,7 +520,15 @@ public sealed class ForestStore
             {
                 if (_placingDecoration is { } decoration && _data.Inventory.GetValueOrDefault(decoration) > 0)
                 {
-                    done = AddObject(decoration, ForestStage.Mature, 0, Time.GetUtcNow().ToUnixTimeSeconds(), column, row);
+                    done = TryAdd(new ForestObject
+                    {
+                        Species = decoration,
+                        Stage = (int)ForestStage.Mature,
+                        Planted = Time.GetUtcNow().ToUnixTimeSeconds(),
+                        Column = column,
+                        Row = row,
+                        Pinned = true,
+                    });
                     if (done)
                     {
                         int left = _data.Inventory[decoration] - 1;
@@ -454,11 +545,65 @@ public sealed class ForestStore
                 }
                 else if (_selectedObject is { } id && _data.Objects.FirstOrDefault(o => o.Id == id) is { } moving)
                 {
-                    moving.Column = column;
-                    moving.Row = row;
-                    _selectedObject = null;
-                    done = true;
+                    (int oldColumn, int oldRow, bool wasPinned) = (moving.Column, moving.Row, moving.Pinned);
+                    (moving.Column, moving.Row, moving.Pinned) = (column, row, true);
+                    done = TryLayout(keepUnpinned: true);
+                    if (done)
+                    {
+                        _selectedObject = null;
+                    }
+                    else
+                    {
+                        (moving.Column, moving.Row, moving.Pinned) = (oldColumn, oldRow, wasPinned);
+                    }
                 }
+            }
+        }
+
+        return await FinishAsync(done, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lays out every unpinned object again (<paramref name="unpinAll"/> releases the pins first), so paths and groves form from scratch.
+    /// Returns whether the layout changed; a field that cannot hold everything keeps its previous arrangement.
+    /// </summary>
+    public async ValueTask<bool> ArrangeAsync(bool unpinAll, CancellationToken cancellationToken)
+    {
+        bool done;
+        lock (_gate)
+        {
+            bool[] pins = [.. _data.Objects.Select(o => o.Pinned)];
+            if (unpinAll)
+            {
+                _data.Objects.ForEach(o => o.Pinned = false);
+            }
+
+            done = TryLayout(keepUnpinned: false);
+            if (!done)
+            {
+                for (int i = 0; i < pins.Length; i++)
+                {
+                    _data.Objects[i].Pinned = pins[i];
+                }
+            }
+        }
+
+        return await FinishAsync(done, cancellationToken);
+    }
+
+    /// <summary>Pins an object where it stands (paths route around it, arranging leaves it alone) or releases it again.</summary>
+    public async ValueTask<bool> SetPinnedAsync(string objectId, bool pinned, CancellationToken cancellationToken)
+    {
+        bool done = false;
+        lock (_gate)
+        {
+            if (int.TryParse(objectId, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int id)
+                && _data.Objects.FirstOrDefault(o => o.Id == id) is { } target
+                && target.Pinned != pinned)
+            {
+                target.Pinned = pinned;
+                TryLayout(keepUnpinned: true);   // the paths may route differently now; a full field simply keeps them
+                done = true;
             }
         }
 
@@ -477,6 +622,96 @@ public sealed class ForestStore
         return true;
     }
 
+    // Callers hold _gate.
+    private bool IsFree(int column, int row) =>
+        column >= 0 && row >= 0 && column < _data.Size && row < _data.Size
+        && !ForestWorld.IsPlazaApproach(_data.Size, new GridTile(column, row))
+        && !_data.Objects.Any(o => o.Column == column && o.Row == row);
+
+    // Callers hold _gate. Adds the object and lays the field out again; it is placed by the layout unless its column is set (>= 0). Returns false, changing nothing, when everything does not fit.
+    private bool TryAdd(ForestObject o)
+    {
+        if (_data.Objects.Count >= ForestLimits.MaxObjects)
+        {
+            return false;
+        }
+
+        o.Id = _data.NextId;
+        _data.Objects.Add(o);
+        if (!TryLayout(keepUnpinned: true))
+        {
+            _data.Objects.Remove(o);
+            return false;
+        }
+
+        _data.NextId++;
+        return true;
+    }
+
+    // Callers hold _gate. Runs the world layout: pinned objects stay, the others stay too when keepUnpinned is set (else they are
+    // placed from scratch). Returns false, changing nothing, when some object would find no tile.
+    private bool TryLayout(bool keepUnpinned)
+    {
+        WorldObject[] world =
+        [
+            .. _data.Objects.Select(o => new WorldObject(
+                o.Id,
+                o.Species,
+                ForestCatalog.Find(o.Species)!.Kind,
+                o.StageValue,
+                (o.Pinned || keepUnpinned) && o.Column >= 0 ? new GridTile(o.Column, o.Row) : null,
+                o.Pinned)),
+        ];
+        WorldLayout layout = ForestWorld.Arrange(_data.Size, world);
+        if (layout.Positions.Count < world.Length)
+        {
+            return false;
+        }
+
+        _data.Size = layout.Size;
+        foreach (ForestObject o in _data.Objects)
+        {
+            GridTile tile = layout.Positions[o.Id];
+            (o.Column, o.Row) = (tile.Column, tile.Row);
+        }
+
+        _paths = layout.Paths;
+        return true;
+    }
+
+    // Callers hold _gate. Plants the sapling of the running session, if there is one.
+    private void PlantGrowingSapling()
+    {
+        if (_data.Pending is not { } pending)
+        {
+            return;
+        }
+
+        var sapling = new ForestObject { Species = _data.Chosen, Stage = (int)ForestStage.Sapling, Planted = pending.Start, Growing = true, Column = -1, Row = -1 };
+        if (TryAdd(sapling))
+        {
+            pending.PlantId = sapling.Id;
+        }
+        else
+        {
+            _logger.Warn("The forest is full; this session has no growing sapling.");
+        }
+    }
+
+    // Callers hold _gate. A completed session earns its minutes plus a bonus per consecutive day, capped.
+    private int EarnedCoins(int minutes, DateTimeOffset at)
+    {
+        int day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, Time.LocalTimeZone).DateTime).DayNumber;
+        if (_data.LastDay != day)
+        {
+            _data.Streak = _data.LastDay == day - 1 ? _data.Streak + 1 : 1;
+            _data.LastDay = day;
+        }
+
+        int bonusPercent = Math.Min(ForestLimits.StreakBonusMaxPercent, (_data.Streak - 1) * ForestLimits.StreakBonusStepPercent);
+        return minutes + (int)((long)minutes * bonusPercent / 100);
+    }
+
     private async ValueTask<bool> FinishAsync(bool changed, CancellationToken cancellationToken)
     {
         if (changed)
@@ -486,66 +721,6 @@ public sealed class ForestStore
         }
 
         return changed;
-    }
-
-    // Callers hold _gate.
-    private bool IsFree(int column, int row) =>
-        column >= 0 && row >= 0 && column < _data.Size && row < _data.Size && !_data.Objects.Any(o => o.Column == column && o.Row == row);
-
-    // Callers hold _gate. Puts the object on the free tile closest to the centre (ties: top row first), growing the field when needed.
-    private bool AddAutoPlaced(string speciesId, ForestStage stage, int minutes, long planted)
-    {
-        while (_data.Objects.Count >= _data.Size * _data.Size && _data.Size < ForestLimits.MaxSize)
-        {
-            Grow();
-        }
-
-        foreach ((int column, int row) in TilesFromCentre(_data.Size))
-        {
-            if (IsFree(column, row))
-            {
-                return AddObject(speciesId, stage, minutes, planted, column, row);
-            }
-        }
-
-        return false;
-    }
-
-    // Callers hold _gate and checked that the tile is free.
-    private bool AddObject(string speciesId, ForestStage stage, int minutes, long planted, int column, int row)
-    {
-        if (_data.Objects.Count >= ForestLimits.MaxObjects)
-        {
-            return false;
-        }
-
-        _data.Objects.Add(new ForestObject
-        {
-            Id = _data.NextId++,
-            Species = speciesId,
-            Stage = (int)stage,
-            Column = column,
-            Row = row,
-            Planted = planted,
-            Minutes = minutes,
-        });
-        if (_data.Objects.Count * 4 >= _data.Size * _data.Size * 3 && _data.Size < ForestLimits.MaxSize)
-        {
-            Grow();
-        }
-
-        return true;
-    }
-
-    // Callers hold _gate. Growing by one tile on each side keeps the objects where they are relative to the centre.
-    private void Grow()
-    {
-        _data.Size = Math.Min(ForestLimits.MaxSize, _data.Size + ForestLimits.GrowStep);
-        foreach (ForestObject o in _data.Objects)
-        {
-            o.Column++;
-            o.Row++;
-        }
     }
 
     private async ValueTask PersistAsync(CancellationToken cancellationToken)
@@ -626,6 +801,7 @@ public sealed class ForestStore
             }
         }
 
+        PendingSession? pending = loaded.Pending is { Id.Length: > 0, Planned: >= 0, Start: > 0 } p ? p : null;
         List<ForestObject> objects = [];
         HashSet<int> ids = [];
         HashSet<(int, int)> tiles = [];
@@ -637,6 +813,7 @@ public sealed class ForestStore
                 && ForestCatalog.Find(o.Species ?? string.Empty) is { } species
                 && Enum.IsDefined(o.StageValue)
                 && (species.Kind != ForestKind.Decoration || o.StageValue != ForestStage.Withered)
+                && (!o.Growing || (species.Kind != ForestKind.Decoration && pending?.PlantId == o.Id))
                 && o.Column >= 0 && o.Column < size && o.Row >= 0 && o.Row < size
                 && ids.Add(o.Id) && tiles.Add((o.Column, o.Row)))
             {
@@ -645,6 +822,12 @@ public sealed class ForestStore
             }
         }
 
+        if (pending is not null && !objects.Any(o => o.Growing && o.Id == pending.PlantId))
+        {
+            pending.PlantId = 0;
+        }
+
+        int lastDay = Math.Max(0, loaded.LastDay);
         string chosen = loaded.Chosen is { } c && unlocked.Contains(c) ? c : ForestLimits.DefaultSpecies;
         return new ForestData
         {
@@ -655,7 +838,9 @@ public sealed class ForestStore
             Size = size,
             Inventory = inventory,
             Objects = objects,
-            Pending = loaded.Pending is { Id.Length: > 0, Planned: >= 0, Start: > 0 } p ? p : null,
+            Pending = pending,
+            LastDay = lastDay,
+            Streak = lastDay > 0 ? Math.Clamp(loaded.Streak, 1, 100_000) : 0,
         };
     }
 }
