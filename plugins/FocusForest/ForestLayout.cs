@@ -3,7 +3,7 @@
 using System.Globalization;
 using Blocker.UI.Sdk;
 
-namespace FocusInsights;
+namespace FocusForest;
 
 /// <summary>Ids of the forest controls; dynamic ones are a prefix followed by an object id or a catalogue id.</summary>
 public static class ForestIds
@@ -56,7 +56,7 @@ public enum ShopCategory
     Decorations,
 }
 
-/// <summary>Builds the forest tab of the Insights page.</summary>
+/// <summary>Builds the Forest page body.</summary>
 public static class ForestLayout
 {
     private const double ThumbnailHeight = 150;
@@ -94,7 +94,7 @@ public static class ForestLayout
 
         int day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(o.Planted), zone).DateTime).DayNumber;
         string prefix = o.StageValue == ForestStage.Withered ? "Withered " : string.Empty;
-        return string.Create(CultureInfo.InvariantCulture, $"{prefix}{name} · {o.Minutes} min · {InsightsFormat.DayLabel(day)}");
+        return string.Create(CultureInfo.InvariantCulture, $"{prefix}{name} · {o.Minutes} min · {ForestFormat.DayLabel(day)}");
     }
 
     private static UiNode Tiles(ForestView v) => Ui.Grid(

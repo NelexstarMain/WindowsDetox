@@ -2,9 +2,9 @@
 // Footprints stay within one tile (about +-0.5), models stand on y = 0, trees grow up to about y 2.2 when majestic.
 
 using Blocker.UI.Sdk;
-using static FocusInsights.ForestMeshes;
+using static FocusForest.ForestMeshes;
 
-namespace FocusInsights;
+namespace FocusForest;
 
 /// <summary>Scene models of every catalogue entry and stage.</summary>
 public static class ForestModels

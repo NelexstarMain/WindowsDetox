@@ -3,7 +3,7 @@
 using Blocker.UI.Sdk;
 using Xunit;
 
-namespace FocusInsights.Tests;
+namespace FocusForest.Tests;
 
 /// <summary>Tests of <see cref="ForestModels"/> and <see cref="ForestMeshes"/>.</summary>
 public sealed class ForestModelsTests

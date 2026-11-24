@@ -4,7 +4,7 @@
 
 using Blocker.UI.Sdk;
 
-namespace FocusInsights;
+namespace FocusForest;
 
 /// <summary>A point or direction in model space.</summary>
 internal readonly record struct Vec(double X, double Y, double Z)

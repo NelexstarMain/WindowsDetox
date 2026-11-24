@@ -1,4 +1,4 @@
-using FocusInsights;
+using FocusForest;
 using Blocker.UI.Sdk;
 
 namespace Blocker.UI.Render;
@@ -10,7 +10,7 @@ internal static class ForestGallery
 
     /// <summary>
     /// Parses <c>gallery:forest[:&lt;quarter turns&gt;[:&lt;scene height&gt;[:&lt;grid columns&gt;[:&lt;comma separated ids&gt;]]]]</c>;
-    /// the optional ids limit the sheet to some species, for close-ups; the single id <c>example</c> draws the example forest of the Insights page instead.
+    /// the optional ids limit the sheet to some species, for close-ups; the single id <c>example</c> draws the sample forest instead.
     /// </summary>
     public static bool TryParse(string target, out int turns, out double height, out int columns, out string[] ids)
     {

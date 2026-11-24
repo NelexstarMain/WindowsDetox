@@ -8,9 +8,10 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Blocker.Sdk.Diagnostics;
+using Blocker.Sdk.Events;
 using Blocker.Sdk.Storage;
 
-namespace FocusInsights;
+namespace FocusForest;
 
 /// <summary>Limits of the forest field and its economy.</summary>
 public static class ForestLimits
@@ -81,6 +82,22 @@ public sealed class ForestObject
     internal ForestObject Clone() => (ForestObject)MemberwiseClone();
 }
 
+/// <summary>The session that is running right now (so a restart does not lose it).</summary>
+public sealed class PendingSession
+{
+    /// <summary>Session id in "N" format.</summary>
+    [JsonPropertyName("i")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Start as Unix seconds.</summary>
+    [JsonPropertyName("t")]
+    public long Start { get; set; }
+
+    /// <summary>Planned length in seconds.</summary>
+    [JsonPropertyName("p")]
+    public int Planned { get; set; }
+}
+
 /// <summary>The persisted document.</summary>
 public sealed class ForestData
 {
@@ -118,6 +135,10 @@ public sealed class ForestData
     /// <summary>Everything standing on the field.</summary>
     [JsonPropertyName("o")]
     public List<ForestObject> Objects { get; set; } = [];
+
+    /// <summary>Running session, if any.</summary>
+    [JsonPropertyName("p")]
+    public PendingSession? Pending { get; set; }
 }
 
 /// <summary>An immutable snapshot of the forest for rendering.</summary>
@@ -235,30 +256,65 @@ public sealed class ForestStore
         }
     }
 
-    /// <summary>
-    /// Applies a finished session: completed earns one coin per minute and plants the chosen species at the stage of its
-    /// length, break-glass plants a withered one, anything else changes nothing.
-    /// </summary>
-    public async ValueTask OnSessionRecordedAsync(SessionRecord session, CancellationToken cancellationToken)
+    /// <summary>Remembers a started session.</summary>
+    public async ValueTask OnSessionStartedAsync(SessionStarted started, CancellationToken cancellationToken)
     {
-        if (session.Reason is not (SessionOutcome.Completed or SessionOutcome.EndedEarly))
-        {
-            return;
-        }
-
-        int minutes = Math.Clamp(session.Actual / 60, 0, ForestLimits.MaxMinutes);
-        bool completed = session.Reason == SessionOutcome.Completed;
         lock (_gate)
         {
-            if (completed)
+            _data.Pending = new PendingSession
             {
-                _data.Coins = (int)Math.Min((long)_data.Coins + minutes, ForestLimits.MaxCoins);
+                Id = started.SessionId.ToString("N"),
+                Start = started.OccurredAt.ToUnixTimeSeconds(),
+                Planned = ClampSeconds(started.PlannedDuration),
+            };
+        }
+
+        await PersistAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Applies a finished session: running to its planned end earns one coin per minute and plants the chosen species at the
+    /// stage of its length, break-glass plants a withered one, anything else changes nothing. Ends without a matching start
+    /// (plugin installed mid-session) are ignored.
+    /// </summary>
+    public async ValueTask OnSessionEndedAsync(SessionEnded ended, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            if (_data.Pending is not { } pending || pending.Id != ended.SessionId.ToString("N"))
+            {
+                return;
             }
 
-            if (!AddAutoPlaced(_data.Chosen, completed ? ForestCatalog.StageFor(minutes) : ForestStage.Withered, minutes, session.Start))
+            _data.Pending = null;
+            if (ended.Reason is SessionEndReason.Expired or SessionEndReason.BreakGlass)
             {
-                _logger.Warn("The forest is full; this session's plant was not placed.");
+                int minutes = Math.Clamp(ClampSeconds(ended.OccurredAt - DateTimeOffset.FromUnixTimeSeconds(pending.Start)) / 60, 0, ForestLimits.MaxMinutes);
+                bool completed = ended.Reason == SessionEndReason.Expired;
+                if (completed)
+                {
+                    _data.Coins = (int)Math.Min((long)_data.Coins + minutes, ForestLimits.MaxCoins);
+                }
+
+                if (!AddAutoPlaced(_data.Chosen, completed ? ForestCatalog.StageFor(minutes) : ForestStage.Withered, minutes, pending.Start))
+                {
+                    _logger.Warn("The forest is full; this session's plant was not placed.");
+                }
             }
+        }
+
+        await PersistAsync(cancellationToken);
+        Changed?.Invoke();
+    }
+
+    /// <summary>Starts a fresh forest: coins, unlocks, inventory and every object are dropped; a running session stays tracked.</summary>
+    public async ValueTask ResetAsync(CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            _data = new ForestData { Unlocked = [.. FreeSpecies()], Pending = _data.Pending };
+            _selectedObject = null;
+            _placingDecoration = null;
         }
 
         await PersistAsync(cancellationToken);
@@ -536,6 +592,8 @@ public sealed class ForestStore
         }
     }
 
+    private static int ClampSeconds(TimeSpan span) => (int)Math.Clamp(span.TotalSeconds, 0, ForestLimits.MaxMinutes * 60);
+
     private static ForestData Fresh() => new() { Unlocked = [.. FreeSpecies()] };
 
     private static IEnumerable<string> FreeSpecies() =>
@@ -597,6 +655,7 @@ public sealed class ForestStore
             Size = size,
             Inventory = inventory,
             Objects = objects,
+            Pending = loaded.Pending is { Id.Length: > 0, Planned: >= 0, Start: > 0 } p ? p : null,
         };
     }
 }

@@ -1,4 +1,4 @@
-// Tests of the Focus Forest game: rules, shop, placement, field growth, persistence and the forest tab of the page.
+// Tests of the Focus Forest plugin: rules, shop, placement, field growth, session tracking, persistence, page, widget and settings.
 // FakePluginContext starts at 2026-01-01T09:00:00Z with UTC as the local time zone.
 
 using System.Text.Json;
@@ -9,17 +9,16 @@ using Blocker.Sdk.Events;
 using Blocker.UI.Sdk;
 using Xunit;
 
-namespace FocusInsights.Tests;
+namespace FocusForest.Tests;
 
-/// <summary>Behaviour tests of the forest inside the Focus Insights plugin.</summary>
+/// <summary>Behaviour tests of the Focus Forest plugin.</summary>
 public sealed class ForestTests
 {
-    private const string PluginId = "com.windowsdetox.insights";
+    private const string PluginId = "com.windowsdetox.forest";
 
     private static readonly PluginCapability[] AllCapabilities =
     [
         PluginCapability.SessionEvents,
-        PluginCapability.ProcessEvents,
         PluginCapability.UiPage,
         PluginCapability.UiDashboardWidget,
         PluginCapability.UiSettingsSection,
@@ -35,7 +34,7 @@ public sealed class ForestTests
             await arrange(ctx);
         }
 
-        await new InsightsPlugin().InitializeAsync(ctx, CancellationToken.None);
+        await new ForestPlugin().InitializeAsync(ctx, CancellationToken.None);
         return ctx;
     }
 
@@ -48,11 +47,17 @@ public sealed class ForestTests
 
     private static async Task<ForestStore> NewStoreAsync() => await LoadAsync(new FakePluginContext(PluginId, AllCapabilities));
 
-    private static SessionRecord Session(int minutes, string reason = SessionOutcome.Completed) =>
-        new() { Start = 1_767_258_000, Planned = minutes * 60, Actual = minutes * 60, Reason = reason };
+    private static readonly DateTimeOffset SessionStart = new(2026, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task GiveCoinsAsync(ForestStore store, int minutes) =>
-        await store.OnSessionRecordedAsync(Session(minutes), CancellationToken.None);
+    // Drives the store directly with events, without a plugin context.
+    private static async Task RunAsync(ForestStore store, int minutes, SessionEndReason reason = SessionEndReason.Expired)
+    {
+        Guid id = Guid.NewGuid();
+        await store.OnSessionStartedAsync(new SessionStarted(id, TimeSpan.FromMinutes(minutes), SessionStart), CancellationToken.None);
+        await store.OnSessionEndedAsync(new SessionEnded(id, reason, SessionStart.AddMinutes(minutes)), CancellationToken.None);
+    }
+
+    private static async Task GiveCoinsAsync(ForestStore store, int minutes) => await RunAsync(store, minutes);
 
     private static async Task RunSessionAsync(FakePluginContext ctx, int minutes, SessionEndReason reason = SessionEndReason.Expired)
     {
@@ -93,6 +98,103 @@ public sealed class ForestTests
         new(ForestIds.Scene, UiActionKind.Pick, null, new Dictionary<string, string> { ["column"] = column.ToString(), ["row"] = row.ToString() });
 
     private static ForestObject ObjectAt(ForestView view, int column, int row) => view.Objects.Single(o => o.Column == column && o.Row == row);
+
+    // ---- wiring --------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Missing_capability_throws_PluginCapabilityException()
+    {
+        var ctx = new FakePluginContext(PluginId, [PluginCapability.UiPage, PluginCapability.UiDashboardWidget, PluginCapability.UiSettingsSection]);
+
+        var ex = await Assert.ThrowsAsync<PluginCapabilityException>(async () => await new ForestPlugin().InitializeAsync(ctx, CancellationToken.None));
+
+        Assert.Equal(PluginCapability.SessionEvents, ex.Capability);
+    }
+
+    [Fact]
+    public async Task Registers_page_widget_and_settings_section()
+    {
+        FakePluginContext ctx = await StartAsync();
+
+        Assert.Equal(new UiNavigationItem("Forest", UiIcon.Leaf), ctx.GetExtension<IUiPagePlugin>().Navigation);
+        Assert.Equal(UiWidgetSize.Small, ctx.GetExtension<IDashboardWidgetPlugin>().Size);
+        Assert.Equal("Focus Forest", ctx.GetExtension<ISettingsSectionPlugin>().Title);
+        Assert.Equal(3, ctx.RegisteredExtensions.Count);
+    }
+
+    [Fact]
+    public void The_logo_is_valid_path_data()
+    {
+        Assert.True(UiTreeValidator.IsValidPathData(ForestLogo.PathData));
+    }
+
+    // ---- session tracking ----------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_running_session_is_stored_and_survives_a_restart()
+    {
+        FakePluginContext ctx = await StartAsync();
+        Guid id = Guid.NewGuid();
+        await ctx.PublishAsync(new SessionStarted(id, TimeSpan.FromMinutes(45), ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        string stored = Assert.IsType<string>(await ctx.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None));
+        using (JsonDocument doc = JsonDocument.Parse(stored))
+        {
+            JsonElement pending = doc.RootElement.GetProperty("p");
+            Assert.Equal((id.ToString("N"), 1767258000L, 2700), (pending.GetProperty("i").GetString(), pending.GetProperty("t").GetInt64(), pending.GetProperty("p").GetInt32()));
+        }
+
+        FakePluginContext restarted = await StartAsync(c => c.Storage.WriteAsync(ForestStore.DataKey, stored, CancellationToken.None));
+        restarted.FakeTime.Advance(TimeSpan.FromMinutes(45));
+        await restarted.PublishAsync(new SessionEnded(id, SessionEndReason.Expired, restarted.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        ForestView view = (await LoadAsync(restarted)).GetView();
+        Assert.Equal(45, view.Coins);
+        Assert.Single(view.Objects);
+        using JsonDocument after = JsonDocument.Parse(Assert.IsType<string>(await restarted.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None)));
+        Assert.False(after.RootElement.TryGetProperty("p", out _));
+    }
+
+    [Fact]
+    public async Task An_end_without_a_matching_start_is_ignored()
+    {
+        FakePluginContext ctx = await StartAsync();
+        await ctx.PublishAsync(new SessionStarted(Guid.NewGuid(), TimeSpan.FromMinutes(30), ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+        ctx.FakeTime.Advance(TimeSpan.FromMinutes(30));
+
+        await ctx.PublishAsync(new SessionEnded(Guid.NewGuid(), SessionEndReason.Expired, ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        ForestView view = (await LoadAsync(ctx)).GetView();
+        Assert.Equal(0, view.Coins);
+        Assert.Empty(view.Objects);
+    }
+
+    [Fact]
+    public async Task The_actual_length_not_the_planned_one_is_rewarded()
+    {
+        ForestStore store = await NewStoreAsync();
+        Guid id = Guid.NewGuid();
+        await store.OnSessionStartedAsync(new SessionStarted(id, TimeSpan.FromMinutes(120), SessionStart), CancellationToken.None);
+
+        await store.OnSessionEndedAsync(new SessionEnded(id, SessionEndReason.BreakGlass, SessionStart.AddMinutes(20).AddSeconds(59)), CancellationToken.None);
+
+        ForestObject withered = Assert.Single(store.GetView().Objects);
+        Assert.Equal((ForestStage.Withered, 20), (withered.StageValue, withered.Minutes));
+    }
+
+    [Theory]
+    [InlineData("""{"v":1,"p":{"i":"","t":5,"p":60}}""")]
+    [InlineData("""{"v":1,"p":{"i":"abc","t":0,"p":60}}""")]
+    [InlineData("""{"v":1,"p":{"i":"abc","t":5,"p":-1}}""")]
+    public async Task A_corrupt_pending_session_is_dropped(string json)
+    {
+        FakePluginContext ctx = await StartAsync(c => c.Storage.WriteAsync(ForestStore.DataKey, json, CancellationToken.None));
+        ForestStore store = await LoadAsync(ctx);
+
+        await store.OnSessionEndedAsync(new SessionEnded(Guid.Parse("abc00000000000000000000000000000"), SessionEndReason.Expired, SessionStart), CancellationToken.None);
+
+        Assert.Empty(store.GetView().Objects);
+    }
 
     // ---- earning and planting ------------------------------------------------------------------------------------
 
@@ -157,7 +259,9 @@ public sealed class ForestTests
         ForestView view = (await LoadAsync(ctx)).GetView();
         Assert.Equal(0, view.Coins);
         Assert.Empty(view.Objects);
-        Assert.Null(await ctx.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None));
+        using JsonDocument doc = JsonDocument.Parse(Assert.IsType<string>(await ctx.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None)));
+        Assert.Equal(0, doc.RootElement.GetProperty("o").GetArrayLength());
+        Assert.False(doc.RootElement.TryGetProperty("p", out _));
     }
 
     [Fact]
@@ -167,7 +271,7 @@ public sealed class ForestTests
 
         Assert.True(await store.SelectSpeciesAsync("pine", CancellationToken.None));
         await GiveCoinsAsync(store, 30);
-        await store.OnSessionRecordedAsync(Session(20, SessionOutcome.EndedEarly), CancellationToken.None);
+        await RunAsync(store, 20, SessionEndReason.BreakGlass);
 
         Assert.All(store.GetView().Objects, o => Assert.Equal("pine", o.Species));
     }
@@ -322,7 +426,7 @@ public sealed class ForestTests
     public async Task A_withered_tree_can_be_removed_for_a_fee()
     {
         ForestStore store = await NewStoreAsync();
-        await store.OnSessionRecordedAsync(Session(20, SessionOutcome.EndedEarly), CancellationToken.None);
+        await RunAsync(store, 20, SessionEndReason.BreakGlass);
         await GiveCoinsAsync(store, 25);
         int withered = store.GetView().Objects.Single(o => o.StageValue == ForestStage.Withered).Id;
         int healthy = store.GetView().Objects.Single(o => o.StageValue != ForestStage.Withered).Id;
@@ -339,7 +443,7 @@ public sealed class ForestTests
     public async Task Removing_a_withered_tree_needs_the_coins()
     {
         ForestStore store = await NewStoreAsync();
-        await store.OnSessionRecordedAsync(Session(20, SessionOutcome.EndedEarly), CancellationToken.None);
+        await RunAsync(store, 20, SessionEndReason.BreakGlass);
 
         Assert.False(await store.RemoveWitheredAsync(store.GetView().Objects[0].Id, CancellationToken.None));
         Assert.Single(store.GetView().Objects);
@@ -484,7 +588,7 @@ public sealed class ForestTests
         await RunSessionAsync(ctx, 30);
         ForestStore store = await LoadAsync(ctx);
 
-        await store.OnSessionRecordedAsync(Session(30), CancellationToken.None);
+        await RunAsync(store, 30);
 
         Assert.Equal(77, (await LoadAsync(ctx)).GetView().Coins);
         Assert.Equal(json, await ctx.Storage.ReadAsync(ForestStore.DataKey, CancellationToken.None));
@@ -507,7 +611,7 @@ public sealed class ForestTests
     // ---- page ----------------------------------------------------------------------------------------------------
 
     [Fact]
-    public async Task The_forest_tab_is_the_default_and_shows_coins_scene_and_shop()
+    public async Task The_page_shows_coins_scene_and_shop()
     {
         FakePluginContext ctx = await StartAsync();
         await RunSessionAsync(ctx, 52);
@@ -686,29 +790,6 @@ public sealed class ForestTests
     }
 
     [Fact]
-    public async Task The_example_shows_a_valid_read_only_sample_forest_and_stores_nothing()
-    {
-        FakePluginContext ctx = await StartAsync();
-        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.RenderAsync(page, CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click(InsightsPage.StatsTabId), CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click(InsightsPage.ExampleButtonId), CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click(InsightsPage.ForestTabId), CancellationToken.None);
-
-        UiPage example = await RenderPageAsync(ctx);
-        await ctx.SendActionAsync(page, UiAction.Click("forest-unlock-birch"), CancellationToken.None);
-        await ctx.SendActionAsync(page, UiAction.Click("forest-buy-rock"), CancellationToken.None);
-
-        Assert.True(UiTreeValidator.Validate(example).IsValid);
-        UiScene garden = Garden(example);
-        Assert.True(garden.Items.Count > 30);
-        Assert.False(garden.AllowPick);
-        Assert.All(Descendants(example).OfType<UiButton>().Where(b => b.Id.StartsWith("forest-", StringComparison.Ordinal) && !b.Id.StartsWith(ForestIds.ShopTabPrefix, StringComparison.Ordinal)), b => Assert.False(b.IsEnabled));
-        Assert.Equal(UiJson.Serialize(example), UiJson.Serialize(await RenderPageAsync(ctx)));
-        Assert.Empty(await ctx.Storage.ListKeysAsync(null, CancellationToken.None));
-    }
-
-    [Fact]
     public void The_sample_forest_is_deterministic_and_fits_its_field()
     {
         ForestView a = ForestSampleData.Create(1000, TimeZoneInfo.Utc);
@@ -746,19 +827,77 @@ public sealed class ForestTests
         Assert.True(speciesById.Distinct().Count() >= 20);
     }
 
+    // ---- widget and settings -------------------------------------------------------------------------------------
+
     [Fact]
-    public async Task The_stats_tab_is_still_reachable_and_the_tabs_switch_back_and_forth()
+    public async Task The_widget_shows_plants_and_coins_and_an_empty_hint()
     {
         FakePluginContext ctx = await StartAsync();
-        IUiPagePlugin page = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.RenderAsync(page, CancellationToken.None);
+        IDashboardWidgetPlugin widget = ctx.GetExtension<IDashboardWidgetPlugin>();
 
-        await ctx.SendActionAsync(page, UiAction.Click(InsightsPage.StatsTabId), CancellationToken.None);
-        UiPage stats = await RenderPageAsync(ctx);
-        Assert.Contains(Descendants(stats).OfType<UiCard>(), c => c.Title == "No data yet");
-        Assert.Empty(Descendants(stats).OfType<UiScene>());
+        UiNode empty = await ctx.RenderAsync(widget, CancellationToken.None);
+        Assert.Contains(Descendants(empty).OfType<UiText>(), t => t.Text == "Finish a session to plant your first tree.");
 
-        await ctx.SendActionAsync(page, UiAction.Click(InsightsPage.ForestTabId), CancellationToken.None);
-        Assert.NotEmpty(Descendants(await RenderPageAsync(ctx)).OfType<UiScene>());
+        await RunSessionAsync(ctx, 30);
+        UiNode filled = await ctx.RenderAsync(widget, CancellationToken.None);
+        UiStatTile tile = Descendants(filled).OfType<UiStatTile>().Single();
+        Assert.Equal(("1 plant", "30 coins"), (tile.Value, tile.Caption));
+        Assert.DoesNotContain(Descendants(filled).OfType<UiText>(), t => t.Text == "Finish a session to plant your first tree.");
+    }
+
+    [Fact]
+    public async Task Resetting_needs_a_second_click_and_starts_a_fresh_forest()
+    {
+        FakePluginContext ctx = await StartAsync();
+        ISettingsSectionPlugin settings = ctx.GetExtension<ISettingsSectionPlugin>();
+        await RunSessionAsync(ctx, 30);
+        await ctx.RenderAsync(settings, CancellationToken.None);   // gives the section its surface
+        int before = ctx.RenderRequests;
+
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+
+        Assert.Equal(30, (await LoadAsync(ctx)).GetView().Coins);   // armed only
+        Assert.Equal(before + 1, ctx.RenderRequests);
+        Assert.Equal("Reset forest? Click again", Descendants(await ctx.RenderAsync(settings, CancellationToken.None)).OfType<UiButton>().Single().Label);
+
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+
+        ForestView view = (await LoadAsync(ctx)).GetView();
+        Assert.Equal(0, view.Coins);
+        Assert.Empty(view.Objects);
+        Assert.Equal(ForestLimits.StartSize, view.Size);
+        UiNode tree = await ctx.RenderAsync(settings, CancellationToken.None);
+        Assert.Equal("Reset forest", Descendants(tree).OfType<UiButton>().Single().Label);
+        Assert.Contains(Descendants(tree).OfType<UiText>(), t => t.Text == "Your forest is empty.");
+    }
+
+    [Fact]
+    public async Task The_reset_confirmation_expires()
+    {
+        FakePluginContext ctx = await StartAsync();
+        ISettingsSectionPlugin settings = ctx.GetExtension<ISettingsSectionPlugin>();
+        await RunSessionAsync(ctx, 30);
+
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+        ctx.FakeTime.Advance(ForestSettings.ConfirmWindow + TimeSpan.FromSeconds(1));
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+
+        Assert.Equal(30, (await LoadAsync(ctx)).GetView().Coins);
+    }
+
+    [Fact]
+    public async Task Resetting_keeps_a_running_session_tracked()
+    {
+        FakePluginContext ctx = await StartAsync();
+        ISettingsSectionPlugin settings = ctx.GetExtension<ISettingsSectionPlugin>();
+        Guid id = Guid.NewGuid();
+        await ctx.PublishAsync(new SessionStarted(id, TimeSpan.FromMinutes(30), ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+        await ctx.SendActionAsync(settings, UiAction.Click(ForestSettings.ResetButtonId), CancellationToken.None);
+        ctx.FakeTime.Advance(TimeSpan.FromMinutes(30));
+        await ctx.PublishAsync(new SessionEnded(id, SessionEndReason.Expired, ctx.FakeTime.GetUtcNow()), CancellationToken.None);
+
+        Assert.Equal(30, (await LoadAsync(ctx)).GetView().Coins);
     }
 }

@@ -1,7 +1,7 @@
 // Shared catalogue of the Focus Forest: what can grow or be placed, and how a session's length maps to a growth stage.
 // Mechanics (ForestStore, ForestShop) and models (ForestModels) both key off these ids, so ids are stable storage keys.
 
-namespace FocusInsights;
+namespace FocusForest;
 
 /// <summary>What a catalogue entry is.</summary>
 public enum ForestKind

@@ -286,14 +286,10 @@ public sealed class InsightsStore
         Changed?.Invoke();
     }
 
-    /// <summary>
-    /// Records a finished session and returns it. Ends without a matching start (plugin installed mid-session) are ignored
-    /// and return <see langword="null"/>.
-    /// </summary>
-    public async ValueTask<SessionRecord?> OnSessionEndedAsync(SessionEnded ended, CancellationToken cancellationToken)
+    /// <summary>Records a finished session. Ends without a matching start (plugin installed mid-session) are ignored.</summary>
+    public async ValueTask OnSessionEndedAsync(SessionEnded ended, CancellationToken cancellationToken)
     {
         bool recorded;
-        SessionRecord? record = null;
         lock (_gate)
         {
             int newestBefore = NewestDay();
@@ -303,8 +299,7 @@ public sealed class InsightsStore
             {
                 int actual = ClampSeconds(ended.OccurredAt - DateTimeOffset.FromUnixTimeSeconds(pending.Start));
                 string outcome = SessionOutcome.From(ended.Reason);
-                record = new SessionRecord { Start = pending.Start, Planned = pending.Planned, Actual = actual, Reason = outcome };
-                _data.Sessions.Add(record);
+                _data.Sessions.Add(new SessionRecord { Start = pending.Start, Planned = pending.Planned, Actual = actual, Reason = outcome });
                 DayRecord day = GetDay(DayOf(DateTimeOffset.FromUnixTimeSeconds(pending.Start)));
                 day.FocusSeconds += actual;
                 switch (outcome)
@@ -330,8 +325,6 @@ public sealed class InsightsStore
             await PersistAsync(cancellationToken);
             Changed?.Invoke();
         }
-
-        return record;
     }
 
     /// <summary>Counts a blocked attempt.</summary>

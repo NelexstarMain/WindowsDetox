@@ -94,14 +94,8 @@ public sealed class InsightsTests
             new ProcessBlocked(PluginTestData.Process(image), BlockReason.NotAllowlisted, null, ctx.FakeTime.GetUtcNow()),
             CancellationToken.None);
 
-    // The statistics tab without the tab row, so the assertions below only see the statistics content.
-    private static async Task<UiPage> RenderPageAsync(FakePluginContext ctx)
-    {
-        IUiPagePlugin plugin = ctx.GetExtension<IUiPagePlugin>();
-        await ctx.SendActionAsync(plugin, UiAction.Click(InsightsPage.StatsTabId), CancellationToken.None);
-        UiPage page = Assert.IsType<UiPage>(await ctx.RenderAsync(plugin, CancellationToken.None));
-        return page with { Children = [.. page.Children.Skip(1)] };
-    }
+    private static async Task<UiPage> RenderPageAsync(FakePluginContext ctx) =>
+        Assert.IsType<UiPage>(await ctx.RenderAsync(ctx.GetExtension<IUiPagePlugin>(), CancellationToken.None));
 
     private static async Task<UiCard> RenderWidgetAsync(FakePluginContext ctx) =>
         Assert.IsType<UiCard>(await ctx.RenderAsync(ctx.GetExtension<IDashboardWidgetPlugin>(), CancellationToken.None));
