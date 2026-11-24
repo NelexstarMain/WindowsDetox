@@ -10,10 +10,17 @@ namespace Blocker.UI.Controls.Rendering;
 /// <param name="ItemId">Id of the scene item the polygon belongs to, or <see langword="null"/> for the ground.</param>
 internal sealed record ScenePolygon(Point[] Points, Color Fill, string? ItemId);
 
-/// <summary>A projected scene: polygons in drawing order plus the bounds used to fit it into the control.</summary>
-/// <param name="Polygons">Back-to-front polygons.</param>
+/// <summary>A soft contact shadow on the ground, in unscaled screen units.</summary>
+/// <param name="Centre">Centre of the shadow ellipse.</param>
+/// <param name="RadiusX">Horizontal radius.</param>
+/// <param name="RadiusY">Vertical radius.</param>
+internal readonly record struct SceneShadow(Point Centre, double RadiusX, double RadiusY);
+
+/// <summary>A projected scene: polygons in drawing order, ground shadows and the bounds used to fit it into the control.</summary>
+/// <param name="Polygons">Back-to-front polygons; ground polygons (no item) come first.</param>
+/// <param name="Shadows">Contact shadows, drawn after the ground and before the items.</param>
 /// <param name="Bounds">Bounds of the ground slab and the tallest object.</param>
-internal sealed record SceneProjection(IReadOnlyList<ScenePolygon> Polygons, Rect Bounds);
+internal sealed record SceneProjection(IReadOnlyList<ScenePolygon> Polygons, IReadOnlyList<SceneShadow> Shadows, Rect Bounds);
 
 /// <summary>
 /// Isometric projection of a <see cref="UiScene"/>. World space: tile (c, r) covers x in c..c+1 and z in r..r+1, y up. The camera turns in
@@ -40,12 +47,18 @@ internal static class SceneMath
     private static readonly Vec3 Light = new Vec3(0.3, 1.0, 0.6).Normalized();
 
     private static readonly Color Dirt = Color.FromRgb(0x8D, 0x6E, 0x63);
+    private static readonly Color DeepDirt = Color.FromRgb(0x6D, 0x52, 0x48);
+    private static readonly Color Pebble = Color.FromRgb(0xA8, 0x9F, 0x94);
+
+    // Depth of the turf band at the top of the slab sides.
+    private const double TurfDepth = 0.07;
 
     /// <summary>Projects the scene for the given camera turn (0-3).</summary>
     public static SceneProjection Project(UiScene scene, int cameraTurns)
     {
         var view = new View(scene.Columns, scene.Rows, cameraTurns);
         List<ScenePolygon> polygons = [];
+        List<SceneShadow> shadows = [];
         double maxHeight = 0;
         if (scene.ShowGround)
         {
@@ -61,6 +74,7 @@ internal static class SceneMath
             }
 
             List<(double Depth, ScenePolygon Polygon)> faces = [];
+            double itemHeight = 0;
             foreach (UiSceneFace face in model.Faces)
             {
                 Vec3[] world = new Vec3[face.Points.Count / 3];
@@ -70,18 +84,25 @@ internal static class SceneMath
                     double y = face.Points[(3 * i) + 1] * item.Scale;
                     world[i] = view.ToCamera(item.Column + 0.5 + (x * item.Scale), y, item.Row + 0.5 + (z * item.Scale));
                     maxHeight = Math.Max(maxHeight, y);
+                    itemHeight = Math.Max(itemHeight, y);
                 }
 
                 if (TryShade(world, ParseColour(face.Color), out Color fill))
                 {
+                    // Ambient occlusion: faces close to the ground (trunk bases, canopy undersides near it) get less sky light.
+                    fill = Scale(fill, 0.74 + (0.26 * Math.Clamp(Centroid(world).Y / 0.55, 0, 1)));
                     faces.Add((Centroid(world).Dot(ToCamera), new ScenePolygon([.. world.Select(Screen)], fill, item.Id)));
                 }
             }
 
             polygons.AddRange(faces.OrderBy(f => f.Depth).Select(f => f.Polygon));
+            if (scene.ShowGround && itemHeight > 0.02)
+            {
+                shadows.Add(Shadow(view, item, itemHeight));
+            }
         }
 
-        return new SceneProjection(polygons, Bounds(view, scene.ShowGround, maxHeight));
+        return new SceneProjection(polygons, shadows, Bounds(view, scene.ShowGround, maxHeight));
     }
 
     /// <summary>The top outline of a tile, for selection and hover marks.</summary>
@@ -139,38 +160,119 @@ internal static class SceneMath
         _ => (x, z),
     };
 
+    // The shadow falls away from the light (which comes from +x, +z in camera space), further for taller objects.
+    private static SceneShadow Shadow(View view, UiSceneItem item, double height)
+    {
+        Vec3 centre = view.ToCamera(item.Column + 0.5, 0, item.Row + 0.5);
+        double reach = Math.Min(height, 2.2) * 0.09;
+        double radius = Math.Clamp(0.3 + (height * 0.05), 0.3, 0.46) * Math.Min(item.Scale, 1.3);
+        Point at = Screen(new Vec3(centre.X - (Light.X * reach / Light.Y), 0, centre.Z - (Light.Z * reach / Light.Y)));
+        return new SceneShadow(at, radius * Cos30 * Math.Sqrt(2), radius * Sin30 * Math.Sqrt(2));
+    }
+
+    private static Color Scale(Color c, double f) => Color.FromRgb(Channel(c.R, f), Channel(c.G, f), Channel(c.B, f));
+
+    // Deterministic per-tile noise in 0..1 so the ground texture is stable across renders and camera turns.
+    private static double Noise(int column, int row, int salt)
+    {
+        uint h = (uint)((column * 73856093) ^ (row * 19349663) ^ (salt * 83492791));
+        h ^= h >> 13;
+        h *= 0x5bd1e995;
+        h ^= h >> 15;
+        return (h & 0xFFFF) / 65535.0;
+    }
+
     private static Point Screen(Vec3 p) => new((p.X - p.Z) * Cos30, ((p.X + p.Z) * Sin30) - (p.Y * Vertical));
 
     private static void AddGround(UiScene scene, View view, List<ScenePolygon> polygons)
     {
         Color grass = ParseColour(scene.GroundColor);
-        Color grassAlt = Color.FromRgb(Channel(grass.R, 0.94), Channel(grass.G, 0.94), Channel(grass.B, 0.94));
+        Color turf = Scale(grass, 0.72);
         int c = scene.Columns, r = scene.Rows;
-        Vec3[][] sides =
-        [
-            [new(0, 0, r), new(0, -GroundDepth, r), new(c, -GroundDepth, r), new(c, 0, r)],   // z = r, normal +z
-            [new(c, 0, 0), new(c, 0, r), new(c, -GroundDepth, r), new(c, -GroundDepth, 0)],   // x = c, normal +x
-            [new(0, 0, 0), new(c, 0, 0), new(c, -GroundDepth, 0), new(0, -GroundDepth, 0)],   // z = 0, normal -z
-            [new(0, 0, 0), new(0, -GroundDepth, 0), new(0, -GroundDepth, r), new(0, 0, r)],   // x = 0, normal -x
-        ];
-        foreach (Vec3[] side in sides)
+        double d = GroundDepth, t = TurfDepth;
+        foreach ((Vec3 a, Vec3 b, Vec3 cc, Vec3 dd) in Sides(c, r))
         {
-            Vec3[] world = [.. side.Select(p => view.ToCamera(p.X, p.Y, p.Z))];
-            if (TryShade(world, Dirt, out Color fill))
-            {
-                polygons.Add(new ScenePolygon([.. world.Select(Screen)], fill, null));
-            }
+            // Each side: a turf band, then soil fading to deeper soil towards the bottom.
+            AddFace(view, polygons, [a, Down(a, t), Down(dd, t), dd], turf);
+            AddFace(view, polygons, [Down(a, t), Down(a, d * 0.62), Down(dd, d * 0.62), Down(dd, t)], Dirt);
+            AddFace(view, polygons, [Down(a, d * 0.62), Down(a, d), Down(dd, d), Down(dd, d * 0.62)], DeepDirt);
         }
 
+        AddPebbles(view, polygons, c, r);
         for (int row = 0; row < r; row++)
         {
             for (int column = 0; column < c; column++)
             {
-                Vec3[] top = [view.ToCamera(column, 0, row), view.ToCamera(column, 0, row + 1), view.ToCamera(column + 1, 0, row + 1), view.ToCamera(column + 1, 0, row)];
-                if (TryShade(top, ((row + column) & 1) == 0 ? grass : grassAlt, out Color fill))
-                {
-                    polygons.Add(new ScenePolygon([.. top.Select(Screen)], fill, null));
-                }
+                Color tile = Scale(grass, 0.93 + (0.1 * Noise(column, row, 1)));
+                AddFace(view, polygons, [new(column, 0, row), new(column, 0, row + 1), new(column + 1, 0, row + 1), new(column + 1, 0, row)], tile);
+                AddTufts(view, polygons, column, row, Scale(grass, 0.78), Scale(grass, 1.12));
+            }
+        }
+    }
+
+    // The four slab sides as (top start, -, -, top end), wound so their outward normals face away from the slab.
+    private static IEnumerable<(Vec3, Vec3, Vec3, Vec3)> Sides(int c, int r)
+    {
+        yield return (new(0, 0, r), default, default, new(c, 0, r));
+        yield return (new(c, 0, r), default, default, new(c, 0, 0));
+        yield return (new(c, 0, 0), default, default, new(0, 0, 0));
+        yield return (new(0, 0, 0), default, default, new(0, 0, r));
+    }
+
+    private static Vec3 Down(Vec3 p, double depth) => p with { Y = p.Y - depth };
+
+    private static void AddFace(View view, List<ScenePolygon> polygons, Vec3[] points, Color colour)
+    {
+        Vec3[] world = [.. points.Select(p => view.ToCamera(p.X, p.Y, p.Z))];
+        if (TryShade(world, colour, out Color fill))
+        {
+            polygons.Add(new ScenePolygon([.. world.Select(Screen)], fill, null));
+        }
+    }
+
+    // A few small two-sided grass blades per tile; flat to the camera so they read at any turn.
+    private static void AddTufts(View view, List<ScenePolygon> polygons, int column, int row, Color dark, Color light)
+    {
+        int count = 2 + (int)(Noise(column, row, 2) * 3);
+        for (int i = 0; i < count; i++)
+        {
+            double x = column + 0.12 + (0.76 * Noise(column, row, 10 + i));
+            double z = row + 0.12 + (0.76 * Noise(column, row, 20 + i));
+            Vec3 c = view.ToCamera(x, 0, z);
+            Point foot = Screen(c);
+            double h = 0.05 + (0.04 * Noise(column, row, 30 + i));
+            Color colour = i % 2 == 0 ? dark : light;
+            foreach (double lean in new[] { -0.035, 0.0, 0.035 })
+            {
+                polygons.Add(new ScenePolygon(
+                [
+                    new(foot.X - 0.012, foot.Y),
+                    new(foot.X + lean, foot.Y - (h * Vertical)),
+                    new(foot.X + 0.012, foot.Y),
+                ], colour, null));
+            }
+        }
+    }
+
+    // Pebbles embedded in the two front sides, only where the side faces the camera.
+    private static void AddPebbles(View view, List<ScenePolygon> polygons, int c, int r)
+    {
+        foreach ((Vec3 a, _, _, Vec3 b) in Sides(c, r))
+        {
+            Vec3[] probe = [view.ToCamera(a.X, 0, a.Z), view.ToCamera(a.X, -1, a.Z), view.ToCamera(b.X, -1, b.Z)];
+            if (!TryShade(probe, Pebble, out Color fill))
+            {
+                continue;
+            }
+
+            double length = Math.Max(Math.Abs(b.X - a.X), Math.Abs(b.Z - a.Z));
+            for (int i = 0; i < (int)(length * 2); i++)
+            {
+                double f = (i + 0.3 + (0.4 * Noise(i, (int)a.X + (int)a.Z, 40))) / (length * 2);
+                double y = -TurfDepth - 0.05 - ((GroundDepth - TurfDepth - 0.1) * Noise(i, (int)b.X, 41));
+                Point p = Screen(view.ToCamera(a.X + ((b.X - a.X) * f), y, a.Z + ((b.Z - a.Z) * f)));
+                double w = 0.025 + (0.02 * Noise(i, 3, 42));
+                polygons.Add(new ScenePolygon([new(p.X - w, p.Y), new(p.X - (w * 0.5), p.Y - (w * 0.6)), new(p.X + (w * 0.6), p.Y - (w * 0.5)), new(p.X + w, p.Y + (w * 0.2)), new(p.X, p.Y + (w * 0.5))], fill, null));
             }
         }
     }

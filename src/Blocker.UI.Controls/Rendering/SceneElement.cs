@@ -71,8 +71,10 @@ internal sealed class SceneElement : Grid
         private readonly UiScene _scene;
         private readonly Action<UiAction> _raise;
         private readonly Dictionary<Color, Brush> _brushes = [];
-        private readonly Dictionary<Color, Pen> _inks = [];
-        private double _inkWidth = 1;
+        private static readonly Brush ShadowBrush = CreateShadowBrush();
+
+        private readonly Dictionary<Color, Pen> _seams = [];
+        private readonly Dictionary<Color, Brush> _gradients = [];
         private readonly Dictionary<string, UiSceneItem> _itemsById;
         private readonly HashSet<(int, int)> _occupied;
         private SceneProjection _projection;
@@ -91,6 +93,19 @@ internal sealed class SceneElement : Grid
             _occupied = [.. scene.Items.Select(i => (i.Column, i.Row))];
             _projection = SceneMath.Project(scene, _turns);
             Focusable = false;
+        }
+
+        private static Brush CreateShadowBrush()
+        {
+            var brush = new RadialGradientBrush(
+                new GradientStopCollection
+                {
+                    new(Color.FromArgb(0x70, 0x10, 0x18, 0x08), 0),
+                    new(Color.FromArgb(0x38, 0x10, 0x18, 0x08), 0.55),
+                    new(Color.FromArgb(0x00, 0x10, 0x18, 0x08), 1),
+                });
+            brush.Freeze();
+            return brush;
         }
 
         public int Turns
@@ -120,25 +135,23 @@ internal sealed class SceneElement : Grid
                 (ActualWidth / 2) - ((bounds.Left + (bounds.Width / 2)) * _scale),
                 (ActualHeight / 2) - ((bounds.Top + (bounds.Height / 2)) * _scale));
 
-            // Ink width follows the zoom so thumbnails and the full board read alike; clamped so lines never vanish or dominate.
-            _inkWidth = Math.Clamp(_scale * 0.014, 0.5, 1.4);
-            _inks.Clear();
             bool marksDrawn = false;
             foreach (ScenePolygon polygon in _projection.Polygons)
             {
                 if (!marksDrawn && polygon.ItemId is not null)
                 {
-                    DrawTileMarks(dc);
+                    DrawShadowsAndMarks(dc);
                     marksDrawn = true;
                 }
 
-                bool hovered = _hoverItem is not null && polygon.ItemId == _hoverItem;
-                dc.DrawGeometry(Brush(polygon.Fill), Ink(hovered ? Colors.White : polygon.Fill, polygon.ItemId is null ? 0.82 : 0.55), Geometry(polygon.Points));
+                Color fill = _hoverItem is not null && polygon.ItemId == _hoverItem ? Lighten(polygon.Fill) : polygon.Fill;
+                // Item faces get a soft top-to-bottom gradient for a painted look; the thin same-colour stroke only closes anti-aliasing seams.
+                dc.DrawGeometry(polygon.ItemId is null ? Brush(fill) : Gradient(fill), Seam(fill), Geometry(polygon.Points));
             }
 
             if (!marksDrawn)
             {
-                DrawTileMarks(dc);
+                DrawShadowsAndMarks(dc);
             }
         }
 
@@ -183,11 +196,16 @@ internal sealed class SceneElement : Grid
             }
         }
 
-        private void DrawTileMarks(DrawingContext dc)
+        private void DrawShadowsAndMarks(DrawingContext dc)
         {
             if (!_scene.ShowGround)
             {
                 return;
+            }
+
+            foreach (SceneShadow shadow in _projection.Shadows)
+            {
+                dc.DrawEllipse(ShadowBrush, null, Transform(shadow.Centre), shadow.RadiusX * _scale, shadow.RadiusY * _scale);
             }
 
             var selected = new Pen(Brushes.White, 2);
@@ -244,18 +262,33 @@ internal sealed class SceneElement : Grid
 
         private Point Transform(Point p) => new((p.X * _scale) + _offset.X, (p.Y * _scale) + _offset.Y);
 
-        // A darker line in the face's own hue gives the hand-drawn, illustrated look instead of a neutral grey wireframe.
-        private Pen Ink(Color fill, double darken)
+        private static Color Lighten(Color c) =>
+            Color.FromRgb((byte)Math.Min(255, c.R + 28), (byte)Math.Min(255, c.G + 28), (byte)Math.Min(255, c.B + 28));
+
+        private Pen Seam(Color fill)
         {
-            Color ink = Color.FromRgb((byte)(fill.R * darken), (byte)(fill.G * darken), (byte)(fill.B * darken));
-            if (!_inks.TryGetValue(ink, out Pen? pen))
+            if (!_seams.TryGetValue(fill, out Pen? pen))
             {
-                pen = new Pen(Brush(ink), _inkWidth) { LineJoin = PenLineJoin.Round };
+                pen = new Pen(Brush(fill), 0.5) { LineJoin = PenLineJoin.Round };
                 pen.Freeze();
-                _inks[ink] = pen;
+                _seams[fill] = pen;
             }
 
             return pen;
+        }
+
+        private Brush Gradient(Color fill)
+        {
+            if (!_gradients.TryGetValue(fill, out Brush? brush))
+            {
+                Color top = Color.FromRgb((byte)Math.Min(255, fill.R * 1.07), (byte)Math.Min(255, fill.G * 1.07), (byte)Math.Min(255, fill.B * 1.07));
+                Color bottom = Color.FromRgb((byte)(fill.R * 0.9), (byte)(fill.G * 0.9), (byte)(fill.B * 0.9));
+                brush = new LinearGradientBrush(top, bottom, 90);
+                brush.Freeze();
+                _gradients[fill] = brush;
+            }
+
+            return brush;
         }
 
         private Brush Brush(Color colour)

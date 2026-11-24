@@ -63,14 +63,28 @@ public sealed class SceneMathTests
     }
 
     [Fact]
-    public void Ground_draws_the_tiles_and_two_visible_sides()
+    public void Ground_draws_tiles_textured_sides_and_no_shadows_without_items()
     {
         var scene = new UiScene("s", 2, 3, [], []);
 
         SceneProjection projection = SceneMath.Project(scene, 0);
 
-        Assert.Equal((2 * 3) + 2, projection.Polygons.Count);
+        // Six tiles plus two visible sides of three bands each, then grass tufts and pebbles.
+        Assert.True(projection.Polygons.Count > (2 * 3) + (2 * 3));
         Assert.All(projection.Polygons, p => Assert.Null(p.ItemId));
+        Assert.Empty(projection.Shadows);
         Assert.False(projection.Bounds.IsEmpty);
+    }
+
+    [Fact]
+    public void Each_standing_item_casts_one_shadow_and_the_same_texture_every_time()
+    {
+        var cube = new UiSceneModel("m", [new UiSceneFace([-0.3, 0.5, -0.3, -0.3, 0.5, 0.3, 0.3, 0.5, 0.3, 0.3, 0.5, -0.3], "#336633")]);
+        var scene = new UiScene("s", 3, 3, [cube], [new UiSceneItem("a", "m", 0, 0), new UiSceneItem("b", "m", 2, 1)]);
+
+        SceneProjection first = SceneMath.Project(scene, 1);
+
+        Assert.Equal(2, first.Shadows.Count);
+        Assert.Equal(first.Polygons.Select(p => p.Fill), SceneMath.Project(scene, 1).Polygons.Select(p => p.Fill));
     }
 }
