@@ -1,0 +1,76 @@
+name: Merge branches and release 1.5.1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge all branches into default branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          default=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+          git switch "$default"
+          git reset --hard "origin/$default"
+
+          for branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/); do
+            branch=${branch#origin/}
+
+            case "$branch" in
+              "$default"|HEAD) continue ;;
+            esac
+
+            echo "Processing $branch"
+
+            git merge --no-edit "origin/$branch" || {
+              echo "::error::Conflict while merging $branch"
+              git merge --abort || true
+              exit 1
+            }
+          done
+
+          git push origin "$default"
+
+      - name: Create tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          default=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+          git switch "$default"
+          git fetch --tags
+
+          if git rev-parse "v1.5.1" >/dev/null 2>&1; then
+            echo "::error::Tag v1.5.1 already exists"
+            exit 1
+          fi
+
+          git tag -a "v1.5.1" -m "Windows Detox 1.5.1"
+          git push origin "v1.5.1"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v1.5.1" \
+            --title "Windows Detox 1.5.1" \
+            --generate-notes \
+            --latest
