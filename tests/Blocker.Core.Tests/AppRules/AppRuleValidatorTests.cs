@@ -6,7 +6,45 @@ namespace Blocker.Core.Tests.AppRules;
 
 public sealed class AppRuleValidatorTests
 {
-    private static AppRulesValidation Validate(params AppRuleDto[] rules) => AppRuleValidator.Validate(new AppRulesDto(rules));
+    private const string WindowsDirectory = @"C:\Windows";
+
+    private static AppRulesValidation Validate(params AppRuleDto[] rules) => AppRuleValidator.Validate(new AppRulesDto(rules), WindowsDirectory);
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\notepad.exe")]
+    [InlineData(@"c:/windows/explorer.exe")]
+    [InlineData(@"\\?\C:\WINDOWS\System32\calc.exe")]
+    [InlineData(@"C:\Games\..\Windows\System32\mspaint.exe")]
+    [InlineData(@"C:\Windows\Tasks\game.exe")]
+    public void A_program_in_the_windows_directory_cannot_get_a_rule(string path)
+    {
+        AppRulesValidation result = Validate(RuleFor(new AllowlistEntryDto("Notepad", path, null, null), Daily(0)));
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.Rules);
+        string error = Assert.Single(result.Errors);
+        Assert.Contains("Notepad", error, StringComparison.Ordinal);
+        Assert.Contains(@"C:\Windows", error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows.old\game.exe")]
+    [InlineData(@"C:\Windowsx\game.exe")]
+    [InlineData(@"C:\Games\Windows\game.exe")]
+    [InlineData(@"D:\Windows\game.exe")]
+    public void A_path_that_only_looks_like_the_windows_directory_is_fine(string path)
+    {
+        Assert.True(Validate(RuleFor(new AllowlistEntryDto("Game", path, null, null), Daily(0))).IsValid);
+    }
+
+    [Fact]
+    public void A_rule_without_a_path_is_not_affected_by_the_windows_directory()
+    {
+        var byHash = new AllowlistEntryDto("Game", null, new string('a', 64), null);
+        var byPackage = new AllowlistEntryDto("Store game", null, null, "Pkg.Game_abc");
+
+        Assert.True(Validate(RuleFor(byHash, Daily(0)), RuleFor(byPackage, Daily(0))).IsValid);
+    }
 
     [Fact]
     public void An_empty_rule_set_is_valid()

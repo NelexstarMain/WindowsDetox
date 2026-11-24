@@ -29,7 +29,8 @@ public sealed class AppRuleEngineTests
         new AppRulesStore(_store, _fs.Path.Combine(Root, "rules.bin")),
         new AppUsageStore(_store, _fs.Path.Combine(Root, "usage.bin")),
         () => _utc,
-        () => _zone);
+        () => _zone,
+        @"C:\Windows");
 
     private async Task<AppRuleEngine> LoadedEngineAsync()
     {

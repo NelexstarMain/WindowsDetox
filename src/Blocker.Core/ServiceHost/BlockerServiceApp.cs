@@ -77,7 +77,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             new AppRulesStore(secure, paths.AppRulesPath),
             new AppUsageStore(secure, paths.AppUsagePath),
             VerifiedOrSystemNow,
-            static () => TimeZoneInfo.Local.Id);
+            static () => TimeZoneInfo.Local.Id,
+            ports.Enforcement.WindowsDirectory);
         var pluginStore = new PluginStore(ports.FileSystem, paths.PluginsDirectory, paths.PluginDataDirectory);
 
         if (ports.PluginHostGateway is { } gateway)

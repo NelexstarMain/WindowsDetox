@@ -16,8 +16,12 @@ public sealed class CriticalAndBypassTests
     [InlineData(@"C:\Windows\SysWOW64\svchost.exe", CriticalKind.System)]
     [InlineData(@"C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe", CriticalKind.System)]
     [InlineData(@"C:\Windows\WinSxS\amd64_microsoft-windows-console_31bf3856ad364e35_10.0.19041.1\conhost.exe", CriticalKind.System)]
+    [InlineData(@"C:\Windows\System32\consent.exe", CriticalKind.System)] // the UAC prompt
+    [InlineData(@"C:\Windows\System32\CredentialUIBroker.exe", CriticalKind.System)]
     [InlineData(@"C:\Program Files\Blocker\Blocker.Service.exe", CriticalKind.BlockerOwn)]
     [InlineData(@"C:\Program Files\Blocker\Blocker.PluginHost.exe", CriticalKind.BlockerOwn)]
+    [InlineData(@"C:\Users\me\Downloads\consent.exe", CriticalKind.None)]
+    [InlineData(@"C:\Windows\Tasks\CredentialUIBroker.exe", CriticalKind.None)]
     [InlineData(@"C:\Users\me\Downloads\explorer.exe", CriticalKind.None)]
     [InlineData(@"C:\Windows.old\explorer.exe", CriticalKind.None)]
     [InlineData(@"C:\Windows\..\Temp\lsass.exe", CriticalKind.None)]
@@ -64,6 +68,26 @@ public sealed class CriticalAndBypassTests
     [InlineData("", false)]
     public void Known_image_names_are_independent_of_the_location(string name, bool expected) =>
         Assert.Equal(expected, CriticalProcesses.IsKnownImageName(name));
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\notepad.exe", true)]
+    [InlineData(@"C:\WINDOWS\explorer.exe", true)]
+    [InlineData(@"\\?\C:\Windows\System32\drivers\x.exe", true)]
+    [InlineData(@"C:\Windows\SystemApps\pkg\app.exe", true)]
+    [InlineData(@"C:\Windows\..\Games\game.exe", false)]
+    [InlineData(@"C:\Windows.old\notepad.exe", false)]
+    [InlineData(@"C:\Windowsx\notepad.exe", false)]
+    [InlineData(@"C:\Windows", false)]
+    [InlineData(@"C:\Games\game.exe", false)]
+    [InlineData(@"", false)]
+
+    // The subtrees every user can write to and run from can hold a copy of any program: they are not trusted.
+    [InlineData(@"C:\Windows\Tasks\game.exe", false)]
+    [InlineData(@"C:\Windows\Temp\game.exe", false)]
+    [InlineData(@"C:\Windows\System32\spool\drivers\color\game.exe", false)]
+    [InlineData(@"C:\Windows\System32\Tasks\game.exe", false)]
+    public void The_system_directory_is_trusted_except_for_the_subtrees_users_can_write_to(string path, bool expected) =>
+        Assert.Equal(expected, Critical.IsInTrustedSystemDirectory(path));
 
     [Fact]
     public void Constructor_rejects_blank_directories()

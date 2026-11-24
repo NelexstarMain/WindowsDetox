@@ -19,7 +19,8 @@ internal sealed record BlockingRule(string Key, AppRuleDto Rule, AppRuleState St
 /// <param name="usageStore">Stored usage.</param>
 /// <param name="utcNow">Verified (or system) UTC.</param>
 /// <param name="currentZoneId">Zone id of the machine, read when rules are saved.</param>
-internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usageStore, Func<DateTimeOffset> utcNow, Func<string> currentZoneId)
+/// <param name="windowsDirectory"><c>%SystemRoot%</c>; programs that run from it cannot have a rule.</param>
+internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usageStore, Func<DateTimeOffset> utcNow, Func<string> currentZoneId, string windowsDirectory)
 {
     private readonly Lock _ledgerGate = new();
     private readonly SemaphoreSlim _setGate = new(1, 1);
@@ -48,7 +49,7 @@ internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usag
     public async ValueTask LoadAsync(CancellationToken cancellationToken)
     {
         StoredAppRules stored = await rulesStore.LoadAsync(cancellationToken).ConfigureAwait(false);
-        AppRulesDto rules = AppRuleValidator.Validate(stored.Rules).Rules ?? new AppRulesDto([]);
+        AppRulesDto rules = AppRuleValidator.Validate(stored.Rules, windowsDirectory).Rules ?? new AppRulesDto([]);
         TimeZoneInfo zone = SessionConfigValidator.TryResolveZone(stored.TimeZoneId) ?? SessionConfigValidator.TryResolveZone(currentZoneId()) ?? TimeZoneInfo.Utc;
         Volatile.Write(ref _snapshot, Snapshot.Create(rules, zone));
         AppUsageState usage = await usageStore.LoadAsync(cancellationToken).ConfigureAwait(false);
@@ -72,7 +73,7 @@ internal sealed class AppRuleEngine(AppRulesStore rulesStore, AppUsageStore usag
     /// <returns>Errors; empty when the rules were stored.</returns>
     public async ValueTask<IReadOnlyList<string>> SetAsync(AppRulesDto request, CancellationToken cancellationToken)
     {
-        AppRulesValidation validation = AppRuleValidator.Validate(request);
+        AppRulesValidation validation = AppRuleValidator.Validate(request, windowsDirectory);
         if (validation.Rules is not { } next)
         {
             return validation.Errors;

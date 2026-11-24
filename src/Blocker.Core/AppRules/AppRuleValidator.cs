@@ -1,5 +1,6 @@
 using System.Globalization;
 using Blocker.Contracts;
+using Blocker.Core.Policy;
 using Blocker.Core.ServiceHost;
 
 namespace Blocker.Core.AppRules;
@@ -38,10 +39,12 @@ public static class AppRuleValidator
     /// (overlapping and touching ranges become one; ranges of neighbouring days stay separate), and only the fields of the chosen pool mode kept.
     /// </summary>
     /// <param name="rules">The rules as sent.</param>
+    /// <param name="windowsDirectory"><c>%SystemRoot%</c>: a program that runs from it cannot get a rule (the enforcer never touches it).</param>
     /// <returns>The normalized rules or the errors.</returns>
-    public static AppRulesValidation Validate(AppRulesDto rules)
+    public static AppRulesValidation Validate(AppRulesDto rules, string windowsDirectory)
     {
         ArgumentNullException.ThrowIfNull(rules);
+        ArgumentException.ThrowIfNullOrWhiteSpace(windowsDirectory);
         if (rules.Rules is null)
         {
             return new AppRulesValidation(null, ["The rules are missing."]);
@@ -67,6 +70,11 @@ public static class AppRuleValidator
             string label = Label(rule.App);
             int errorsBefore = errors.Count;
             AllowlistEntryDto app = NormalizeApp(rule.App, errors);
+            if (errors.Count == errorsBefore && WinPath.IsUnder(WinPath.Normalize(app.ExecutablePath), WinPath.Normalize(windowsDirectory)))
+            {
+                errors.Add($"'{label}' runs from the Windows directory ({Printable(windowsDirectory)}), whose programs Blocker never closes, so it cannot get a rule.");
+            }
+
             IReadOnlyList<WeeklyRangeDto> ranges = NormalizeRanges(label, rule.BlockedRanges, errors);
             AppBudgetDto budget = NormalizeBudget(label, rule.Budget, errors);
             if (errors.Count > errorsBefore)

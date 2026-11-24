@@ -14,9 +14,9 @@ namespace Blocker.Core.AppRules;
 /// Per-app rules outside sessions, running all day next to the session coordinator. It does two things. Metering: the foreground app reported by
 /// the agent is matched to its rule (hash, path or package, like the allowlist) and counted once a second while the agent is connected and the
 /// user is not idle. Enforcement: a process that starts, and every process found by a reconcile pass every few seconds, is terminated and replaced
-/// by the block screen when its rule blocks it right now (scheduled block or used-up pool); session 0, critical Windows processes and Blocker's own
-/// processes are never touched. While a session runs nothing is enforced (the session decides) but usage still counts. The system is not changed
-/// in any way (no IFEO, ACL or policy), so there is nothing to journal or roll back.
+/// by the block screen when its rule blocks it right now (scheduled block or used-up pool); session 0, critical Windows processes, programs in
+/// the Windows directory and Blocker's own processes are never touched. While a session runs nothing is enforced (the session decides) but usage
+/// still counts. The system is not changed in any way (no IFEO, ACL or policy), so there is nothing to journal or roll back.
 /// </summary>
 /// <param name="engine">Rules, ledger and decisions.</param>
 /// <param name="monitor">Process monitor shared with the coordinator.</param>
@@ -400,7 +400,7 @@ internal sealed partial class AppRuleEnforcer(
             process = process with { ImagePath = resolved };
         }
 
-        if (critical.IsCritical(process.ImagePath))
+        if (critical.IsCritical(process.ImagePath) || critical.IsInTrustedSystemDirectory(process.ImagePath))
         {
             return;
         }
@@ -587,13 +587,14 @@ internal sealed partial class AppRuleEnforcer(
     }
 
     /// <summary>
-    /// Hashes an image for a hash rule, within limits: only a file on a local drive (a share or device path is never opened), no larger than
+    /// Hashes an image for a hash rule, within limits: only a file on a local drive (a share or device path is never opened) and outside the
+    /// system directory (never enforced, so never worth recognizing), no larger than
     /// <see cref="MaxHashBytes"/>, and for no longer than <see cref="HashTimeout"/>. An image that timed out is not tried again for a minute, so
     /// a stalled disk does not cost the timeout on every pass. No hash means no hash rule matches: the app is not recognized.
     /// </summary>
     private async ValueTask<string?> HashAsync(string path, CancellationToken cancellationToken)
     {
-        if (!WinPath.IsLocalDrivePath(path) || IsHashGivenUp(path))
+        if (!WinPath.IsLocalDrivePath(path) || critical.IsInTrustedSystemDirectory(path) || IsHashGivenUp(path))
         {
             return null;
         }

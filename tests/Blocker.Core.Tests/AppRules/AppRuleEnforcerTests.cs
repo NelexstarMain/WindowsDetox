@@ -387,7 +387,8 @@ public sealed class AppRuleEnforcerTests
     public async Task Critical_blocker_and_session_0_processes_are_never_terminated_even_with_a_rule()
     {
         await using var h = new AppRuleEnforcerHarness();
-        var explorer = new AllowlistEntryDto("Explorer", Orchestration.OrchestrationHarness.Explorer, null, null);
+        h.Fs.AddFile(Orchestration.OrchestrationHarness.Explorer, new MockFileData(HashedBytes));
+        var explorer = new AllowlistEntryDto("Explorer", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null); // a path rule for it is refused: it runs from the Windows directory
         var ownUi = new AllowlistEntryDto("Blocker UI", @"C:\Program Files\Blocker\Blocker.UI.exe", null, null);
         await h.SetRulesAsync(AllWeekBlock(explorer), AllWeekBlock(ownUi), AllWeekBlock());
         await h.Enforcer.StartAsync(Ct);
@@ -414,6 +415,37 @@ public sealed class AppRuleEnforcerTests
         await h.SpawnAsync(P(10, @"C:\Users\me\Downloads\explorer.exe"));
 
         Assert.Single(h.Controller.Terminated);
+    }
+
+    [Fact]
+    public async Task Programs_in_the_windows_directory_are_never_terminated_or_hashed_even_when_a_hash_rule_matches()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        const string notepad = @"C:\Windows\System32\notepad.exe";
+        h.Fs.AddFile(notepad, new MockFileData(HashedBytes));
+        await h.SetRulesAsync(RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0)));
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, notepad));
+        h.Monitor.SpawnUnreported(P(21, notepad));
+        await h.TickAfterAsync(ReconcileInterval);
+
+        Assert.Empty(h.Controller.Terminated);
+        Assert.Empty(h.Hasher.Calls);
+    }
+
+    [Fact]
+    public async Task A_copy_in_a_subtree_of_the_windows_directory_that_users_can_write_to_is_still_enforced()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        const string copy = @"C:\Windows\Tasks\renamed.exe";
+        h.Fs.AddFile(copy, new MockFileData(HashedBytes));
+        await h.SetRulesAsync(RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0)));
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, copy));
+
+        Assert.Equal([(20, 20_000L)], h.Controller.Terminated);
     }
 
     [Fact]

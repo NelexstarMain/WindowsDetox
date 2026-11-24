@@ -123,7 +123,7 @@ public sealed class EnforcementPolicy
     /// Subtrees below the Windows directory that standard users can write to and run programs from (the classic AppLocker-bypass folders),
     /// relative to it. A Microsoft-signed program copied there must not ride on the system baseline.
     /// </summary>
-    private static readonly string[] WritableSubtrees =
+    internal static readonly string[] WritableSubtrees =
     [
         @"tasks", @"temp", @"tracing", @"registration\crmlog", @"debug\wia",
         @"system32\tasks", @"system32\tasks_migrated", @"system32\spool\drivers\color", @"system32\spool\printers", @"system32\spool\servers",

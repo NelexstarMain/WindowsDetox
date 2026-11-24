@@ -77,7 +77,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
             new AppRulesStore(_store, Fs.Path.Combine(Root, "rules.bin")),
             new AppUsageStore(_store, UsagePath),
             Time.GetUtcNow,
-            static () => "UTC");
+            static () => "UTC",
+            @"C:\Windows");
         Enforcer = new AppRuleEnforcer(
             Engine,
             Monitor,

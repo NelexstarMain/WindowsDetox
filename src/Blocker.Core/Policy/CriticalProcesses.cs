@@ -62,6 +62,8 @@ public sealed class CriticalProcesses
         ["MsMpEng"] = Locations.None, // Defender runs from the administrator-only extra roots
         ["NisSrv"] = Locations.None,
         ["smartscreen"] = Locations.Servicing,
+        ["consent"] = Locations.Servicing, // the UAC prompt: killing it denies every elevation
+        ["CredentialUIBroker"] = Locations.Servicing, // hosts the credential dialogs of Windows and of apps
         ["ApplicationFrameHost"] = Locations.Servicing,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
@@ -74,6 +76,7 @@ public sealed class CriticalProcesses
     public static IReadOnlyList<string> KnownImageNames { get; } = [.. SystemNames.Keys.Concat(OwnNames).Order(StringComparer.OrdinalIgnoreCase)];
 
     private readonly string _windowsDirectory;
+    private readonly string[] _writableSubtrees;
     private readonly string[] _extraRoots;
     private readonly string _installDirectory;
 
@@ -89,6 +92,7 @@ public sealed class CriticalProcesses
         ArgumentException.ThrowIfNullOrWhiteSpace(windowsDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(installDirectory);
         _windowsDirectory = WinPath.Normalize(windowsDirectory);
+        _writableSubtrees = [.. EnforcementPolicy.WritableSubtrees.Select(relative => _windowsDirectory + @"\" + relative)];
         _extraRoots = [.. (additionalSystemDirectories ?? []).Select(WinPath.Normalize)];
         _installDirectory = WinPath.Normalize(installDirectory);
     }
@@ -130,6 +134,18 @@ public sealed class CriticalProcesses
 
     /// <summary>True when the process must never be killed.</summary>
     public bool IsCritical(string imagePath) => Classify(imagePath) != CriticalKind.None;
+
+    /// <summary>
+    /// True when the image lives in the Windows directory outside the subtrees every user can write to and run from (<c>Tasks</c>, <c>Temp</c>...),
+    /// which can hold a copy of any program and so are not trusted.
+    /// </summary>
+    /// <param name="imagePath">DOS-style image path; empty paths are never in the system directory.</param>
+    /// <returns>Whether the image is a system program by its location.</returns>
+    public bool IsInTrustedSystemDirectory(string imagePath)
+    {
+        string path = WinPath.Normalize(imagePath);
+        return WinPath.IsUnder(path, _windowsDirectory) && !_writableSubtrees.Any(subtree => WinPath.IsUnder(path, subtree));
+    }
 
     /// <summary>True when <paramref name="imageName"/> (with or without extension) is one of the protected names, wherever the image lives.</summary>
     public static bool IsKnownImageName(string imageName)
