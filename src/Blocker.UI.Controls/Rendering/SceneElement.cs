@@ -71,6 +71,8 @@ internal sealed class SceneElement : Grid
         private readonly UiScene _scene;
         private readonly Action<UiAction> _raise;
         private readonly Dictionary<Color, Brush> _brushes = [];
+        private readonly Dictionary<Color, Pen> _inks = [];
+        private double _inkWidth = 1;
         private readonly Dictionary<string, UiSceneItem> _itemsById;
         private readonly HashSet<(int, int)> _occupied;
         private SceneProjection _projection;
@@ -118,8 +120,9 @@ internal sealed class SceneElement : Grid
                 (ActualWidth / 2) - ((bounds.Left + (bounds.Width / 2)) * _scale),
                 (ActualHeight / 2) - ((bounds.Top + (bounds.Height / 2)) * _scale));
 
-            var edge = new Pen(Brush(Color.FromArgb(0x30, 0, 0, 0)), 0.6);
-            edge.Freeze();
+            // Ink width follows the zoom so thumbnails and the full board read alike; clamped so lines never vanish or dominate.
+            _inkWidth = Math.Clamp(_scale * 0.014, 0.5, 1.4);
+            _inks.Clear();
             bool marksDrawn = false;
             foreach (ScenePolygon polygon in _projection.Polygons)
             {
@@ -129,7 +132,8 @@ internal sealed class SceneElement : Grid
                     marksDrawn = true;
                 }
 
-                dc.DrawGeometry(Brush(polygon.Fill), polygon.ItemId == _hoverItem && _hoverItem is not null ? null : edge, Geometry(polygon.Points));
+                bool hovered = _hoverItem is not null && polygon.ItemId == _hoverItem;
+                dc.DrawGeometry(Brush(polygon.Fill), Ink(hovered ? Colors.White : polygon.Fill, polygon.ItemId is null ? 0.82 : 0.55), Geometry(polygon.Points));
             }
 
             if (!marksDrawn)
@@ -239,6 +243,20 @@ internal sealed class SceneElement : Grid
         }
 
         private Point Transform(Point p) => new((p.X * _scale) + _offset.X, (p.Y * _scale) + _offset.Y);
+
+        // A darker line in the face's own hue gives the hand-drawn, illustrated look instead of a neutral grey wireframe.
+        private Pen Ink(Color fill, double darken)
+        {
+            Color ink = Color.FromRgb((byte)(fill.R * darken), (byte)(fill.G * darken), (byte)(fill.B * darken));
+            if (!_inks.TryGetValue(ink, out Pen? pen))
+            {
+                pen = new Pen(Brush(ink), _inkWidth) { LineJoin = PenLineJoin.Round };
+                pen.Freeze();
+                _inks[ink] = pen;
+            }
+
+            return pen;
+        }
 
         private Brush Brush(Color colour)
         {
