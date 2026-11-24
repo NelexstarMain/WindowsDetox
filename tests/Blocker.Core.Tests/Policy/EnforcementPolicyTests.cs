@@ -233,6 +233,8 @@ public sealed class EnforcementPolicyTests
     [InlineData(@"C:\Windows\System32\notepad.exe")]
     [InlineData(@"C:\Windows\SysWOW64\notepad.exe")]
     [InlineData(@"C:\Windows\SystemApps\Microsoft.Windows.Cortana_x\app.exe")]
+    [InlineData(@"C:\Windows\notepad.exe")]
+    [InlineData(@"C:\Windows\splwow64.exe")]
     public void System_baseline_requires_a_microsoft_signature(string path)
     {
         Expect(Facts(path, signed: true), VerdictKind.Allow, VerdictReason.SystemBaseline);
@@ -240,7 +242,8 @@ public sealed class EnforcementPolicyTests
     }
 
     [Theory]
-    [InlineData(@"C:\Windows\notepad.exe")]
+    [InlineData(@"C:\Windows\ImmersiveControlPanel\SystemSettings.exe")]
+    [InlineData(@"C:\Windows\Tasks\a.exe")]
     [InlineData(@"C:\Windows\System32evil\a.exe")]
     [InlineData(@"C:\Windows\System32\..\..\Users\me\a.exe")]
     [InlineData(@"C:\Program Files\Microsoft\a.exe")]
@@ -248,6 +251,40 @@ public sealed class EnforcementPolicyTests
     public void System_baseline_is_limited_to_the_system_directories(string path)
     {
         Expect(Facts(path, signed: true), VerdictKind.Block, VerdictReason.NotAllowlisted);
+    }
+
+    [Theory]
+    [InlineData("Microsoft.WindowsCalculator_8wekyb3d8bbwe")]
+    [InlineData("microsoft.windowsnotepad_8wekyb3d8bbwe")]
+    [InlineData("Microsoft.ScreenSketch_8wekyb3d8bbwe")]
+    [InlineData("Microsoft.WindowsAppRuntime.1.6_8wekyb3d8bbwe")]
+    [InlineData("MicrosoftWindows.Client.WebExperience_cw5n1h2txyewy")]
+    public void Inbox_windows_packages_are_part_of_the_system_baseline(string pfn)
+    {
+        Expect(Facts(@"C:\Program Files\WindowsApps\Pkg\app.exe", pfn: pfn), VerdictKind.Allow, VerdictReason.SystemBaseline);
+    }
+
+    [Theory]
+    [InlineData("Microsoft.MicrosoftSolitaireCollection_8wekyb3d8bbwe")]
+    [InlineData("Microsoft.WindowsCalculator_1234567890abc")]
+    [InlineData("Microsoft.WindowsCalculator")]
+    [InlineData("_cw5n1h2txyewy")]
+    public void Other_packages_are_not_part_of_the_system_baseline(string pfn)
+    {
+        Expect(Facts(@"C:\Program Files\WindowsApps\Pkg\app.exe", pfn: pfn), VerdictKind.Block, VerdictReason.NotAllowlisted);
+    }
+
+    [Fact]
+    public void Inbox_package_bypass_tools_stay_blocked()
+    {
+        Expect(Facts(@"C:\Program Files\WindowsApps\Pkg\cmd.exe", pfn: "MicrosoftWindows.Client.Core_cw5n1h2txyewy"), VerdictKind.Block, VerdictReason.BypassTool);
+    }
+
+    [Fact]
+    public void Driver_package_helpers_are_part_of_the_system_baseline_without_a_microsoft_signature()
+    {
+        Expect(Facts(@"C:\Windows\System32\DriverStore\FileRepository\realtek.inf_amd64_1\RtkAudUService64.exe"), VerdictKind.Allow, VerdictReason.SystemBaseline);
+        Expect(Facts(@"C:\Windows\System32\DriverStore\Temp\a.exe"), VerdictKind.Block, VerdictReason.NotAllowlisted);
     }
 
     [Fact]
