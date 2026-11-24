@@ -1,0 +1,6 @@
+{
+  "name": "cost-meter",
+  "version": "0.1.0",
+  "description": "A pane showing what this project's Claude Code sessions cost in USD, total, per model and per day",
+  "types": "./types/index.d.ts"
+}

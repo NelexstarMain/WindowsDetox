@@ -1,0 +1,11 @@
+{
+  "name": "windowsdetox-tools",
+  "owner": { "name": "NelexstarMain" },
+  "plugins": [
+    {
+      "name": "cost-meter",
+      "source": "./tools/claude-mods/cost-meter",
+      "description": "Claude Code pane: estimated USD cost of this project's sessions and Claude Code Hygiene progress"
+    }
+  ]
+}
