@@ -50,15 +50,24 @@ internal sealed partial class AppRuleEnforcer(
     /// <summary>How often every running process is checked against the rules that block, as a second chance after the monitor's events.</summary>
     internal static readonly TimeSpan ReconcileInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>Longest an image is hashed for an app rule before it counts as unrecognized.</summary>
+    internal static readonly TimeSpan HashTimeout = TimeSpan.FromSeconds(2);
+
+    /// <summary>Largest image that is hashed for an app rule; a bigger one is not recognized by hash.</summary>
+    internal const long MaxHashBytes = 512L * 1024 * 1024;
+
     private const int QueueCapacity = 4096;
     private const int MaxHandled = 4096;
     private const int MaxStubLaunches = 256;
+    private const int MaxHashGiveUps = 256;
     private static readonly TimeSpan PersistInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxMeterStep = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan HashRetryDelay = TimeSpan.FromMinutes(1);
     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
 
     private readonly SemaphoreSlim _tickGate = new(1, 1);
+    private readonly SemaphoreSlim _reconcileGate = new(1, 1);
     private readonly CancellationTokenSource _stop = new();
     private readonly WorkTracker _work = new();
     private readonly Channel<ProcessInfo> _queue = Channel.CreateBounded<ProcessInfo>(
@@ -67,6 +76,8 @@ internal sealed partial class AppRuleEnforcer(
     private readonly HashSet<ProcessKey> _handled = [];
     private readonly Lock _stubGate = new();
     private readonly Dictionary<string, long> _stubLaunches = new(StringComparer.Ordinal);
+    private readonly Lock _hashGate = new();
+    private readonly Dictionary<string, long> _hashGiveUps = new(StringComparer.Ordinal);
     private Task _consumer = Task.CompletedTask;
     private ForegroundState? _foreground;
     private volatile bool _idle;
@@ -153,21 +164,28 @@ internal sealed partial class AppRuleEnforcer(
     /// <returns>A task that completes when the tick is done.</returns>
     internal async ValueTask TickOnceAsync(CancellationToken cancellationToken)
     {
+        bool reconcileDue;
         await _tickGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await MeterAsync(cancellationToken).ConfigureAwait(false);
             await PersistIfDueAsync(cancellationToken).ConfigureAwait(false);
-            if (_reconcileNow || IsDue(_reconcileStamp, ReconcileInterval))
+            reconcileDue = _reconcileNow || IsDue(_reconcileStamp, ReconcileInterval);
+            if (reconcileDue)
             {
                 _reconcileNow = false;
                 _reconcileStamp = time.GetTimestamp();
-                await ReconcileAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         finally
         {
             _ = _tickGate.Release();
+        }
+
+        // Outside the tick gate: a pass hashes the images of everything that runs, and the metering of the next tick must not queue up behind it.
+        if (reconcileDue)
+        {
+            await ReconcileAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -313,6 +331,19 @@ internal sealed partial class AppRuleEnforcer(
     /// <summary>Starts or restarts the monitor, then terminates every running process that belongs to a rule that blocks right now.</summary>
     private async ValueTask ReconcileAsync(CancellationToken cancellationToken)
     {
+        await _reconcileGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await ReconcileCoreAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _reconcileGate.Release();
+        }
+    }
+
+    private async ValueTask ReconcileCoreAsync(CancellationToken cancellationToken)
+    {
         await EnsureMonitorAsync(cancellationToken).ConfigureAwait(false);
         if (sessionRunning())
         {
@@ -374,9 +405,16 @@ internal sealed partial class AppRuleEnforcer(
             return;
         }
 
-        string? sha256 = matcher.NeedsHash ? await HashAsync(process.ImagePath, cancellationToken).ConfigureAwait(false) : null;
+        // The cheap identities first: an image that its path or package already names is not hashed at all.
         string? package = matcher.NeedsPackage ? TryGetPackage(process.ProcessId) : null;
-        IReadOnlyList<string> keys = matcher.Match(process.ImagePath, sha256, package);
+        string? sha256 = null;
+        IReadOnlyList<string> keys = matcher.Match(process.ImagePath, null, package);
+        if (keys.Count == 0 && matcher.NeedsHash && await HashAsync(process.ImagePath, cancellationToken).ConfigureAwait(false) is { } hash)
+        {
+            sha256 = hash;
+            keys = matcher.Match(process.ImagePath, hash, package);
+        }
+
         if (keys.Count > 0)
         {
             BlockingRule rule = blocks.First(b => keys.Contains(b.Key));
@@ -548,16 +586,55 @@ internal sealed partial class AppRuleEnforcer(
         }
     }
 
+    /// <summary>
+    /// Hashes an image for a hash rule, within limits: only a file on a local drive (a share or device path is never opened), no larger than
+    /// <see cref="MaxHashBytes"/>, and for no longer than <see cref="HashTimeout"/>. An image that timed out is not tried again for a minute, so
+    /// a stalled disk does not cost the timeout on every pass. No hash means no hash rule matches: the app is not recognized.
+    /// </summary>
     private async ValueTask<string?> HashAsync(string path, CancellationToken cancellationToken)
     {
+        if (!WinPath.IsLocalDrivePath(path) || IsHashGivenUp(path))
+        {
+            return null;
+        }
+
+        using var timeout = new CancellationTokenSource(HashTimeout, time);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         try
         {
-            return await hasher.GetSha256Async(path, cancellationToken).ConfigureAwait(false);
+            return await hasher.GetSha256Async(path, MaxHashBytes, linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            GiveUpHashing(path);
+            LogHashTimedOut(logger, path, HashTimeout.TotalSeconds);
+            return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             LogStepFailed(logger, ex, "Hashing an image");
-            return null; // no hash, no hash rule match: the app is not recognized
+            return null;
+        }
+    }
+
+    private bool IsHashGivenUp(string path)
+    {
+        lock (_hashGate)
+        {
+            return _hashGiveUps.TryGetValue(WinPath.Normalize(path), out long since) && time.GetElapsedTime(since) < HashRetryDelay;
+        }
+    }
+
+    private void GiveUpHashing(string path)
+    {
+        lock (_hashGate)
+        {
+            if (_hashGiveUps.Count >= MaxHashGiveUps)
+            {
+                _hashGiveUps.Clear(); // bounded: forgetting at worst repeats one timeout
+            }
+
+            _hashGiveUps[WinPath.Normalize(path)] = time.GetTimestamp();
         }
     }
 
@@ -604,6 +681,9 @@ internal sealed partial class AppRuleEnforcer(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The process monitor could not be started for the app rules; running programs are still checked every few seconds.")]
     private static partial void LogMonitorFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Hashing {Image} took longer than {Seconds} s and was given up; it is not recognized by hash for a minute.")]
+    private static partial void LogHashTimedOut(ILogger logger, string image, double seconds);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The app rule queue is full; the next reconcile pass finds the process that did not fit.")]
     private static partial void LogQueueFull(ILogger logger);

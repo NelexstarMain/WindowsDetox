@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Blocker.Contracts;
 using Blocker.Core.AppRules;
@@ -14,6 +15,46 @@ using static Blocker.Core.Tests.Orchestration.OrchestrationHarness;
 
 namespace Blocker.Core.Tests.AppRules;
 
+/// <summary>A hasher that records what it was asked to hash and can be told to hang until its caller gives up.</summary>
+internal sealed class RecordingHasher(IFileSystem fileSystem) : FileHasher(fileSystem)
+{
+    private readonly Lock _gate = new();
+    private readonly List<(string Path, long MaxBytes)> _calls = [];
+
+    public IReadOnlyList<(string Path, long MaxBytes)> Calls
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _calls];
+            }
+        }
+    }
+
+    /// <summary>Gets or sets whether hashing never completes on its own (a stalled disk or share).</summary>
+    public bool Hang { get; set; }
+
+    /// <summary>Completes when a hashing call started to hang.</summary>
+    public TaskCompletionSource HangStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public override async ValueTask<string?> GetSha256Async(string path, long maxBytes, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            _calls.Add((path, maxBytes));
+        }
+
+        if (Hang)
+        {
+            _ = HangStarted.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
+        return await base.GetSha256Async(path, maxBytes, cancellationToken);
+    }
+}
+
 /// <summary>
 /// The app rule enforcer over fakes. One clock drives the timers and the rule time (Monday 2026-11-23 10:00 UTC, zone UTC). The enforcer's tick
 /// loop is not started: tests advance the clock and tick by hand, so what a tick sees is exactly what the test arranged.
@@ -28,6 +69,7 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
 
     public AppRuleEnforcerHarness()
     {
+        Hasher = new RecordingHasher(Fs);
         var protector = new FakeSecretProtector();
         _store = new SecureFileStore(Fs, protector, new HmacKeyStore(Fs, protector, Fs.Path.Combine(Root, "hmac.key")));
         Time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 23, 10, 0, 0, TimeSpan.Zero));
@@ -41,7 +83,7 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
             Monitor,
             Controller,
             Launcher,
-            new FileHasher(Fs),
+            Hasher,
             new CriticalProcesses(@"C:\Windows", InstallDir),
             StubPath,
             Events,
@@ -54,6 +96,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
     public static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public MockFileSystem Fs { get; } = new();
+
+    public RecordingHasher Hasher { get; }
 
     public FakeTimeProvider Time { get; }
 

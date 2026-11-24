@@ -111,6 +111,83 @@ public sealed class AppRuleEnforcerTests
     }
 
     [Fact]
+    public async Task A_process_that_the_path_already_matches_is_not_hashed_even_when_a_hash_rule_exists()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        h.Fs.AddFile(Hashed, new MockFileData(HashedBytes));
+        await h.SetRulesAsync(AllWeekBlock(), RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0)));
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, GamePath));
+        await h.SpawnAsync(P(21, Hashed)); // nothing matches this by path: the hash is what decides
+
+        Assert.Equal([(20, 20_000L), (21, 21_000L)], h.Controller.Terminated);
+        Assert.Equal([Hashed], h.Hasher.Calls.Select(static c => c.Path));
+    }
+
+    [Theory]
+    [InlineData(@"\\evil-host\share\game.exe")]
+    [InlineData(@"\\?\UNC\evil-host\share\game.exe")]
+    [InlineData(@"\\.\pipe\game")]
+    [InlineData(@"\\?\GLOBALROOT\Device\HarddiskVolume1\game.exe")]
+    [InlineData("//evil-host/share/game.exe")]
+    public async Task Images_on_a_share_or_a_device_path_are_never_opened_to_be_hashed(string image)
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        await h.SetRulesAsync(RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0), Range(0, 0, 1440)));
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, image));
+        h.Monitor.SpawnUnreported(P(21, image));
+        await h.TickAfterAsync(ReconcileInterval);
+        await h.Enforcer.OnForegroundAsync(image, null, Ct);
+
+        Assert.Empty(h.Hasher.Calls);
+        Assert.Empty(h.Controller.Terminated);
+    }
+
+    [Fact]
+    public async Task A_hash_rule_hashes_a_local_image_with_the_size_cap()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        h.Fs.AddFile(Hashed, new MockFileData(HashedBytes));
+        await h.SetRulesAsync(RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0)));
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, Hashed));
+
+        Assert.Equal([(Hashed, AppRuleEnforcer.MaxHashBytes)], h.Hasher.Calls);
+        Assert.Single(h.Controller.Terminated);
+    }
+
+    [Fact]
+    public async Task Hashing_that_stalls_is_given_up_after_a_timeout_and_not_attempted_again_within_a_minute()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        h.Fs.AddFile(Hashed, new MockFileData(HashedBytes));
+        await h.SetRulesAsync(RuleFor(new AllowlistEntryDto("Hashed", null, Orchestration.OrchestrationHarness.Sha(HashedBytes), null), Daily(0)));
+        await h.Enforcer.StartAsync(Ct);
+        h.Hasher.Hang = true;
+
+        Task spawn = h.SpawnAsync(P(20, Hashed));
+        await h.Hasher.HangStarted.Task.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+        Assert.False(spawn.IsCompleted);
+        h.Time.Advance(AppRuleEnforcer.HashTimeout + Second);
+        await spawn.WaitAsync(TimeSpan.FromSeconds(30), Ct);
+
+        Assert.Empty(h.Controller.Terminated); // fails open: an image that cannot be hashed in time is not recognized
+        h.Hasher.Hang = false;
+        await h.TickAfterAsync(ReconcileInterval);
+        Assert.Single(h.Hasher.Calls); // not asked again yet
+        Assert.Empty(h.Controller.Terminated);
+
+        await h.TickAfterAsync(TimeSpan.FromMinutes(1));
+
+        Assert.Equal(2, h.Hasher.Calls.Count);
+        Assert.Equal([(20, 20_000L)], h.Controller.Terminated);
+    }
+
+    [Fact]
     public async Task A_package_rule_catches_every_process_of_the_package()
     {
         await using var h = new AppRuleEnforcerHarness();

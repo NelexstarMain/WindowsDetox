@@ -54,6 +54,22 @@ internal static class WinPath
         return unc ? @"\\" + joined : joined;
     }
 
+    /// <summary>
+    /// True for a path on a local drive letter (<c>C:\x</c>, also behind <c>\\?\</c>). Shares (<c>\\server\share</c>, <c>\\?\UNC\</c>), device and
+    /// volume paths (<c>\\.\</c>, <c>\\?\GLOBALROOT\</c>) and relative paths are not: opening them from the service would reach out over the network
+    /// or into a device, so they are never read.
+    /// </summary>
+    public static bool IsLocalDrivePath(string? path)
+    {
+        ReadOnlySpan<char> p = path.AsSpan().Trim();
+        if (p.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            p = p[4..];
+        }
+
+        return p.Length >= 3 && char.IsAsciiLetter(p[0]) && p[1] == ':' && p[2] is '\\' or '/';
+    }
+
     /// <summary>True when the already-normalized <paramref name="path"/> is strictly below the already-normalized <paramref name="directory"/>.</summary>
     public static bool IsUnder(string path, string directory) =>
         directory.Length > 0
