@@ -249,7 +249,10 @@ public sealed class MutualSupervisorTests
         await Spin.UntilAsync(() =>
         {
             _time.Advance(TimeSpan.FromSeconds(1));
-            return _partner.Starts == 11;
+
+            // A starved supervisor can wake only after the failure window has passed and restart several times
+            // between two checks, so "at least one more start" is the observable property.
+            return _partner.Starts >= 11;
         });
         await StopAsync(run);
     }
