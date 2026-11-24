@@ -519,7 +519,7 @@ public sealed class ForestTests
         UiStatTile coins = Descendants(page).OfType<UiStatTile>().First();
         Assert.Equal(("Coins", "52"), (coins.Label, coins.Value));
         UiScene garden = Garden(page);
-        Assert.Equal(420, garden.Height);
+        Assert.Equal(720, garden.Height);
         Assert.False(garden.AllowPick);
         UiSceneItem item = Assert.Single(garden.Items);
         Assert.Equal("Oak · 52 min · Jan 1", item.Label);
@@ -539,7 +539,7 @@ public sealed class ForestTests
 
         UiScene[] thumbnails = [.. Descendants(trees).OfType<UiScene>().Where(s => s.Id != ForestIds.Scene)];
         Assert.Equal(ForestCatalog.All.Count(s => s.Kind == ForestKind.Tree), thumbnails.Length);
-        Assert.All(thumbnails, t => Assert.Equal((1, 1, false, false, 96d), (t.Columns, t.Rows, t.ShowGround, t.AllowRotate, t.Height)));
+        Assert.All(thumbnails, t => Assert.Equal((1, 1, false, false, 150d), (t.Columns, t.Rows, t.ShowGround, t.AllowRotate, t.Height)));
         Assert.Equal(new UiButton("forest-select-oak", "Planting", UiButtonVariant.Primary, UiIcon.Checkmark, false), ButtonWithId(trees, "forest-select-oak"));
         Assert.True(ButtonWithId(trees, "forest-select-pine").IsEnabled);
         Assert.Equal("Unlock", ButtonWithId(trees, "forest-unlock-birch").Label);
@@ -719,6 +719,31 @@ public sealed class ForestTests
         Assert.Equal(a.Objects.Count, a.Objects.Select(o => (o.Column, o.Row)).Distinct().Count());
         Assert.Contains(a.Objects, o => o.StageValue == ForestStage.Withered);
         Assert.Contains(a.Objects, o => ForestCatalog.Find(o.Species)!.Kind == ForestKind.Decoration);
+    }
+
+    [Fact]
+    public void The_example_forest_scene_has_a_model_of_the_right_species_for_every_plant_and_decoration_and_fits_the_document_limit()
+    {
+        ForestView view = ForestSampleData.Create(1000, TimeZoneInfo.Utc);
+        string[] speciesById = [.. view.Objects.Select(o => o.Species)];
+
+        foreach (ShopCategory category in Enum.GetValues<ShopCategory>())
+        {
+            UiPage page = Ui.Page("Forest", [.. ForestLayout.Body(view, TimeZoneInfo.Utc, false, category)]);
+            UiScene garden = Descendants(page).OfType<UiScene>().Single(s => s.Id == ForestIds.Scene);
+
+            Assert.Equal(view.Objects.Count, garden.Items.Count);
+            foreach (ForestObject o in view.Objects)
+            {
+                UiSceneItem item = garden.Items.Single(i => i.Id == ForestIds.ObjectPrefix + o.Id);
+                Assert.True(item.Model == o.Species || item.Model.StartsWith(o.Species + "-", StringComparison.Ordinal), $"{o.Species} #{o.Id} is drawn as {item.Model}.");
+            }
+
+            Assert.True(UiTreeValidator.Validate(page).IsValid);
+            Assert.True(System.Text.Encoding.UTF8.GetByteCount(UiJson.Serialize(page)) <= UiJson.MaxDocumentBytes, $"The {category} page is over the document limit.");
+        }
+
+        Assert.True(speciesById.Distinct().Count() >= 20);
     }
 
     [Fact]

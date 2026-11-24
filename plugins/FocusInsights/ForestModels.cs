@@ -108,17 +108,23 @@ public static class ForestModels
 
     private static Mesh Branch(Vec from, Vec to, double radius, Rgb color) => Limb(from, to, radius, radius * 0.5, 4, color, color.Shade(1.1));
 
-    // A small gem-like bud, berry or flower: a four-sided pyramid whose underside is never seen.
-    private static Mesh Dot(double x, double y, double z, double r, Rgb color) => Cone(4, x, y - (r * 0.3), z, r * 1.25, r * 1.6, color, 45);
+    // A round berry, fruit, flower or cone: a low-poly sphere with one lighter facet so that it reads as drawn, not as a gem.
+    private static Mesh Fruit(double x, double y, double z, double r, Rgb color, int detail = 0) =>
+        Blob(x, y, z, r, r, r, color, detail, 0, 0, 0.05, false, null, null, detail < 0 ? -0.76 : -0.5).Highlighted(new Vec(0.4, 0.8, 0.45), color.Mix("#FFFFFF", 0.5));
 
-    private static Mesh Fruit(double x, double y, double z, double r, Rgb color) => Blob(x, y, z, r, r, r, color, -1, 0, 0, 0.08);
+    // A berry or blossom resting on the foliage: its centre sits a little outside the surface, along the outward direction.
+    private static Mesh Berry((Vec At, Vec Outward) spot, double r, Rgb color)
+    {
+        Vec centre = spot.At + (spot.Outward.Normalized() * (0.35 * r));
+        return Fruit(centre.X, centre.Y, centre.Z, r, color);
+    }
 
-    // A point on the surface of a canopy blob, for fruit, flowers and blossoms that must sit on the foliage rather than float above it.
-    private static Vec OnSurface((double X, double Y, double Z, double R, double S) blob, int index, int seed, double lowest = -0.1, double highest = 0.7)
+    // A point on the upper outer shell of a canopy blob (where the isometric camera sees it) and the direction pointing out of the blob there.
+    private static (Vec At, Vec Outward) OnSurface((double X, double Y, double Z, double R, double S) blob, int index, int seed, double lowest = 0.35, double highest = 0.9)
     {
         double lift = lowest + ((highest - lowest) * Noise(seed + (index * 3)));
         Vec ring = Polar(Math.Sqrt(Math.Max(0.05, 1 - (lift * lift))), (index * 137.5) + (30 * Noise(seed + (index * 5) + 1)), 0);
-        return new Vec(blob.X + (ring.X * blob.R), blob.Y + (lift * blob.R * blob.S), blob.Z + (ring.Z * blob.R));
+        return (new Vec(blob.X + (ring.X * blob.R), blob.Y + (lift * blob.R * blob.S), blob.Z + (ring.Z * blob.R)), new Vec(ring.X, lift, ring.Z));
     }
 
     private readonly record struct Palette(Rgb Dark, Rgb Mid, Rgb Light, Rgb? Shadow = null, Rgb? Glow = null)
@@ -127,13 +133,16 @@ public static class ForestModels
     }
 
     // Offset blobs of different sizes; their colour runs from the dark palette end at the low blobs to the light end at the high ones.
-    private static Mesh Canopy(Palette palette, int seed, double low, double high, params (double X, double Y, double Z, double R, double Squash)[] blobs)
+    private static Mesh Canopy(Palette palette, int seed, double low, double high, params (double X, double Y, double Z, double R, double Squash)[] blobs) =>
+        Canopy(palette, seed, low, high, 0.14, blobs);
+
+    private static Mesh Canopy(Palette palette, int seed, double low, double high, double jitter, params (double X, double Y, double Z, double R, double Squash)[] blobs)
     {
         var mesh = new Mesh();
         for (int i = 0; i < blobs.Length; i++)
         {
             (double x, double y, double z, double r, double squash) = blobs[i];
-            mesh.Add(Blob(x, y, z, r, r * squash, r, palette.At((y - low) / (high - low)), 0, 0.14, seed + i, 0.07, false, palette.Shadow, palette.Glow));
+            mesh.Add(Blob(x, y, z, r, r * squash, r, palette.At((y - low) / (high - low)), 0, jitter, seed + i, 0.07, false, palette.Shadow, palette.Glow));
         }
 
         return mesh;
@@ -193,10 +202,7 @@ public static class ForestModels
                 mesh.Add(Branch(TrunkAt(0.6, 0, 0.65), new Vec(0.28, 0.98, 0.06), 0.055, bark));
                 mesh.Add(Branch(TrunkAt(0.6, 0, 0.7), new Vec(-0.26, 0.98, -0.08), 0.05, bark));
                 mesh.Add(Roots(0.15, bark, 3, 7));
-                mesh.Add(Canopy(leaf, 31, 0.9, 2.1, (0, 1.14, 0, 0.5, 0.68), (0.27, 1.35, 0.12, 0.27, 0.8), (-0.26, 1.38, -0.1, 0.27, 0.8), (0.04, 1.65, 0.04, 0.4, 0.74),
-                    (-0.17, 1.86, 0.12, 0.25, 0.85), (0.1, 1.98, -0.08, 0.2, 0.9)));
-                mesh.Add(Prism(5, 0.1, 2.12, -0.08, 0.1, 0.075, 0.035, "#7A5535", "#4B321D", 10));
-                mesh.Add(Dot(0.08, 2.17, -0.07, 0.028, "#E8F1F5"));
+                mesh.Add(Canopy(leaf, 31, 0.9, 2.1, (0, 1.12, 0, 0.52, 0.66), (0.27, 1.32, 0.1, 0.28, 0.8), (-0.27, 1.32, -0.1, 0.28, 0.8), (0.03, 1.58, 0.03, 0.42, 0.74), (-0.04, 1.84, 0.03, 0.3, 0.84)));
                 mesh.Add(Tuft(0.3, -0.3, "#6BB84F"));
                 break;
         }
@@ -239,8 +245,9 @@ public static class ForestModels
             {
                 double th = height * (1 - (0.12 * f));
                 mesh.Add(Cone(7, 0, bottoms[i], 0, radii[i], th, green.At(f), i * 25.7).Varied(0.07, i * 17));
-                double capStart = th * 0.38;
-                mesh.Add(Cone(7, 0, bottoms[i] + capStart, 0, (radii[i] * 0.66) + 0.012, (th - capStart) + 0.01, i % 2 == 0 ? "#F6F9FC" : "#E4EDF4", i * 25.7).Varied(0.03, i));
+                // The cap radius follows the cone's own taper at the cap's lower edge, so the snow lies on the tier instead of hanging off it.
+                double capStart = th * 0.55;
+                mesh.Add(Cone(7, 0, bottoms[i] + capStart, 0, (radii[i] * 0.45) + 0.012, (th - capStart) + 0.01, i % 2 == 0 ? "#EAF2F8" : "#D7E5EE", i * 25.7).Varied(0.03, i));
             }
         }
 
@@ -250,30 +257,30 @@ public static class ForestModels
             for (int i = 0; i < 4; i++)
             {
                 Vec p = Polar(0.36 - (0.05 * i), (i * 95) + 20, bottoms[i] + height + 0.03);
-                mesh.Add(Fruit(p.X, p.Y, p.Z, 0.035, i % 2 == 0 ? "#8B5A2B" : "#A56A35"));
+                mesh.Add(Fruit(p.X, p.Y, p.Z, 0.045, i % 2 == 0 ? "#8B5A2B" : "#A56A35", -1));
             }
 
             mesh.Add(Tuft(0.34, 0.3, "#6BB84F"));
-            mesh.Add(Dot(0, top + 0.33, 0, 0.04, "#FFD54F"));
+            mesh.Add(Fruit(0, top + 0.34, 0, 0.05, "#FFD54F", -1));
         }
 
         if (pine && level == 2)
         {
-            mesh.Add(Fruit(0.22, 0.62 + height, 0.12, 0.032, "#8B5A2B"));
+            mesh.Add(Fruit(0.22, 0.62 + height, 0.12, 0.045, "#8B5A2B", -1));
         }
 
         if (!pine)
         {
-            mesh.Add(Flat(0.3, 0.003, 0.2, 0.13, 6, "#F6F9FC", 10));
+            mesh.Add(Flat(0.3, 0.01, 0.2, 0.09, 6, "#F6F9FC", 10));
             if (level >= 2)
             {
-                mesh.Add(Flat(-0.28, 0.003, -0.2, 0.12, 6, "#E9F0F6", 40));
+                mesh.Add(Flat(-0.28, 0.01, -0.2, 0.09, 6, "#E9F0F6", 40));
             }
 
             if (level == 3)
             {
-                mesh.Add(Flat(-0.2, 0.003, 0.3, 0.1, 5, "#F6F9FC", 20));
-                mesh.Add(Dot(0, top + 0.4, 0, 0.04, "#FFF3B0"));
+                mesh.Add(Flat(-0.2, 0.01, 0.3, 0.08, 5, "#F6F9FC", 20));
+                mesh.Add(Fruit(0, top + 0.42, 0, 0.05, "#FFF3B0", -1));
             }
         }
 
@@ -302,15 +309,20 @@ public static class ForestModels
             case 2:
                 mesh.Add(Branch(TrunkAt(h, 0, 0.6), new Vec(0.17, 1.02, 0.04), 0.022, "#E6E3D8"));
                 mesh.Add(Branch(TrunkAt(h, 0, 0.7), new Vec(-0.15, 1.1, -0.04), 0.02, "#E6E3D8"));
-                mesh.Add(Canopy(leaf, 51, 0.7, 1.65, (0.02, 1.3, 0, 0.22, 1.35), (0.2, 1.05, 0.05, 0.15, 1.2), (-0.18, 1.12, -0.06, 0.16, 1.2), (0.03, 1.58, 0.04, 0.14, 1.3)));
+                mesh.Add(Canopy(leaf, 51, 0.7, 1.65, (0.02, 1.3, 0, 0.26, 1.3), (0.17, 1.12, 0.05, 0.15, 1.15), (-0.15, 1.15, -0.05, 0.15, 1.15)));
                 break;
             default:
                 mesh.Add(Branch(TrunkAt(h, 0, 0.5), new Vec(0.24, 1.12, 0.04), 0.03, "#E6E3D8"));
                 mesh.Add(Branch(TrunkAt(h, 0, 0.62), new Vec(-0.22, 1.26, -0.05), 0.028, "#E6E3D8"));
-                mesh.Add(Canopy(leaf, 61, 0.9, 2.2, (0, 1.6, 0, 0.29, 1.25), (0.3, 1.22, 0.06, 0.19, 1.15), (-0.28, 1.34, -0.06, 0.2, 1.15), (0.04, 1.22, 0.29, 0.17, 1.15),
-                    (0.14, 1.95, 0.06, 0.2, 1.2), (-0.12, 2.04, -0.06, 0.15, 1.2)));
+                // One tall oval crown with overlapping satellites; the pale twigs hang from its rim.
+                mesh.Add(Canopy(leaf, 61, 0.9, 2.2, (0.03, 1.6, 0, 0.34, 1.3), (0.22, 1.42, 0.05, 0.2, 1.15), (-0.2, 1.46, -0.06, 0.2, 1.15), (0.04, 1.9, 0.04, 0.2, 1.2), (0, 1.32, 0.2, 0.18, 1.1)));
+                for (int i = 0; i < 3; i++)
+                {
+                    Vec from = Polar(0.3, (i * 120) + 40, 1.38);
+                    mesh.Add(Limb(from, from + Polar(0.02, (i * 120) + 40, -0.24), 0.012, 0.004, 3, "#E6E3D8", null, 0, false, false));
+                }
+
                 mesh.Add(Tuft(0.3, 0.3, "#6BB84F"));
-                mesh.Add(Dot(-0.32, 0.03, -0.28, 0.035, "#FFFFFF"));
                 break;
         }
 
@@ -334,20 +346,20 @@ public static class ForestModels
                 mesh.Add(Branch(TrunkAt(0.5, 0, 0.75), new Vec(-0.22, 0.76, -0.05), 0.038, bark));
                 mesh.Add(Roots(0.1, bark, 3, 11));
                 mesh.Add(Canopy(leaf, 81, 0.7, 1.5, (0, 0.82, 0, 0.44, 0.6), (0.24, 1.0, 0.1, 0.28, 0.7), (-0.22, 1.05, -0.1, 0.28, 0.7), (0.05, 1.3, 0.05, 0.3, 0.75), (-0.04, 1.5, 0, 0.17, 0.9)));
-                mesh.Add(Flat(0.34, 0.003, 0.2, 0.05, 4, "#E2561B", 20));
-                mesh.Add(Flat(-0.3, 0.003, 0.3, 0.05, 4, "#F0A030", 50));
-                mesh.Add(Flat(0.1, 0.003, -0.38, 0.05, 4, "#C0391E", 70));
+                mesh.Add(Flat(0.34, 0.01, 0.2, 0.05, 4, "#E2561B", 20));
+                mesh.Add(Flat(-0.3, 0.01, 0.3, 0.05, 4, "#F0A030", 50));
+                mesh.Add(Flat(0.1, 0.01, -0.38, 0.05, 4, "#C0391E", 70));
                 break;
             default:
                 mesh.Add(Trunk(0.62, 0.14, 0.095, bark));
                 mesh.Add(Branch(TrunkAt(0.62, 0, 0.65), new Vec(0.3, 0.96, 0.06), 0.052, bark));
                 mesh.Add(Branch(TrunkAt(0.62, 0, 0.7), new Vec(-0.28, 0.96, -0.08), 0.05, bark));
                 mesh.Add(Roots(0.14, bark, 3, 13));
-                mesh.Add(Canopy(leaf, 101, 0.9, 2.1, (0, 1.0, 0, 0.46, 0.6), (0.26, 1.2, 0.12, 0.28, 0.7), (-0.25, 1.22, -0.1, 0.28, 0.7), (0.05, 1.5, 0.05, 0.38, 0.7), (0.2, 1.78, -0.1, 0.24, 0.8), (-0.15, 1.92, 0.05, 0.22, 0.85)));
+                mesh.Add(Canopy(leaf, 101, 0.9, 2.1, (0, 1.0, 0, 0.5, 0.62), (0.27, 1.18, 0.1, 0.27, 0.72), (-0.26, 1.2, -0.1, 0.27, 0.72), (0.04, 1.46, 0.04, 0.4, 0.72), (-0.04, 1.74, 0, 0.27, 0.82)));
                 for (int i = 0; i < 9; i++)
                 {
-                    Vec p = Polar(0.2 + (0.2 * Noise(111 + i)), i * 40 + 10, 0.003);
-                    mesh.Add(Flat(p.X, 0.003, p.Z, 0.045, 4, i % 3 == 0 ? "#E2561B" : i % 3 == 1 ? "#F0A030" : "#C0391E", i * 31));
+                    Vec p = Polar(0.2 + (0.2 * Noise(111 + i)), i * 40 + 10, 0.01);
+                    mesh.Add(Flat(p.X, 0.01, p.Z, 0.045, 4, i % 3 == 0 ? "#E2561B" : i % 3 == 1 ? "#F0A030" : "#C0391E", i * 31));
                 }
 
                 break;
@@ -361,49 +373,66 @@ public static class ForestModels
         Palette leaf = new("#D8719B", "#F4A3C3", "#FFDCE9", "#7A2A5E", "#FFFFFF");
         Rgb bark = "#5A3A33";
         var mesh = new Mesh();
+        // A low, wide umbrella centred on the top of the leaning trunk; every stage stays well under an oak of the same stage.
+        (double X, double Y, double Z, double R, double S)[] crown;
+        int blossoms;
         switch (level)
         {
             case 1:
-                mesh.Add(Trunk(0.36, 0.07, 0.045, bark, 0.06));
-                mesh.Add(Canopy(leaf, 121, 0.4, 0.9, (0.07, 0.56, 0, 0.3, 0.7), (0.24, 0.5, 0.1, 0.18, 0.75), (-0.12, 0.54, -0.1, 0.19, 0.75)));
-                mesh.Add(Flat(0.3, 0.003, 0.2, 0.035, 5, "#FFC1D6", 10));
-                mesh.Add(Flat(-0.25, 0.003, -0.28, 0.035, 5, "#FFE0EA", 40));
+                mesh.Add(Trunk(0.32, 0.07, 0.045, bark, 0.05));
+                crown = [(0.05, 0.38, 0, 0.27, 0.55), (0.2, 0.34, 0.08, 0.17, 0.6), (-0.1, 0.35, -0.08, 0.17, 0.6)];
+                blossoms = 0;
+                mesh.Add(Flat(0.3, 0.01, 0.2, 0.04, 5, "#FFC1D6", 10));
+                mesh.Add(Flat(-0.25, 0.01, -0.28, 0.04, 5, "#FFE0EA", 40));
                 break;
             case 2:
-                mesh.Add(Trunk(0.5, 0.1, 0.06, bark, 0.1));
-                mesh.Add(Branch(TrunkAt(0.5, 0.1, 0.7), new Vec(0.34, 0.78, 0.05), 0.04, bark));
-                mesh.Add(Branch(TrunkAt(0.5, 0.1, 0.72), new Vec(-0.18, 0.78, -0.07), 0.036, bark));
+                mesh.Add(Trunk(0.46, 0.1, 0.06, bark, 0.08));
                 mesh.Add(Roots(0.1, bark, 3, 15));
-                mesh.Add(Canopy(leaf, 131, 0.7, 1.4, (0.08, 0.9, 0, 0.42, 0.62), (0.3, 0.9, 0.1, 0.24, 0.7), (-0.22, 0.95, -0.1, 0.27, 0.7), (0.1, 1.15, 0.12, 0.3, 0.72), (-0.04, 1.0, 0.3, 0.2, 0.7)));
-                mesh.Add(Dot(0.26, 1.02, 0.2, 0.04, "#FFFFFF"));
-                mesh.Add(Dot(-0.06, 1.28, 0.1, 0.04, "#FFFFFF"));
-                for (int i = 0; i < 6; i++)
+                crown = [(0.08, 0.74, 0, 0.36, 0.52), .. Enumerable.Range(0, 4).Select(i => { Vec p = Polar(0.26, (i * 90) + 20, 0.68); return (0.08 + p.X, p.Y, p.Z, 0.19, 0.55); })];
+                for (int i = 0; i < 2; i++)
                 {
-                    Vec p = Polar(0.2 + (0.2 * Noise(141 + i)), i * 60 + 15, 0.003);
-                    mesh.Add(Flat(p.X, 0.003, p.Z, 0.035, 5, i % 2 == 0 ? "#FFC1D6" : "#FFE0EA", i * 23));
+                    Vec to = Polar(0.2, (i * 180) + 20, 0.66) + new Vec(0.08, 0, 0);
+                    mesh.Add(Branch(TrunkAt(0.46, 0.08, 0.72 + (0.08 * i)), to, 0.04 - (0.004 * i), bark));
                 }
 
+                blossoms = 3;
                 break;
             default:
-                mesh.Add(Trunk(0.7, 0.14, 0.08, bark, 0.14));
-                mesh.Add(Branch(TrunkAt(0.7, 0.14, 0.65), new Vec(0.32, 1.02, 0.05), 0.048, bark));
+                mesh.Add(Trunk(0.62, 0.14, 0.08, bark, 0.08));
                 mesh.Add(Roots(0.14, bark, 3, 17));
-                (double X, double Y, double Z, double R, double S)[] cherryBlobs = [(0.08, 1.22, 0, 0.44, 0.62), (0.28, 1.22, 0.1, 0.25, 0.7), (-0.22, 1.27, -0.1, 0.27, 0.7), (0.08, 1.55, 0.1, 0.36, 0.68),
-                    (-0.1, 1.75, -0.1, 0.24, 0.8), (0.1, 1.95, 0.02, 0.2, 0.85)];
-                mesh.Add(Canopy(leaf, 151, 0.9, 2.1, cherryBlobs));
-                for (int i = 0; i < 4; i++)
+                crown =
+                [
+                    (0.06, 1.06, 0, 0.46, 0.5),
+                    .. Enumerable.Range(0, 4).Select(i => { Vec p = Polar(0.27, (i * 90) + 20, 1.0 + (0.04 * (i % 2))); return (0.06 + p.X, p.Y, p.Z, 0.2, 0.6); }),
+                    (0.06, 1.2, 0.02, 0.28, 0.6),
+                ];
+                for (int i = 0; i < 3; i++)
                 {
-                    Vec p = OnSurface(cherryBlobs[i], i, 161, 0.1, 0.8);
-                    mesh.Add(Dot(p.X, p.Y, p.Z, 0.04, i % 2 == 0 ? "#FFFFFF" : "#FFD2E3"));
+                    Vec to = Polar(0.24, (i * 120) + 60, 0.98) + new Vec(0.06, 0, 0);
+                    mesh.Add(Branch(TrunkAt(0.62, 0.08, 0.75 + (0.07 * i)), to, 0.048 - (0.005 * i), bark));
                 }
 
-                for (int i = 0; i < 6; i++)
-                {
-                    Vec p = Polar(0.18 + (0.25 * Noise(181 + i)), i * 60 + 10, 0.003);
-                    mesh.Add(Flat(p.X, 0.003, p.Z, 0.035, 5, i % 2 == 0 ? "#FFC1D6" : "#FFE0EA", i * 23));
-                }
-
+                blossoms = 4;
                 break;
+        }
+
+        if (level >= 2)
+        {
+            mesh.Add(Canopy(leaf, 121 + (10 * level), 0.4, 1.4, 0.1, crown));
+            for (int i = 0; i < blossoms; i++)
+            {
+                mesh.Add(Berry(OnSurface(crown[i % 2 == 0 ? 0 : 1 + (i % 4)], i, 161), 0.07, i % 2 == 0 ? "#FFEEF4" : "#FFC2D8"));
+            }
+
+            for (int i = 0; i < 4 + (2 * (level - 2)); i++)
+            {
+                Vec p = Polar(0.18 + (0.25 * Noise(181 + i)), (i * 60) + 10, 0);
+                mesh.Add(Flat(p.X, 0.01, p.Z, 0.04, 5, i % 2 == 0 ? "#FFC1D6" : "#FFE0EA", i * 23));
+            }
+        }
+        else
+        {
+            mesh.Add(Canopy(leaf, 121, 0.3, 0.6, 0.1, crown));
         }
 
         return mesh;
@@ -414,31 +443,34 @@ public static class ForestModels
         Palette leaf = new("#7FAF55", "#A5CC6A", "#D2E98E", "#2F5A3A", "#FFF7B0");
         Rgb bark = "#775A44";
         var mesh = new Mesh();
-        (double height, int strands, double dome) = level switch { 1 => (0.4, 7, 0.27), 2 => (0.62, 10, 0.38), _ => (0.9, 11, 0.46) };
+        (double height, int outer, int inner, double dome) = level switch { 1 => (0.4, 7, 0, 0.27), 2 => (0.62, 11, 5, 0.38), _ => (0.9, 16, 8, 0.46) };
         mesh.Add(Trunk(height, 0.06 + (0.03 * level), 0.045 + (0.012 * level), bark, 0.05));
         double top = height + (0.04 * level);
-        mesh.Add(Canopy(leaf, 191, top - 0.1, top + (dome * 1.6), (0.05, top + (dome * 0.5), 0, dome, 0.8)));
+        mesh.Add(Canopy(leaf, 191, top - 0.1, top + (dome * 1.6), 0.1, (0.05, top + (dome * 0.5), 0, dome, 0.8)));
         if (level >= 2)
         {
-            mesh.Add(Canopy(leaf, 201, top - 0.1, top + (dome * 1.6), (0.1, top + (dome * 0.95), 0.03, dome * 0.62, 0.72)));
+            mesh.Add(Canopy(leaf, 201, top - 0.1, top + (dome * 1.6), 0.1, (0.1, top + (dome * 0.95), 0.03, dome * 0.62, 0.72)));
+            // The hem the strands grow from, wider than the dome so that they emerge from under it.
+            mesh.Add(Canopy(leaf, 205, top - 0.1, top + (dome * 1.6), 0.08, (0.03, top + (dome * 0.12), 0, dome, 0.35)));
         }
 
         if (level == 3)
         {
-            mesh.Add(Canopy(leaf, 211, top - 0.1, top + (dome * 1.6), (0.12, top + (dome * 1.3), 0, dome * 0.4, 0.8)));
+            mesh.Add(Canopy(leaf, 211, top - 0.1, top + (dome * 1.6), 0.1, (0.12, top + (dome * 1.3), 0, dome * 0.4, 0.8)));
             mesh.Add(Roots(0.12, bark, 3, 19));
         }
 
-        for (int i = 0; i < strands; i++)
+        // Hanging ribbons in two rings; lengths vary so that only some reach the ground, and the tips are lighter.
+        for (int i = 0; i < outer + inner; i++)
         {
-            double angle = (i * 360.0 / strands) + (12 * Noise(221 + i));
-            Vec start = Polar(dome * 0.86, angle, top + (dome * 0.2)) + new Vec(0.05, 0, 0);
-            double ground = 0.03 + (0.1 * Noise(231 + i));
-            Vec mid = start + Polar(0.07, angle, -(start.Y - ground) * 0.55);
-            Vec end = new Vec(mid.X, ground, mid.Z) - Polar(0.025, angle, 0);
-            Rgb c = leaf.At(0.2 + (0.3 * Noise(241 + i)));
-            mesh.Add(Limb(start, mid, 0.04, 0.03, 3, c, null, i * 40, false, false));
-            mesh.Add(Limb(mid, end, 0.03, 0, 3, leaf.At(0.55 + (0.4 * Noise(251 + i))), null, i * 40));
+            bool rim = i < outer;
+            int count = rim ? outer : inner;
+            double angle = (((rim ? i : i - outer) + (rim ? 0 : 0.5)) * 360.0 / count) + (12 * Noise(221 + i));
+            double startY = top + (dome * (rim ? 0.12 : 0.3));
+            Vec start = Polar(dome * (rim ? 0.95 : 0.7), angle, startY) + new Vec(0.03, 0, 0);
+            double length = (startY - 0.05) * (0.7 + (0.3 * Noise(231 + i)));
+            Mesh ribbon = Blade(length, 0.08 + (0.01 * level), -78, 0.25, -angle, leaf.At(0.25 + (0.25 * Noise(241 + i))), leaf.At(0.7 + (0.3 * Noise(251 + i))), 2);
+            mesh.Add(ribbon.Moved(start.X, start.Y, start.Z));
         }
 
         return mesh;
@@ -446,39 +478,45 @@ public static class ForestModels
 
     private static Mesh Palm(int level)
     {
-        (double height, double lean, int fronds, double length) = level switch { 1 => (0.55, 0.05, 7, 0.24), 2 => (1.1, 0.08, 9, 0.3), _ => (1.75, 0.1, 11, 0.34) };
+        (double height, double lean, int fronds, double length) = level switch { 1 => (0.55, 0.04, 7, 0.34), 2 => (1.1, 0.05, 8, 0.38), _ => (1.75, 0.06, 10, 0.42) };
         var mesh = new Mesh();
         int segments = level + 2;
         for (int k = 0; k < segments; k++)
         {
             double f0 = k / (double)segments, f1 = (k + 1) / (double)segments;
-            mesh.Add(Limb(TrunkAt(height, lean, f0), TrunkAt(height, lean, f1), (0.07 - (0.032 * f0)) * (k == 0 ? 1.2 : 1), 0.07 - (0.032 * f1), 5,
-                k % 2 == 0 ? "#B98F5C" : "#9A7248", "#C9A06D", k * 15, false, k == segments - 1));
+            mesh.Add(Limb(TrunkAt(height, lean, f0), TrunkAt(height, lean, f1), (0.085 - (0.033 * f0)) * (k == 0 ? 1.2 : 1), 0.085 - (0.033 * f1), 5,
+                k % 2 == 0 ? "#B98F5C" : "#8F6C44", "#C9A06D", k * 15, false, k == segments - 1));
         }
 
+        // Fronds alternate between rising and drooping; their reach is capped so that the crown stays on its tile.
         Vec crown = TrunkAt(height, lean, 1);
         for (int i = 0; i < fronds; i++)
         {
-            double elevation = 52 - (30 * (i % 2)) + (10 * Noise(251 + i));
-            Mesh frond = Blade(length * (0.85 + (0.3 * Noise(261 + i))), 0.15, elevation, 2.2, (i * 360.0 / fronds) + (10 * Noise(271 + i)), "#3C9A4E", "#63BC5E", 3);
+            double elevation = i % 2 == 0 ? 35 + (5 * Noise(251 + i)) : -5;
+            Mesh frond = Blade(length * (0.9 + (0.2 * Noise(261 + i))), 0.2, elevation, 1.4, (i * 360.0 / fronds) + (10 * Noise(271 + i)), "#3C9A4E", "#63BC5E", 4);
             mesh.Add(frond.Moved(crown.X, crown.Y + 0.03, crown.Z));
         }
 
-        mesh.Add(Blob(crown.X, crown.Y + 0.03, crown.Z, 0.06, 0.04, 0.06, "#5C8F3D", -1, 0, 5));
+        if (level >= 2)
+        {
+            mesh.Add(Blade(0.3, 0.1, 75, 0.6, 20, "#63BC5E", "#7ACB6A", 3).Moved(crown.X, crown.Y + 0.03, crown.Z));
+            mesh.Add(Blade(0.28, 0.1, 75, 0.6, 200, "#63BC5E", "#7ACB6A", 3).Moved(crown.X, crown.Y + 0.03, crown.Z));
+        }
+
+        mesh.Add(Blob(crown.X, crown.Y + 0.03, crown.Z, 0.07, 0.05, 0.07, "#5C8F3D", -1, 0, 5));
         if (level >= 2)
         {
             int coconuts = level == 3 ? 4 : 2;
             for (int i = 0; i < coconuts; i++)
             {
-                Vec p = Polar(0.075, (i * 360.0 / coconuts) + 30, -0.05);
-                mesh.Add(Fruit(crown.X + p.X, crown.Y + p.Y, crown.Z + p.Z, 0.06, i % 2 == 0 ? "#6B4528" : "#7C5232"));
+                Vec p = Polar(0.09, (i * 360.0 / coconuts) + 30, -0.2);
+                mesh.Add(Fruit(crown.X + p.X, crown.Y + p.Y, crown.Z + p.Z, 0.08, i % 2 == 0 ? "#5B3A1E" : "#6B4528"));
             }
         }
 
         if (level == 3)
         {
             mesh.Add(Tuft(0.3, 0.28, "#6BB84F"));
-            mesh.Add(Fruit(-0.3, 0.04, 0.25, 0.045, "#6B4528"));
         }
 
         return mesh;
@@ -503,21 +541,15 @@ public static class ForestModels
             default:
                 mesh.Add(Trunk(0.65, 0.115, 0.08, Bark));
                 mesh.Add(Roots(0.14, Bark, 3, 25));
-                blobs = [(0, 1.2, 0, 0.46, 0.8), (0.28, 1.1, 0.1, 0.24, 0.85), (-0.27, 1.15, -0.1, 0.24, 0.85), (0.06, 1.55, 0.08, 0.32, 0.85), (-0.1, 1.88, 0, 0.2, 0.9)];
+                blobs = [(0, 1.2, 0, 0.46, 0.8), (0.28, 1.1, 0.1, 0.24, 0.85), (-0.27, 1.15, -0.1, 0.24, 0.85), (0.06, 1.55, 0.08, 0.32, 0.85), (-0.04, 1.84, 0, 0.22, 0.9)];
                 break;
         }
 
         mesh.Add(Canopy(leaf, 281 + level, 0.35, level == 1 ? 0.8 : level == 2 ? 1.2 : 1.9, blobs));
-        int apples = level switch { 1 => 2, 2 => 6, _ => 9 };
+        int apples = level switch { 1 => 2, 2 => 4, _ => 6 };
         for (int i = 0; i < apples; i++)
         {
-            Vec p = OnSurface(blobs[i % blobs.Length], i, 291, -0.25, 0.45);
-            mesh.Add(Dot(p.X, p.Y, p.Z, 0.07, i % 2 == 0 ? "#E53935" : "#D32F2F"));
-        }
-
-        if (level == 3)
-        {
-            mesh.Add(Fruit(0.32, 0.05, 0.3, 0.045, "#D32F2F"));
+            mesh.Add(Berry(OnSurface(blobs[i % blobs.Length], i, 291), level == 3 ? 0.1 : 0.085, i % 2 == 0 ? "#E02B2B" : "#C81F2D"));
         }
 
         return mesh;
@@ -549,52 +581,81 @@ public static class ForestModels
         return Lathe(sides, profile, k => green.At(k / 5.0), cx, cz, 0.12, seed, seed % 50).Varied(0.09, seed);
     }
 
-    private static Mesh Bush(Palette palette, int seed, double scale, params (double X, double Y, double Z, double R, double Squash)[] blobs) =>
-        Canopy(palette, seed, 0.05, 0.75 * scale, blobs);
+    // Many small, slightly different blobs make a bumpy, leafy silhouette; neighbours alternate between two greens and the shadow tone stays close
+    // to the foliage so that no dark rocky planes appear.
+    private static Mesh Bush(Palette palette, int seed, params (double X, double Y, double Z, double R, double Squash)[] blobs)
+    {
+        var mesh = new Mesh();
+        for (int i = 0; i < blobs.Length; i++)
+        {
+            (double x, double y, double z, double r, double squash) = blobs[i];
+            Rgb colour = palette.At(i % 2 == 0 ? 0.3 : 0.7);
+            mesh.Add(Blob(x, y, z, r, r * squash, r, colour, 0, 0.07, seed + i, 0.07, false, palette.Dark, palette.Glow));
+        }
 
+        return mesh;
+    }
+
+    // Overlapping blobs: neighbours are closer than the sum of their radii so that the crown reads as one clump.
     private static (double X, double Y, double Z, double R, double S)[] BushBlobs(int level) => level switch
     {
-        1 => [(0, 0.2, 0, 0.23, 0.9), (0.14, 0.16, 0.08, 0.15, 0.9)],
-        2 => [(0, 0.3, 0, 0.29, 0.85), (0.25, 0.22, 0.08, 0.19, 0.9), (-0.22, 0.25, -0.06, 0.2, 0.9), (0.05, 0.46, -0.02, 0.2, 0.9)],
-        _ => [(0, 0.38, 0, 0.36, 0.82), (0.3, 0.27, 0.08, 0.21, 0.9), (-0.28, 0.3, -0.08, 0.22, 0.9), (0.05, 0.28, 0.3, 0.2, 0.9), (0.04, 0.64, 0, 0.22, 0.88)],
+        1 => [(0, 0.15, 0, 0.2, 0.9), (0.12, 0.09, 0.06, 0.14, 0.9), (-0.11, 0.09, -0.05, 0.14, 0.9)],
+        2 => [(0, 0.22, 0, 0.24, 0.88), (0.17, 0.12, 0.05, 0.17, 0.9), (-0.17, 0.13, -0.04, 0.17, 0.9), (0.03, 0.12, 0.18, 0.16, 0.9), (0.04, 0.36, -0.02, 0.16, 0.9)],
+        _ => [(0, 0.3, 0, 0.27, 0.85), (0.2, 0.15, 0.07, 0.2, 0.9), (-0.2, 0.16, -0.05, 0.2, 0.9), (0.04, 0.15, 0.2, 0.19, 0.9), (-0.05, 0.15, -0.2, 0.18, 0.9), (0.05, 0.46, 0, 0.2, 0.9)],
     };
 
-    // Round bush, rose and blueberry share the lumpy shape; the decoration sits on the foliage.
+    // Round bush, rose and blueberry share the lumpy shape; the decoration sits on the outer foliage.
     private static Mesh Flowering(Palette leaf, int seed, int level, int[] counts, Rgb[] colors, double size)
     {
         (double X, double Y, double Z, double R, double S)[] blobs = BushBlobs(level);
-        Mesh mesh = Bush(leaf, seed, level switch { 1 => 0.6, 2 => 0.9, _ => 1.1 }, blobs);
+        Mesh mesh = Bush(leaf, seed, blobs);
         for (int i = 0; i < counts[level - 1]; i++)
         {
-            Vec p = OnSurface(blobs[i % blobs.Length], i, seed + 9, 0.25, 0.9);
-            mesh.Add(Dot(p.X, p.Y, p.Z, size, colors[i % colors.Length]));
+            mesh.Add(Berry(OnSurface(blobs[i % blobs.Length], i, seed + 9), size, colors[i % colors.Length]));
         }
 
         return mesh;
     }
 
     private static Mesh RoundBush(int level) =>
-        Flowering(new Palette("#3F9045", "#68BA52", "#A8DE6C", "#1F4A44", "#FFF8B8"), 401, level, [0, 4, 8], ["#FFF3B0", "#FFFFFF", "#FFB3D1"], 0.055);
+        Flowering(new Palette("#3F9045", "#68BA52", "#A8DE6C", "#1F4A44", "#FFF8B8"), 401, level, [0, 3, 5], ["#FFF3B0", "#FFFFFF", "#FFB3D1"], 0.07);
 
     private static Mesh Rose(int level) =>
-        Flowering(new Palette("#2F8450", "#48AA60", "#78CB86", "#14403A", "#FFF8C8"), 451, level, [3, 7, 12], ["#E53950", "#F06292", "#D81B60", "#FFD1DC", "#C62838"], 0.065);
+        Flowering(new Palette("#2F8450", "#48AA60", "#78CB86", "#14403A", "#FFF8C8"), 451, level, [3, 5, 7], ["#E5334F", "#F25C86", "#B0153F", "#FFD1DC"], 0.085);
 
     private static Mesh Blueberry(int level) =>
-        Flowering(new Palette("#3E7F6D", "#5BAA88", "#8AD3AC", "#142F44", "#F4FFE0"), 501, level, [2, 8, 13], ["#3949AB", "#5C6BC0", "#303F9F"], 0.055);
+        Flowering(new Palette("#2E7442", "#4C9A55", "#84C66E", "#183B2A", "#F4FFE0"), 501, level, [3, 5, 8], ["#2B3FBF", "#3A4FD0", "#2433A8"], 0.075);
 
     private static Mesh Fern(int level)
     {
-        (int count, double length, double width) = level switch { 1 => (6, 0.26, 0.07), 2 => (9, 0.36, 0.09), _ => (12, 0.44, 0.1) };
+        (int count, double length, double width) = level switch { 1 => (7, 0.3, 0.06), 2 => (10, 0.36, 0.07), _ => (14, 0.42, 0.075) };
         var mesh = new Mesh();
         for (int i = 0; i < count; i++)
         {
-            bool outer = i % 2 == 0;
-            Rgb a = outer ? "#3F9E4B" : "#58B95A";
-            Rgb b = outer ? "#5BBB5B" : "#7CCB5B";
-            mesh.Add(Blade(length * (0.8 + (0.3 * Noise(551 + i))) * (outer ? 1 : 0.8), width, outer ? 50 : 72, 1.9, (i * 360.0 / count) + (10 * Noise(571 + i)), a, b, 3));
+            // A vase of arching fronds: a few rise steeply in the middle, the rest lean out and bend down; the outer ones are shorter to stay on the tile.
+            int rank = i % 3;
+            double t = rank / 2.0;
+            Rgb a = ((Rgb)"#4DA65A").Mix("#8FD66A", t * 0.6);
+            Rgb b = ((Rgb)"#6CBB5F").Mix("#B4E67A", 0.3 + (t * 0.6));
+            double elevation = rank switch { 0 => 70, 1 => 45, _ => 28 } + (8 * Noise(561 + i));
+            double reach = (rank == 1 ? 1.0 : 0.8) * (0.85 + (0.2 * Noise(551 + i)));
+            double yaw = (i * 360.0 / count) + (10 * Noise(571 + i));
+            mesh.Add(Blade(length * reach, width, elevation, 1.4, yaw, a, b, 4));
+            if (rank == 1 && level >= 2)
+            {
+                // Two leaflets from the middle of the frond make it feathery.
+                double along = length * reach * 0.55;
+                (double sin, double cos) = Math.SinCos(elevation * Math.PI / 180);
+                double rise = (along * sin) - (1.4 * along * along * cos), outward = (along * cos) + (1.4 * along * along * sin);
+                (double ySin, double yCos) = Math.SinCos(yaw * Math.PI / 180);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    mesh.Add(Blade(length * reach * 0.45, 0.04, elevation * 0.4, 1.4, yaw + (side * 60), a, b, 2).Moved(outward * yCos, rise, outward * ySin));
+                }
+            }
         }
 
-        mesh.Add(Blob(0, 0.04, 0, 0.06, 0.04, 0.06, "#4C8F3F", -1, 0.1, 7));
+        mesh.Add(Blob(0, 0.04, 0, 0.07, 0.04, 0.07, "#4C8F3F", 0, 0.1, 7));
         return mesh.Moved(0, 0.03, 0);
     }
 
@@ -604,19 +665,24 @@ public static class ForestModels
         switch (id)
         {
             case "oak": return Bare(0.8, "#6B5846", 0.28, 1, ["#8B6B3A", "#7A5B30"], 0.095);
-            case "birch": return Bare(1.15, "#C9C4B8", 0.2, 2, ["#A8935A", "#8F7C4C"], 0.055).Add(Patch(0.05, 30, 0.4, 0.04, 0.02, "#3A3A3A"), Patch(0.045, 200, 0.7, 0.04, 0.02, "#3A3A3A"));
+            case "birch": return Bare(1.15, "#C9C4B8", 0.2, 2, ["#A8935A", "#8F7C4C"], 0.055).Add(BarkMark(1.15, 0.055, 0.35, 30), BarkMark(1.15, 0.055, 0.6, 200));
             case "maple": return Bare(0.8, "#5E4636", 0.28, 3, ["#8A4A2A", "#7A3E24"], 0.09);
             case "cherry": return Bare(0.75, "#4E3B33", 0.3, 4, ["#B58A94", "#9A7480"], 0.08);
-            case "apple": return Bare(0.62, "#5B4636", 0.28, 5, ["#8B6B3A", "#7A5B30"], 0.09).Add(Fruit(0.28, 0.03, 0.25, 0.04, "#6B3A2A"));
+            case "apple": return Bare(0.62, "#5B4636", 0.28, 5, ["#8B6B3A", "#7A5B30"], 0.09).Add(Fruit(0.28, 0.045, 0.25, 0.05, "#6B3A2A"));
             case "pine": return DeadConifer(1.0, 0.26, "#8A7B55", 3);
             case "spruce": return DeadConifer(0.9, 0.2, "#7D7360", 3);
             case "cypress": return DeadConifer(1.15, 0.12, "#8B7A55", 3);
             case "willow":
                 mesh.Add(Bare(0.65, "#7A6A55", 0.2, 6, ["#9A8A6A", "#867757"], 0.09));
+                // Dead strands grow out of the trunk top and hang down to the ground.
+                Vec crownTop = TrunkAt(0.65, 0.06, 0.92);
                 for (int i = 0; i < 6; i++)
                 {
-                    Vec start = Polar(0.2, i * 60, 0.75);
-                    mesh.Add(Limb(start, start + Polar(0.05, i * 60, -0.5), 0.02, 0, 3, "#9A8A6A"));
+                    Vec start = crownTop + Polar(0.03, i * 60, 0);
+                    Vec mid = start + Polar(0.14, i * 60, -0.22);
+                    Vec end = start + Polar(0.2, i * 60, 0.02 - start.Y);
+                    mesh.Add(Limb(start, mid, 0.02, 0.016, 3, "#9A8A6A", null, 0, false, false));
+                    mesh.Add(Limb(mid, end, 0.016, 0.006, 3, "#9A8A6A"));
                 }
 
                 return mesh;
@@ -626,24 +692,27 @@ public static class ForestModels
                     mesh.Add(Limb(TrunkAt(0.7, 0.14, k / 3.0), TrunkAt(0.7, 0.14, (k + 1) / 3.0), 0.065 - (0.016 * k), 0.065 - (0.016 * (k + 1)), 5, k % 2 == 0 ? "#8F7A5C" : "#7D6A4F", "#8F7A5C", 0, false, k == 2));
                 }
 
+                Vec hub = TrunkAt(0.7, 0.14, 1);
                 for (int i = 0; i < 6; i++)
                 {
-                    mesh.Add(Blade(0.36, 0.07, 10 - (20 * (i % 2)), 1.4, i * 60, "#8A6A3A", "#7A5C32", 3).Moved(0.14, 0.72, 0));
+                    mesh.Add(Blade(0.32, 0.08, i % 2 == 0 ? 15 : -25, 2.2, i * 60, "#8A6A3A", "#7A5C32", 3).Moved(hub.X, hub.Y + 0.02, hub.Z));
                 }
 
-                mesh.Add(Fruit(0.14, 0.64, 0.06, 0.045, "#5A4028"));
+                mesh.Add(Blob(hub.X, hub.Y + 0.02, hub.Z, 0.05, 0.035, 0.05, "#6E5530", -1, 0, 3));
+                mesh.Add(Fruit(hub.X + 0.03, 0.58, 0.05, 0.06, "#5A4028"));
                 return mesh;
             case "bush":
             case "rose":
             case "berry":
-                mesh.Add(Canopy(new Palette("#7A5E34", "#8E6F3F", "#A5854E", "#3A2A18", "#E2C98A"), 591, 0.05, 0.4, (0, 0.18, 0, 0.21, 0.7), (0.17, 0.14, 0.08, 0.13, 0.7)));
+                mesh.Add(Canopy(new Palette("#7A5E34", "#8E6F3F", "#A5854E", "#3A2A18", "#E2C98A"), 591, 0.05, 0.4, (0, 0.12, 0, 0.21, 0.7), (0.17, 0.09, 0.08, 0.13, 0.7)));
                 for (int i = 0; i < 5; i++)
                 {
-                    Vec p = Polar(0.07, i * 72, 0.12);
-                    mesh.Add(Limb(p, p + Polar(0.17, i * 72, 0.18), 0.014, 0, 3, "#5E4A32"));
+                    Vec p = Polar(0.1, i * 72, 0.12);
+                    mesh.Add(Limb(p, p + Polar(0.14, i * 72, 0.1), 0.018, 0, 3, "#5E4A32"));
                 }
 
-                mesh.Add(Flat(0.3, 0.003, 0.25, 0.04, 4, "#8B6B3A", 30));
+                mesh.Add(Flat(0.3, 0.01, 0.25, 0.04, 4, "#8B6B3A", 30));
+                mesh.Add(Flat(-0.26, 0.01, 0.3, 0.04, 4, "#7A5B30", 70));
                 return mesh;
             default:
                 for (int i = 0; i < 7; i++)
@@ -651,8 +720,16 @@ public static class ForestModels
                     mesh.Add(Blade(0.3 * (0.8 + (0.3 * Noise(601 + i))), 0.06, 30 - (15 * (i % 2)), 1.3, i * 51, "#8A6A3A", "#9C7B45", 3).Moved(0, 0.05, 0));
                 }
 
+                mesh.Add(Blob(0, 0.03, 0, 0.06, 0.04, 0.06, "#6E5530", -1, 0, 4));
                 return mesh;
         }
+    }
+
+    // A dark bark mark on the leaning trunk of Bare(), following the trunk's axis and taper so that it sits on the bark.
+    private static Mesh BarkMark(double height, double radius, double f, double degrees)
+    {
+        Vec axis = TrunkAt(height, 0.06, f);
+        return Patch(radius + ((radius * 0.45 - radius) * f) + 0.004, degrees, 0, 0.04, 0.02, "#3A3A3A").Moved(axis.X, axis.Y, 0);
     }
 
     private static Mesh Bare(double height, Rgb bark, double spread, int seed, Rgb[] fallen, double trunkRadius)
@@ -670,11 +747,10 @@ public static class ForestModels
             mesh.Add(Limb(to, to + Polar(spread * 0.4, angle + 35, spread * 0.45), 0.012, 0, 3, bark.Shade(0.9)));
         }
 
-        mesh.Add(Dot(0.2, height * 0.85, 0.04, 0.03, fallen[0]));
         for (int i = 0; i < 5; i++)
         {
-            Vec p = Polar(0.2 + (0.2 * Noise(seed + 70 + i)), (i * 72) + 30, 0.003);
-            mesh.Add(Flat(p.X, 0.003, p.Z, 0.04, 4, fallen[i % 2], i * 40));
+            Vec p = Polar(0.2 + (0.2 * Noise(seed + 70 + i)), (i * 72) + 30, 0.01);
+            mesh.Add(Flat(p.X, 0.01, p.Z, 0.04, 4, fallen[i % 2], i * 40));
         }
 
         return mesh;
@@ -687,8 +763,8 @@ public static class ForestModels
         mesh.Add(Roots(0.06, "#6B5846", 3, 40));
         for (int i = 0; i < tiers - 1; i++)
         {
-            Vec at = TrunkAt(height, 0.04, 0.28 + (0.22 * i));
-            mesh.Add(Cone(6, at.X, at.Y, at.Z, radius * (1 - (0.45 * i)), 0.2, foliage.Shade(1 - (0.1 * i)), i * 30).Varied(0.08, i));
+            Vec at = TrunkAt(height, 0.04, 0.15 + (0.25 * i));
+            mesh.Add(Cone(6, at.X, at.Y, at.Z, radius * 0.8 * (1 - (0.45 * i)), 0.2, foliage.Shade(1 - (0.1 * i)), i * 30).Varied(0.08, i));
         }
 
         for (int i = 0; i < 3; i++)
@@ -697,8 +773,8 @@ public static class ForestModels
             mesh.Add(Limb(from, from + Polar(0.15, i * 130, 0.1), 0.014, 0, 3, "#5E4A38"));
         }
 
-        mesh.Add(Flat(0.22, 0.003, 0.2, 0.04, 4, foliage, 20));
-        mesh.Add(Flat(-0.2, 0.003, 0.25, 0.04, 4, foliage.Shade(0.9), 60));
+        mesh.Add(Flat(0.22, 0.01, 0.2, 0.04, 4, foliage, 20));
+        mesh.Add(Flat(-0.2, 0.01, 0.25, 0.04, 4, foliage.Shade(0.9), 60));
         return mesh;
     }
 
@@ -712,11 +788,11 @@ public static class ForestModels
         mesh.Add(Blob(-0.27, 0.12, -0.17, 0.17, 0.12, 0.15, "#A9B1B8", 0, 0.12, 5, 0.07, false, shadow, glow));
         mesh.Add(Blob(-0.02, 0.43, -0.02, 0.25, 0.1, 0.21, "#6BAE4F", 0, 0.1, 6, 0.09, false, "#2F5A3A", "#D8F08A"));
         mesh.Add(Blob(0.28, 0.25, 0.2, 0.14, 0.07, 0.12, "#7DBE57", 0, 0.1, 7, 0.09, false, "#2F5A3A", "#D8F08A"));
-        mesh.Add(Fruit(-0.04, 0.06, 0.34, 0.06, "#B7BEC4"));
+        mesh.Add(Fruit(-0.04, 0.06, 0.34, 0.06, "#B7BEC4", -1));
         mesh.Add(Limb(new Vec(-0.1, 0.46, 0.05), new Vec(-0.1, 0.56, 0.05), 0.008, 0.006, 3, "#4C9A3C", null, 0, false, false));
-        mesh.Add(Dot(-0.1, 0.58, 0.05, 0.04, "#FFFFFF"));
+        mesh.Add(Fruit(-0.1, 0.59, 0.05, 0.05, "#FFFFFF"));
         mesh.Add(Limb(new Vec(0.1, 0.47, -0.06), new Vec(0.1, 0.55, -0.06), 0.008, 0.006, 3, "#4C9A3C", null, 0, false, false));
-        mesh.Add(Dot(0.1, 0.57, -0.06, 0.035, "#FFD54F"));
+        mesh.Add(Fruit(0.1, 0.58, -0.06, 0.045, "#FFD54F"));
         return mesh;
     }
 
@@ -729,7 +805,7 @@ public static class ForestModels
         for (int i = 0; i < 3; i++)
         {
             Vec p = Polar(0.1 * s, (i * 120) + 25, 0.285 * s);
-            mesh.Add(Dot(cx + p.X, p.Y, cz + p.Z, 0.028 * s, spot));
+            mesh.Add(Fruit(cx + p.X, p.Y, cz + p.Z, Math.Max(0.04, 0.03 * s), spot, -1));
         }
 
         return mesh;
@@ -790,7 +866,7 @@ public static class ForestModels
         mesh.Add(Box(0, 0.36, -0.125, 0.7, 0.07, 0.03, wood.Shade(1.05), wood.Shade(1.12)));
         mesh.Add(Box(0, 0.47, -0.125, 0.7, 0.07, 0.03, wood, wood.Shade(1.12)));
         mesh.Add(Tuft(0.36, 0.2, "#6BB84F"));
-        mesh.Add(Dot(-0.38, 0.03, 0.2, 0.035, "#F06292"));
+        mesh.Add(Fruit(-0.38, 0.05, 0.2, 0.05, "#F06292"));
         return mesh;
     }
 
@@ -798,15 +874,16 @@ public static class ForestModels
     {
         var mesh = new Mesh();
         Rgb stone = "#A2A7AC";
-        mesh.Add(Prism(6, 0, 0, 0, 0.22, 0.19, 0.06, stone.Shade(0.9), stone.Shade(1.05), 0, false));
-        mesh.Add(Prism(6, 0, 0.06, 0, 0.075, 0.065, 0.26, stone, null, 10, false));
-        mesh.Add(Prism(6, 0, 0.32, 0, 0.19, 0.15, 0.05, stone.Shade(0.95), stone.Shade(1.1)));
-        mesh.Add(Prism(4, 0, 0.37, 0, 0.115, 0.115, 0.16, "#FFD66B", "#FFE9A8", 45));
-        mesh.Add(Prism(6, 0, 0.53, 0, 0.2, 0.17, 0.04, stone.Shade(0.95), stone.Shade(1.08)));
-        mesh.Add(Prism(6, 0, 0.57, 0, 0.3, 0.06, 0.15, "#7C838A", "#8B9299", 30));
-        mesh.Add(Fruit(0, 0.76, 0, 0.045, "#C8CDD2"));
+        mesh.Add(Flat(0, 0.01, 0, 0.34, 8, "#F3E7A8"));
+        mesh.Add(Prism(6, 0, 0, 0, 0.22, 0.19, 0.06, stone.Shade(0.9), stone.Shade(1.05), 0));
+        mesh.Add(Prism(6, 0, 0.06, 0, 0.09, 0.075, 0.24, stone, null, 10, false));
+        mesh.Add(Prism(6, 0, 0.3, 0, 0.19, 0.15, 0.05, stone.Shade(0.95), stone.Shade(1.1)));
+        mesh.Add(Prism(4, 0, 0.35, 0, 0.105, 0.105, 0.24, "#FFE08A", "#FFF3C4", 45));
+        mesh.Add(Prism(6, 0, 0.59, 0, 0.2, 0.17, 0.04, stone.Shade(0.95), stone.Shade(1.08)));
+        mesh.Add(Prism(6, 0, 0.63, 0, 0.32, 0.06, 0.18, "#7C838A", "#8B9299", 30));
+        mesh.Add(Fruit(0, 0.84, 0, 0.05, "#C8CDD2", -1));
         mesh.Add(Tuft(0.22, 0.16, "#6BB84F"));
-        mesh.Add(Fruit(-0.26, 0.06, -0.12, 0.06, "#8E979E"));
+        mesh.Add(Fruit(-0.26, 0.06, -0.12, 0.06, "#8E979E", -1));
         return mesh;
     }
 
@@ -816,11 +893,11 @@ public static class ForestModels
         (double R, double Y)[] water = [(0.36, 0), (0.36, 0.035)];
         mesh.Add(Lathe(12, water, _ => "#4FA9D2", 0, 0, 0.05, 17, 0, "#69C3E8"));
         mesh.Add(Prism(8, -0.06, 0.036, 0.02, 0.15, 0.13, 0.004, "#8AD6F0", null, 15));
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 7; i++)
         {
-            Vec p = Polar(0.385 + (0.02 * Noise(641 + i)), (i * 45) + (8 * Noise(651 + i)), 0.035);
-            double r = 0.08 + (0.035 * Noise(661 + i));
-            mesh.Add(Blob(p.X, p.Y, p.Z, r, r * 0.7, r, i % 2 == 0 ? "#9AA3AB" : "#848E96", -1, 0.1, 20 + i, 0.07));
+            Vec p = Polar(0.385 + (0.02 * Noise(641 + i)), (i * 51) + (8 * Noise(651 + i)), 0.02);
+            double r = 0.09 + (0.035 * Noise(661 + i));
+            mesh.Add(Blob(p.X, p.Y, p.Z, r, r * 0.7, r, i % 2 == 0 ? "#9AA3AB" : "#848E96", 0, 0.1, 20 + i, 0.07));
         }
 
         mesh.Add(Prism(7, 0.1, 0.037, 0.1, 0.085, 0.08, 0.008, "#4C9A4A", "#5CAE55", 10));
@@ -880,16 +957,14 @@ public static class ForestModels
         mesh.Add(Box(0.18, 0.14, 0.325, 0.15, 0.16, 0.02, "#FFD66B", "#FFE08A"));
         mesh.Add(Box(-0.14, 0.07, 0.31, 0.17, 0.32, 0.02, "#6D4426"));
         mesh.Add(Box(-0.14, 0.1, 0.325, 0.13, 0.26, 0.015, "#7E5230"));
-        mesh.Add(Dot(-0.09, 0.22, 0.34, 0.012, "#E2B24A"));
         mesh.Add(Box(-0.14, 0, 0.4, 0.28, 0.04, 0.12, "#8F8F93", "#A3A3A8"));
         mesh.Add(Box(0.27, 0.45, -0.14, 0.12, 0.52, 0.12, "#7D7D82", "#929297"));
         mesh.Add(Box(0.27, 0.97, -0.14, 0.15, 0.04, 0.15, "#66666B", "#7B7B80"));
-        mesh.Add(Fruit(0.27, 1.1, -0.14, 0.055, "#E8EAED"));
-        mesh.Add(Fruit(0.31, 1.22, -0.12, 0.07, "#F1F3F5"));
-        mesh.Add(Fruit(0.27, 1.36, -0.15, 0.085, "#F7F8F9"));
+        mesh.Add(Fruit(0.27, 1.12, -0.14, 0.06, "#E8EAED", -1));
+        mesh.Add(Fruit(0.33, 1.26, -0.1, 0.08, "#F4F6F8", -1));
         mesh.Add(Blob(0.36, 0.08, 0.37, 0.09, 0.07, 0.08, "#5FAE4F", -1, 0.1, 24));
         mesh.Add(Blob(-0.38, 0.08, 0.3, 0.08, 0.07, 0.08, "#4F9E45", -1, 0.1, 25));
-        mesh.Add(Dot(0.37, 0.15, 0.4, 0.022, "#F06292"));
+        mesh.Add(Fruit(0.37, 0.15, 0.4, 0.04, "#F06292", -1));
         return mesh;
     }
 }

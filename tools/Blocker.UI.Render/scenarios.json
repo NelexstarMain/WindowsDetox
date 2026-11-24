@@ -48,7 +48,8 @@
     { "name": "anim-wheel-dashboard", "target": "main:dashboard", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [500, 600, -360] }, { "wheel": [500, 600, -360] }, { "wheel": [500, 600, 360] } ] }
     ,{ "name": "anim-wheel-calendar", "target": "plugin:calendar", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [700, 550, -360] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, 1200] } ] }
     ,{ "name": "plugins-narrow", "target": "main:plugins", "size": [900, 800] }
-    ,{ "name": "forest-models", "target": "gallery:forest", "size": [1900, 1500] }
-    ,{ "name": "forest-models-back", "target": "gallery:forest:2", "size": [1900, 1500] }
+    ,{ "name": "forest-example", "target": "gallery:forest:0:165:2:example", "size": [1280, 1900] }
+    ,{ "name": "forest-models", "target": "gallery:forest", "size": [1900, 1700] }
+    ,{ "name": "forest-models-back", "target": "gallery:forest:2", "size": [1900, 1700] }
   ]
 }

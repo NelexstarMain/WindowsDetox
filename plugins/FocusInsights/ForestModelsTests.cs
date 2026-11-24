@@ -44,7 +44,7 @@ public sealed class ForestModelsTests
         {
             models++;
             Assert.Equal(ForestCatalog.ModelKey(species, stage), model.Key);
-            Assert.InRange(model.Faces.Count, 20, 200);
+            Assert.InRange(model.Faces.Count, 20, 260);
             Assert.Same(model, ForestModels.For(species, stage));
         }
 
@@ -106,8 +106,75 @@ public sealed class ForestModelsTests
             sizes.Add(UiJson.Serialize(Ui.Page("P", scene)).Length);
         }
 
-        Assert.True(sizes.Average() <= 8 * 1024, $"Average serialised model is {sizes.Average():0} bytes.");
-        Assert.True(sizes.Max() <= 14 * 1024, $"Largest serialised model is {sizes.Max()} bytes.");
+        Assert.True(sizes.Average() <= 9 * 1024, $"Average serialised model is {sizes.Average():0} bytes.");
+        Assert.True(sizes.Max() <= 20 * 1024, $"Largest serialised model is {sizes.Max()} bytes.");
+    }
+
+    [Fact]
+    public void Cherry_blossom_is_a_low_umbrella_no_taller_than_three_quarters_of_an_oak_of_the_same_stage()
+    {
+        ForestSpecies oak = ForestCatalog.Find("oak")!, cherry = ForestCatalog.Find("cherry")!;
+        foreach (ForestStage stage in new[] { ForestStage.Young, ForestStage.Mature, ForestStage.Majestic })
+        {
+            Assert.True(MaxY(ForestModels.For(cherry, stage)) <= MaxY(ForestModels.For(oak, stage)) * 0.75, $"Cherry {stage} is too tall.");
+        }
+    }
+
+    [Fact]
+    public void Withered_models_have_nothing_floating_in_the_air()
+    {
+        const double margin = 0.005;
+        foreach (ForestSpecies species in ForestCatalog.All.Where(s => s.Kind != ForestKind.Decoration))
+        {
+            UiSceneModel model = ForestModels.For(species, ForestStage.Withered);
+            (Vec Min, Vec Max)[] boxes =
+            [
+                .. model.Faces.Select(f =>
+                {
+                    Vec[] p = Points(f);
+                    return (new Vec(p.Min(v => v.X), p.Min(v => v.Y), p.Min(v => v.Z)), new Vec(p.Max(v => v.X), p.Max(v => v.Y), p.Max(v => v.Z)));
+                }),
+            ];
+
+            // Faces whose boxes touch belong to one piece; every piece must reach the ground.
+            int[] parent = [.. Enumerable.Range(0, boxes.Length)];
+            int Root(int i) => parent[i] == i ? i : parent[i] = Root(parent[i]);
+            for (int i = 0; i < boxes.Length; i++)
+            {
+                for (int j = i + 1; j < boxes.Length; j++)
+                {
+                    bool touch = boxes[i].Min.X <= boxes[j].Max.X + margin && boxes[j].Min.X <= boxes[i].Max.X + margin
+                        && boxes[i].Min.Y <= boxes[j].Max.Y + margin && boxes[j].Min.Y <= boxes[i].Max.Y + margin
+                        && boxes[i].Min.Z <= boxes[j].Max.Z + margin && boxes[j].Min.Z <= boxes[i].Max.Z + margin;
+                    if (touch)
+                    {
+                        parent[Root(i)] = Root(j);
+                    }
+                }
+            }
+
+            foreach (IGrouping<int, int> piece in Enumerable.Range(0, boxes.Length).GroupBy(Root))
+            {
+                Assert.True(piece.Min(i => boxes[i].Min.Y) <= 0.02, $"{model.Key} has a piece floating at y {piece.Min(i => boxes[i].Min.Y):0.00}.");
+            }
+        }
+    }
+
+    [Fact]
+    public void Apples_and_berries_are_round_spheres_with_a_lighter_highlight_facet()
+    {
+        foreach ((string id, string baseHex) in new[] { ("apple", "#E02B2B"), ("berry", "#2B3FBF") })
+        {
+            Rgb fruit = baseHex;
+            string[] colours = [.. ForestModels.For(ForestCatalog.Find(id)!, ForestStage.Majestic).Faces.Select(f => f.Color).Distinct()];
+
+            // The facet is the fruit's colour blended halfway to white: no channel is darker and the whole is clearly lighter.
+            Assert.Contains(colours, c =>
+            {
+                Rgb x = c;
+                return x.R >= fruit.R - 10 && x.G >= fruit.G - 10 && x.B >= fruit.B - 10 && x.R + x.G + x.B > fruit.R + fruit.G + fruit.B + 150;
+            });
+        }
     }
 
     [Fact]

@@ -59,12 +59,13 @@ public enum ShopCategory
 /// <summary>Builds the forest tab of the Insights page.</summary>
 public static class ForestLayout
 {
-    private const double ThumbnailHeight = 96;
-    private const double SceneHeight = 420;
+    private const double ThumbnailHeight = 150;
+    private const double SceneHeight = 720;
 
-    // The host refuses documents over 512 KiB and one model is 6-30 KiB of JSON, so the scene gets a fixed share (the shop
-    // thumbnails of one category need about 150 KiB). Models beyond it are drawn with a similar model that did fit.
-    private const int SceneModelBudgetChars = 230_000;
+    // The host refuses documents over 512 KiB (UiJson.MaxDocumentBytes) and one model is 2-20 KiB of JSON, so the scene gets a fixed share:
+    // the shop thumbnails of one category need up to about 100 KiB and the rest of the page about 50 KiB. Models beyond the budget are
+    // drawn with the closest model that did fit.
+    private const int SceneModelBudgetChars = 300_000;
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> ModelSizes = new(StringComparer.Ordinal);
 
@@ -256,13 +257,22 @@ public static class ForestLayout
     private static string ModelKeyOf(ForestObject o) =>
         ForestCatalog.ModelKey(ForestCatalog.Find(o.Species)!, o.StageValue);
 
-    // Only models that are used are sent, most used first, as many as fit the budget (always at least one).
+    // Only models that are used are sent. Every used species gets one model first (its most used stage), so that no species is missing from
+    // the scene; the other stages follow, most used first, as many as fit the budget. The first model is always sent.
     private static List<UiSceneModel> ModelsFor(IReadOnlyList<ForestObject> objects)
     {
+        List<IGrouping<string, ForestObject>> byUse = [.. objects.GroupBy(ModelKeyOf).OrderByDescending(g => g.Count())];
+        IEnumerable<IGrouping<string, ForestObject>> mostUsedPerSpecies = byUse.GroupBy(g => g.First().Species).Select(species => species.First());
         List<UiSceneModel> models = [];
+        HashSet<string> seen = [];
         int total = 0;
-        foreach (IGrouping<string, ForestObject> group in objects.GroupBy(ModelKeyOf).OrderByDescending(g => g.Count()))
+        foreach (IGrouping<string, ForestObject> group in mostUsedPerSpecies.Concat(byUse))
         {
+            if (!seen.Add(group.Key))
+            {
+                continue;
+            }
+
             ForestObject sample = group.First();
             UiSceneModel model = ForestModels.For(ForestCatalog.Find(sample.Species)!, sample.StageValue);
             int size = ModelSizes.GetOrAdd(model.Key, _ => UiJson.Serialize(new UiScene("m", 1, 1, [model], [])).Length);
@@ -278,7 +288,8 @@ public static class ForestLayout
         return models;
     }
 
-    // The model of the object itself, or the closest one that fit the budget: same species, else same kind, else any.
+    // The model of the object itself, or the closest one that fit the budget: the same species at the nearest stage, else the same kind
+    // (nearest stage first), else any.
     private static string ResolveModel(ForestObject o, List<UiSceneModel> models)
     {
         string key = ModelKeyOf(o);
@@ -288,34 +299,38 @@ public static class ForestLayout
         }
 
         ForestSpecies species = ForestCatalog.Find(o.Species)!;
-        string[] sameSpecies = [.. models.Select(m => m.Key).Where(k => k.StartsWith(species.Id + "-", StringComparison.Ordinal))];
-        if (sameSpecies.Length > 0)
-        {
-            return sameSpecies[0];
-        }
-
-        string? sameKind = models.Select(m => m.Key).FirstOrDefault(k => ForestCatalog.All.Any(s => s.Kind == species.Kind && (k == s.Id || k.StartsWith(s.Id + "-", StringComparison.Ordinal))));
-        return sameKind ?? models[0].Key;
+        (string Key, ForestSpecies Species, int Distance)[] ranked =
+        [
+            .. models.Select(m =>
+            {
+                ForestSpecies owner = ForestCatalog.All.First(s => m.Key == s.Id || m.Key.StartsWith(s.Id + "-", StringComparison.Ordinal));
+                ForestStage stage = m.Key == owner.Id ? ForestStage.Mature : Enum.Parse<ForestStage>(m.Key[(owner.Id.Length + 1)..], ignoreCase: true);
+                return (m.Key, owner, (stage == ForestStage.Withered) != (o.StageValue == ForestStage.Withered) ? 10 : Math.Abs(stage - o.StageValue));
+            }),
+        ];
+        return ranked.Where(r => r.Species == species).OrderBy(r => r.Distance).Select(r => r.Key).FirstOrDefault()
+            ?? ranked.Where(r => r.Species.Kind == species.Kind).OrderBy(r => r.Distance).Select(r => r.Key).FirstOrDefault()
+            ?? models[0].Key;
     }
 }
 
 /// <summary>A deterministic example forest for the "Show example" preview; nothing of it is stored.</summary>
 public static class ForestSampleData
 {
-    private static readonly string[] Plants = ["oak", "pine", "birch", "maple", "bush", "cherry", "spruce", "rose", "oak", "willow", "berry", "apple"];
+    private static readonly string[] Plants = ["oak", "pine", "birch", "maple", "bush", "cherry", "spruce", "rose", "palm", "willow", "berry", "apple", "fern", "cypress"];
     private static readonly string[] Decorations = ["pond", "bench", "lantern", "flowers", "rock", "mushrooms", "well", "cabin"];
 
-    /// <summary>Builds a 10x10 forest with plants of every stage, one withered tree and a few decorations.</summary>
+    /// <summary>Builds an 8x8 forest with every plant species at several stages, a few withered plants and a few decorations.</summary>
     public static ForestView Create(int today, TimeZoneInfo zone)
     {
-        const int size = 10;
+        const int size = 8;
         long baseTime = new DateTimeOffset(DateOnly.FromDayNumber(today).ToDateTime(TimeOnly.MinValue), zone.GetUtcOffset(DateOnly.FromDayNumber(today).ToDateTime(TimeOnly.MinValue))).ToUnixTimeSeconds();
         int[] minutes = [25, 45, 60, 90, 30, 120, 50, 25, 60, 45, 90, 30];
         List<ForestObject> objects = [];
         var tiles = ForestStore.TilesFromCentre(size).ToList();
         for (int i = 0; i < 42; i++)
         {
-            bool withered = i == 17;
+            bool withered = i is 17 or 26 or 38;
             string species = Plants[i % Plants.Length];
             int m = minutes[(i * 5) % minutes.Length];
             (int column, int row) = tiles[i];

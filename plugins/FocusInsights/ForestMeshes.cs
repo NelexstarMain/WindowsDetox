@@ -134,6 +134,27 @@ internal sealed class Mesh
         return Map(p => new Vec((p.X * cos) - (p.Y * sin), (p.X * sin) + (p.Y * cos), p.Z));
     }
 
+    /// <summary>Recolours the one face that looks most towards <paramref name="direction"/>: a lighter facet that makes a small sphere read as round.</summary>
+    public Mesh Highlighted(Vec direction, Rgb color)
+    {
+        if (_faces.Count == 0)
+        {
+            return this;
+        }
+
+        Vec wanted = direction.Normalized();
+        int best = 0;
+        for (int i = 1; i < _faces.Count; i++)
+        {
+            if (Normal(_faces[i].Points).Normalized().Dot(wanted) > Normal(_faces[best].Points).Normalized().Dot(wanted))
+            {
+                best = i;
+            }
+        }
+
+        return new Mesh().AddAll(_faces.Select((f, i) => i == best ? new Face(f.Points, color) : f));
+    }
+
     public Mesh Recolored(Rgb color) => new Mesh().AddAll(_faces.Select(f => new Face(f.Points, color)));
 
     /// <summary>Gives every face a slightly different colour.</summary>
@@ -143,14 +164,14 @@ internal sealed class Mesh
     public Mesh Map(Func<Vec, Vec> transform) =>
         new Mesh().AddAll(_faces.Select(f => new Face([.. f.Points.Select(transform)], f.Color)));
 
-    /// <summary>The scene model; coordinates are rounded to 3 decimals and degenerate or duplicate faces are dropped to keep the JSON small.</summary>
+    /// <summary>The scene model; coordinates are rounded to 2 decimals and degenerate or duplicate faces are dropped to keep the JSON small.</summary>
     public UiSceneModel ToModel(string key)
     {
         HashSet<string> seen = [];
         List<UiSceneFace> faces = [];
         foreach (Face face in _faces)
         {
-            Vec[] rounded = [.. face.Points.Select(p => new Vec(Math.Round(p.X, 3), Math.Round(p.Y is < 0 and > -0.06 ? 0 : p.Y, 3), Math.Round(p.Z, 3)))];
+            Vec[] rounded = [.. face.Points.Select(p => new Vec(Math.Round(p.X, 2), Math.Round(p.Y is < 0 and > -0.06 ? 0 : p.Y, 2), Math.Round(p.Z, 2)))];
             if (rounded.Distinct().Count() < 3 || Normal(rounded).Length < 1e-7)
             {
                 continue;
@@ -257,7 +278,7 @@ internal static class ForestMeshes
     /// A low-poly ellipsoid: an octahedron (detail -1, 8 faces), icosahedron (0, 20 faces) or its subdivision (1, 80 faces), with radial
     /// jitter for organic canopies and a slight colour variation per face.
     /// </summary>
-    public static Mesh Blob(Vec centre, Vec radii, Rgb color, int detail = 0, double jitter = 0, int seed = 0, double variation = 0.07, bool keepUnderside = false, Rgb? shadow = null, Rgb? highlight = null)
+    public static Mesh Blob(Vec centre, Vec radii, Rgb color, int detail = 0, double jitter = 0, int seed = 0, double variation = 0.07, bool keepUnderside = false, Rgb? shadow = null, Rgb? highlight = null, double undersideY = -0.76)
     {
         (Vec[] vertices, int[][] triangles) = UnitSphere(detail);
         Vec[] placed =
@@ -278,7 +299,7 @@ internal static class ForestMeshes
             Vec outward = middle - centre;
             Vec faceNormal = Mesh.Normal(face);
             double ny = faceNormal.Normalized().Y * (faceNormal.Dot(outward) < 0 ? -1 : 1);
-            if (ny < -0.76 && !keepUnderside)
+            if (ny < undersideY && !keepUnderside)
             {
                 continue;
             }
@@ -290,8 +311,8 @@ internal static class ForestMeshes
         return mesh;
     }
 
-    public static Mesh Blob(double cx, double cy, double cz, double rx, double ry, double rz, Rgb color, int detail = 0, double jitter = 0, int seed = 0, double variation = 0.07, bool keepUnderside = false, Rgb? shadow = null, Rgb? highlight = null) =>
-        Blob(new Vec(cx, cy, cz), new Vec(rx, ry, rz), color, detail, jitter, seed, variation, keepUnderside, shadow, highlight);
+    public static Mesh Blob(double cx, double cy, double cz, double rx, double ry, double rz, Rgb color, int detail = 0, double jitter = 0, int seed = 0, double variation = 0.07, bool keepUnderside = false, Rgb? shadow = null, Rgb? highlight = null, double undersideY = -0.76) =>
+        Blob(new Vec(cx, cy, cz), new Vec(rx, ry, rz), color, detail, jitter, seed, variation, keepUnderside, shadow, highlight, undersideY);
 
     /// <summary>A single flat polygon lying on y with its normal pointing up (fallen leaves, petals, snow patches).</summary>
     public static Mesh Flat(double cx, double y, double cz, double radius, int sides, Rgb color, double rotation = 0)
