@@ -404,6 +404,21 @@ public sealed class AppRuleEnforcerTests
     }
 
     [Fact]
+    public async Task A_foreground_change_ends_an_idle_state_nobody_confirmed_again()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        await h.SetRulesAsync(Rule(Daily(60)));
+        await h.Enforcer.StartAsync(Ct);
+        h.Enforcer.SetIdle(true); // a stale or forged report: the agent sends no heartbeat that would ever end it
+        await h.Enforcer.OnForegroundAsync(GamePath, null, Ct);
+
+        await h.TickAfterAsync(Second);
+        await h.TickAfterAsync(Second);
+
+        Assert.Equal(2, h.UsedSeconds());
+    }
+
+    [Fact]
     public async Task Metering_pauses_without_an_agent_and_needs_a_fresh_foreground_report_after_it_returns()
     {
         await using var h = new AppRuleEnforcerHarness();

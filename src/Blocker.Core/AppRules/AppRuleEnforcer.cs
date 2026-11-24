@@ -118,8 +118,10 @@ internal sealed partial class AppRuleEnforcer(
     }
 
     /// <summary>
-    /// Handles a foreground report of the agent: remembers which rules the app belongs to, so the ticks can count it. Failures are logged and not
-    /// thrown (an unreadable image simply matches no hash rule), because the caller also performs the window checks of a running session.
+    /// Handles a foreground report of the agent: remembers which rules the app belongs to, so the ticks can count it. A foreground change also
+    /// ends an idle state: the agent sends no heartbeat, so an idle report that was forged or went stale would otherwise pause the metering
+    /// for good. Failures are logged and not thrown (an unreadable image simply matches no hash rule), because the caller also performs the
+    /// window checks of a running session.
     /// </summary>
     /// <param name="imagePath">Image path of the foreground process.</param>
     /// <param name="packageFamilyName">Its package family name, if any.</param>
@@ -128,6 +130,7 @@ internal sealed partial class AppRuleEnforcer(
     public async ValueTask OnForegroundAsync(string imagePath, string? packageFamilyName, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(imagePath);
+        _idle = false;
         try
         {
             _ = await MatchForegroundAsync(imagePath, packageFamilyName, cancellationToken).ConfigureAwait(false);

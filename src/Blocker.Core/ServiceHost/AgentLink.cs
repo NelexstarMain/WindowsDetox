@@ -53,6 +53,11 @@ internal sealed partial class AgentLink(Func<int, long?> startTimeOf, ILogger<Ag
             TaskScheduler.Default);
     }
 
+    /// <summary>Gets whether <paramref name="peer"/> is the connection that registered as the agent (a peer with the agent role that did not register is not).</summary>
+    /// <param name="peer">A connection of the service pipe.</param>
+    /// <returns>Whether the peer is the registered agent.</returns>
+    public bool IsRegistered(IpcPeer peer) => ReferenceEquals(Volatile.Read(ref _peer), peer);
+
     /// <summary>Asks the agent to close the windows of a process; <see langword="false"/> when there is no agent, the call failed or the process stayed.</summary>
     /// <param name="processId">Process id.</param>
     /// <param name="cancellationToken">Cancellation.</param>

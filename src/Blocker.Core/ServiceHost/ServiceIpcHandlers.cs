@@ -63,6 +63,7 @@ internal sealed record ServiceHandlerDependencies(
 /// </summary>
 internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps, ILogger<ServiceIpcHandlers> logger)
 {
+    private const int MaxImagePathLength = 1024;
     private const int MaxPackageBytes = 3 * 1024 * 1024;
     private const int MaxScanResponseBytes = 3 * 1024 * 1024;
     private const int MaxPluginPayloadBytes = 64 * 1024;
@@ -361,14 +362,21 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         return ValueTask.FromResult(new AgentRegisterResponse(accepted, AgentProtocol.Version));
     }
 
+    // The role only says that the caller runs as the logged-on user: any process of that user can hold it. What the metering and the plugins
+    // may believe is limited to the one connection that registered as the agent, and even that connection names a process, not an image.
     private async ValueTask<EmptyDto> ForegroundWindowAsync(IpcRequestContext context, ForegroundWindowDto request, CancellationToken cancellationToken)
     {
-        if (request.ProcessId <= 0 || (request.ImagePath?.Length ?? 0) > 1024)
+        if (!deps.Agent.IsRegistered(context.Peer))
+        {
+            LogUnregisteredAgentReport(logger, context.Method);
+            return new EmptyDto();
+        }
+
+        if (request.ProcessId <= 0 || TryGetImagePath(request.ProcessId, request.StartTimeTicks) is not { Length: > 0 and <= MaxImagePathLength } path)
         {
             return new EmptyDto();
         }
 
-        string path = request.ImagePath ?? string.Empty;
         var window = new WindowDescriptor(
             request.ProcessId,
             path[(path.LastIndexOfAny(['\\', '/']) + 1)..],
@@ -389,10 +397,29 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
 
     private async ValueTask<EmptyDto> IdleChangedAsync(IpcRequestContext context, IdleChangedDto request, CancellationToken cancellationToken)
     {
+        if (!deps.Agent.IsRegistered(context.Peer))
+        {
+            LogUnregisteredAgentReport(logger, context.Method);
+            return new EmptyDto();
+        }
+
         TimeSpan idle = TimeSpan.FromSeconds(Math.Clamp(request.IdleSeconds, 0, 366 * 24 * 3600));
         deps.AppEnforcer.SetIdle(request.IsIdle);
         await deps.Events.PublishAsync(new UserIdleChanged(request.IsIdle, idle, VerifiedNow()), cancellationToken).ConfigureAwait(false);
         return new EmptyDto();
+    }
+
+    private string? TryGetImagePath(int processId, long startTimeTicks)
+    {
+        try
+        {
+            return deps.Processes.TryGetImagePath(processId, startTimeTicks);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogImageLookupFailed(logger, ex);
+            return null;
+        }
     }
 
     private string? TryGetPackage(int processId)
@@ -419,6 +446,12 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Reading the package family name failed.")]
     private static partial void LogPackageLookupFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Reading the image path of a reported foreground process failed.")]
+    private static partial void LogImageLookupFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "{Method} was ignored: the caller is not the registered agent.")]
+    private static partial void LogUnregisteredAgentReport(ILogger logger, string method);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} installed.")]
     private static partial void LogPluginInstalled(ILogger logger, string pluginId);

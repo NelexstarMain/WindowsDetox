@@ -4,12 +4,15 @@ using Blocker.Core.Ports;
 using Blocker.Core.ServiceHost;
 using Blocker.Core.Tests.AppRules;
 using Blocker.Core.Tests.Orchestration;
+using Blocker.Sdk.Events;
 using static Blocker.Core.Tests.AppRules.AppRuleTestData;
 
 namespace Blocker.Core.Tests.ServiceHost;
 
 public sealed class AppRuleHandlerTests
 {
+    private const string UnrelatedPath = @"C:\Apps\unrelated.exe";
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static ValueTask<OperationResponse> SetSetsAsync(IpcClient client, params AppSetDto[] sets) =>
@@ -172,6 +175,7 @@ public sealed class AppRuleHandlerTests
         IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
         Assert.True((await SetRulesAsync(user, Rule(Daily(1)))).Success);
         h.Monitor.Running.Add(OrchestrationHarness.P(600, GamePath));
+        h.Controller.Images[600] = GamePath;
         IpcClient agent = await ConnectAgentAsync(h);
         _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
 
@@ -190,6 +194,7 @@ public sealed class AppRuleHandlerTests
         await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
         IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
         Assert.True((await SetRulesAsync(user, Rule(Daily(60)))).Success);
+        h.Controller.Images[600] = GamePath;
         IpcClient agent = await ConnectAgentAsync(h);
         _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
         await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= 10);
@@ -203,6 +208,66 @@ public sealed class AppRuleHandlerTests
         long after = h.App.AppRules.GetStatus(false).Items[0].UsedSeconds;
         Assert.True(before >= 10);
         Assert.Equal(before, after); // twenty idle seconds were not counted, and what was counted survived the restart
+    }
+
+    [Fact]
+    public async Task Foreground_and_idle_reports_of_a_peer_that_never_registered_as_the_agent_are_ignored()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await SetRulesAsync(user, Rule(Daily(60)))).Success);
+        h.Controller.Images[600] = GamePath;
+        h.Controller.Images[700] = UnrelatedPath;
+        IpcClient agent = await ConnectAgentAsync(h);
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= 5);
+
+        // A second process with the Agent role that skipped agent.register: it must neither move the foreground nor pause the metering.
+        IpcClient impostor = await h.ConnectAsync(IpcCallerRole.Agent);
+        _ = await impostor.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(700, 700_000, UnrelatedPath), Ct);
+        _ = await impostor.InvokeAsync<IdleChangedDto, EmptyDto>(IpcMethods.AgentIdleChanged, new IdleChangedDto(true, 300), Ct);
+        long before = h.App.AppRules.GetStatus(false).Items[0].UsedSeconds;
+
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= before + 5);
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
+
+        Assert.DoesNotContain(h.Plugins.Events.OfType<ActiveWindowChanged>(), static e => e.Window.ProcessId == 700);
+        Assert.DoesNotContain(h.Plugins.Events.OfType<UserIdleChanged>(), static e => e.IsIdle);
+    }
+
+    [Fact]
+    public async Task The_foreground_image_is_the_one_the_system_reports_for_the_process_not_the_one_the_agent_sends()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await SetRulesAsync(user, Rule(Daily(60)))).Success);
+        h.Controller.Images[600] = GamePath;
+        IpcClient agent = await ConnectAgentAsync(h);
+
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, UnrelatedPath), Ct);
+
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= 5);
+        ActiveWindowChanged seen = Assert.IsType<ActiveWindowChanged>(await h.Plugins.WaitForEventAsync(static e => e is ActiveWindowChanged));
+        Assert.Equal(GamePath, seen.Window.ExecutablePath);
+        Assert.Equal("game.exe", seen.Window.ImageName);
+    }
+
+    [Fact]
+    public async Task A_foreground_report_for_a_process_the_system_cannot_name_is_ignored()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await SetRulesAsync(user, Rule(Daily(60)))).Success);
+        h.Controller.Images[600] = GamePath;
+        IpcClient agent = await ConnectAgentAsync(h);
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 600_000, GamePath), Ct);
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= 5);
+
+        _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(999, 999_000, UnrelatedPath), Ct);
+        long before = h.App.AppRules.GetStatus(false).Items[0].UsedSeconds;
+
+        await h.AdvanceUntilAsync(() => h.App.AppRules.GetStatus(false).Items[0].UsedSeconds >= before + 5); // still the game that is counted
+        Assert.DoesNotContain(h.Plugins.Events.OfType<ActiveWindowChanged>(), static e => e.Window.ProcessId == 999);
     }
 
     private static async Task<IpcClient> ConnectAgentAsync(ServiceHostHarness h)

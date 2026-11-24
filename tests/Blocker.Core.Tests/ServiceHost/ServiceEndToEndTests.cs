@@ -191,6 +191,9 @@ public sealed class ServiceEndToEndTests
         await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
         IpcClient agent = await h.ConnectAsync(IpcCallerRole.User | IpcCallerRole.Agent);
         h.Plugins.WindowVerdict = window => window.ImageName == "game.exe" ? new InterceptResponse(true, "Too distracting", "com.test.sample") : InterceptResponse.Abstain;
+        h.Controller.Images[600] = OrchestrationHarness.Game;
+        h.Controller.Images[601] = OrchestrationHarness.Explorer;
+        Assert.True((await agent.InvokeAsync<AgentRegisterRequest, AgentRegisterResponse>(IpcMethods.AgentRegister, new AgentRegisterRequest(AgentProtocol.Version, 1), Ct)).Accepted);
         Assert.True((await agent.InvokeAsync<StartSessionRequest, StartSessionResponse>(IpcMethods.SessionStart, ServiceHostHarness.Request(), Ct)).Success);
 
         _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 6_000, OrchestrationHarness.Game), Ct);
