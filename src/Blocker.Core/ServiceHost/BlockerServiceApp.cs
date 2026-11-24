@@ -315,7 +315,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private async Task InitializeAsync(bool scanIfNoCache, CancellationToken cancellationToken)
     {
         _ = await _verified.RefreshAsync(cancellationToken).ConfigureAwait(false);
-        await _appRules.LoadAsync(cancellationToken).ConfigureAwait(false);
+        await LoadAppRulesAsync(cancellationToken).ConfigureAwait(false);
         await RecoverAsync(cancellationToken).ConfigureAwait(false);
         Server.Start();
         if (_pluginServer is not null && _supervisor is not null)
@@ -328,7 +328,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
         _background.Add(RunGuardedAsync("Time refresh", RefreshTimeLoopAsync));
         _background.Add(RunGuardedAsync("Status", StatusLoopAsync));
-        await _appEnforcer.StartAsync(cancellationToken).ConfigureAwait(false);
+        await StartAppEnforcerAsync(cancellationToken).ConfigureAwait(false);
         _background.Add(RunGuardedAsync("App rules", _appEnforcer.RunAsync));
         if (_ports.ServiceControl is { } control && _ports.ProcessWaiter is { } waiter)
         {
@@ -349,5 +349,31 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
         await SyncStatusAsync(cancellationToken).ConfigureAwait(false);
         LogStarted(_logger, Snapshot.Phase);
+    }
+
+    // The per-app rules are an add-on to the sessions: a file or a monitor that cannot be used must not keep a running session from being
+    // recovered or the service from starting, so these two steps degrade to "no rules" instead of failing the start.
+    private async ValueTask LoadAppRulesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _appRules.LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogAppRulesLoadFailed(_logger, ex);
+        }
+    }
+
+    private async ValueTask StartAppEnforcerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _appEnforcer.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogAppEnforcerStartFailed(_logger, ex);
+        }
     }
 }

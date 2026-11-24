@@ -264,6 +264,12 @@ public sealed partial class BlockerServiceApp
     [LoggerMessage(Level = LogLevel.Information, Message = "Blocker service started (session phase {Phase}).")]
     private static partial void LogStarted(ILogger logger, SessionPhase phase);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "The app rules or their usage could not be read; the service continues with the rules it has (none) and no usage.")]
+    private static partial void LogAppRulesLoadFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The app rule enforcer could not complete its start; the service continues and the next periodic check tries again.")]
+    private static partial void LogAppEnforcerStartFailed(ILogger logger, Exception exception);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Blocker service stopped; an active session stays in force.")]
     private static partial void LogStopped(ILogger logger);
 
