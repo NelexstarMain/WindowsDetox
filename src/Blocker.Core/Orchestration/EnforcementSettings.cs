@@ -72,9 +72,9 @@ public sealed record EnforcementSettings
     /// <summary>
     /// Builds the sorted, distinct IFEO image names (<c>name.exe</c>): bypass tools plus scanned apps the allowlist does not cover.
     /// IFEO matches by name only, so a name is dropped when an allowlisted application has that name, and critical Windows or Blocker
-    /// names are never included (<c>services.exe</c> is on the bypass list, but redirecting it would break Windows). Only installed apps get a
-    /// redirect: images in the Windows directory, inbox Windows packages and programs only seen running (background helpers) are left to the
-    /// policy, which checks signatures and paths; an IFEO redirect would show the block screen every time Windows starts one of them.
+    /// names are never included (<c>services.exe</c> is on the bypass list, but redirecting it would break Windows). Images in the Windows
+    /// directory and inbox Windows packages are left to the policy, which checks signatures and paths; an IFEO redirect would show the block
+    /// screen every time Windows starts one of its own helpers.
     /// </summary>
     public IReadOnlyList<string> BuildIfeoImageNames(Allowlist allowlist)
     {
@@ -98,7 +98,6 @@ public sealed record EnforcementSettings
         foreach (InstalledApp app in ScannedApps)
         {
             if (string.IsNullOrWhiteSpace(app.ExecutablePath) || !app.ExecutablePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                || (app.Sources & ~AppSource.Running) == AppSource.None
                 || SystemPackages.IsSystemPackage(app.PackageFamilyName)
                 || WinPath.IsUnder(WinPath.Normalize(app.ExecutablePath), windowsDirectory))
             {
