@@ -128,5 +128,16 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "windowsdetox-tools": {
+      "source": {
+        "source": "github",
+        "repo": "NelexstarMain/WindowsDetox"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "cost-meter@windowsdetox-tools": true
   }
 }
