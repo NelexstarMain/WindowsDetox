@@ -330,7 +330,7 @@ public sealed partial class EnforcementCoordinator(
     {
         var allowlist = new Allowlist(policy.Entries);
         var domains = new DomainMatcher(policy.Domains.Select(static d => DomainPattern.TryParse(d, out DomainPattern? p) ? p : null).OfType<DomainPattern>());
-        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots, _settings.WindowsAppsDirectory);
+        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots);
         var decision = new EnforcementPolicy(critical, new BypassTools(_settings.BypassToolHashes), allowlist, _settings.WindowsDirectory);
         return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist), _settings.ResolveBrowsers());
     }
