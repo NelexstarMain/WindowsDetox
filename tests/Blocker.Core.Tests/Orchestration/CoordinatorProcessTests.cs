@@ -169,6 +169,22 @@ public sealed class CoordinatorProcessTests
     }
 
     [Fact]
+    public async Task ConsoleHostOfWindowsTerminal_IsLeftAlone_WhileTheTerminalItselfStaysBlocked()
+    {
+        // Windows hands the console of a starting console program (allowlisted or not) to OpenConsole.exe when Windows Terminal is the default
+        // terminal; killing it during that start fails the program with STATUS_DLL_INIT_FAILED (0xC0000142).
+        const string package = @"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.3232.0_x64__8wekyb3d8bbwe";
+        await using var h = new OrchestrationHarness(settings: Settings with { WindowsAppsDirectory = @"C:\Program Files\WindowsApps" });
+        await h.StartAsync();
+
+        await h.SpawnAsync(P(40, package + @"\OpenConsole.exe"));
+        await h.SpawnAsync(P(41, package + @"\WindowsTerminal.exe"));
+
+        Assert.Equal([(41, 41_000L)], h.Controller.Terminated);
+        Assert.Equal(BlockReason.BypassTool, Assert.Single(h.BlockedEvents).Reason);
+    }
+
+    [Fact]
     public async Task SignedImageDirectlyInTheWindowsDirectory_IsLeftAlone()
     {
         const string spooler = @"C:\Windows\splwow64.exe";
