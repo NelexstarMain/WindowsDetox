@@ -22,6 +22,7 @@ namespace Blocker.UI.Sdk;
 [JsonDerivedType(typeof(UiHeatmap), "heatmap")]
 [JsonDerivedType(typeof(UiMonthGrid), "monthGrid")]
 [JsonDerivedType(typeof(UiTimeGrid), "timeGrid")]
+[JsonDerivedType(typeof(UiScene), "scene")]
 [JsonDerivedType(typeof(UiGlyph), "glyph")]
 [JsonDerivedType(typeof(UiTable), "table")]
 [JsonDerivedType(typeof(UiButton), "button")]
@@ -241,6 +242,67 @@ public sealed record UiTimeGrid(
     int? PendingDay = null,
     int? PendingStartMinute = null,
     int? PendingEndMinute = null) : UiNode;
+
+/// <summary>
+/// A flat polygon of a <see cref="UiSceneModel"/>. Model space: one tile spans -0.5..0.5 on x (columns) and z (rows) with its centre at
+/// the origin, and y points up (a right-handed system: x to the right, z towards the viewer of a map seen from above). x and z must lie
+/// within -1..1 and y within -0.5..8. Vertices are wound counter-clockwise as seen from outside the solid, so that (b - a) x (c - a)
+/// points outwards (a tile top runs (-x,-z), (-x,+z), (+x,+z), (+x,-z)); faces turned away from the camera are not drawn.
+/// </summary>
+/// <param name="Points">Vertex coordinates as x, y, z triples (3-16 vertices, so 9-48 numbers).</param>
+/// <param name="Color">Base colour as <c>"#RRGGBB"</c>; the host shades it by how much the face is turned towards a fixed light.</param>
+public sealed record UiSceneFace(IReadOnlyList<double> Points, string Color);
+
+/// <summary>A low-poly solid that <see cref="UiSceneItem"/>s place on the ground; defined once per scene and reused by key.</summary>
+/// <param name="Key">Model key, unique within the scene (same syntax as element ids).</param>
+/// <param name="Faces">Polygons (1-400).</param>
+public sealed record UiSceneModel(string Key, IReadOnlyList<UiSceneFace> Faces);
+
+/// <summary>An object standing on one tile of a <see cref="UiScene"/>. Clicking it is delivered as <see cref="UiActionKind.Click"/> with <paramref name="Id"/>.</summary>
+/// <param name="Id">Element id, unique within the tree.</param>
+/// <param name="Model">Key of a model of the same scene.</param>
+/// <param name="Column">Zero-based tile column (x).</param>
+/// <param name="Row">Zero-based tile row (z).</param>
+/// <param name="Rotation">Quarter turns around the vertical axis (0-3), for variety.</param>
+/// <param name="Scale">Uniform scale (0.25-2), applied around the tile centre on the ground.</param>
+/// <param name="IsSelected">Whether the object is selected; the host outlines its tile.</param>
+/// <param name="Label">Optional tooltip and accessible name.</param>
+public sealed record UiSceneItem(string Id, string Model, int Column, int Row, int Rotation = 0, double Scale = 1, bool IsSelected = false, string? Label = null);
+
+/// <summary>
+/// A small isometric world: a grid of ground tiles with low-poly objects standing on them, drawn by the host with flat shading and a
+/// fixed light. The host owns the camera: when <paramref name="AllowRotate"/> is set it offers turning the view in quarter turns and
+/// keeps the chosen view across re-renders; the plugin always works in tile coordinates.
+/// <list type="bullet">
+/// <item>Clicking an object is delivered as <see cref="UiActionKind.Click"/> with the object's id.</item>
+/// <item>When <paramref name="AllowPick"/> is set, clicking a tile without an object is delivered as <see cref="UiActionKind.Pick"/> with
+/// <c>ElementId = Id</c> and <c>FormValues</c> <c>column</c> and <c>row</c> (invariant integers).</item>
+/// </list>
+/// A 1x1 scene with <paramref name="ShowGround"/> off and rotation off draws a single model, for example as a shop thumbnail.
+/// </summary>
+/// <param name="Id">Element id of the scene, unique within the tree.</param>
+/// <param name="Columns">Tile columns (1-24).</param>
+/// <param name="Rows">Tile rows (1-24).</param>
+/// <param name="Models">Model definitions (at most 128, at most 12000 faces in total).</param>
+/// <param name="Items">Objects; at most one per tile (at most the tree's item limit).</param>
+/// <param name="Height">Height of the drawing in device-independent pixels (64-720); the world is scaled to fit.</param>
+/// <param name="GroundColor">Colour of the tile tops as <c>"#RRGGBB"</c>; the sides are drawn darker.</param>
+/// <param name="ShowGround">Whether the ground tiles are drawn.</param>
+/// <param name="AllowRotate">Whether the host offers turning the view.</param>
+/// <param name="AllowPick">Whether clicks on empty tiles are delivered.</param>
+/// <param name="Label">Optional accessible name of the whole scene.</param>
+public sealed record UiScene(
+    string Id,
+    int Columns,
+    int Rows,
+    IReadOnlyList<UiSceneModel> Models,
+    IReadOnlyList<UiSceneItem> Items,
+    double Height = 360,
+    string GroundColor = "#8BC34A",
+    bool ShowGround = true,
+    bool AllowRotate = true,
+    bool AllowPick = false,
+    string? Label = null) : UiNode;
 
 /// <summary>
 /// A plugin's own vector logo, drawn in a host colour. <paramref name="PathData"/> uses SVG/WPF path syntax limited to

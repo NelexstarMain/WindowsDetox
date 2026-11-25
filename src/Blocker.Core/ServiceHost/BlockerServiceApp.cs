@@ -1,6 +1,7 @@
 using System.IO.Abstractions;
 using System.Text.Json;
 using Blocker.Contracts;
+using Blocker.Core.AppRules;
 using Blocker.Core.Clock;
 using Blocker.Core.Ipc;
 using Blocker.Core.Journal;
@@ -39,6 +40,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private readonly VerifiedTimeService _verified;
     private readonly SecureSessionStore _sessionStore;
     private readonly AppScanCache _scanCache;
+    private readonly AppRuleEngine _appRules;
+    private readonly AppRuleEnforcer _appEnforcer;
     private readonly SupervisionStatusFile _supervisionFile;
     private readonly IPluginHostGateway _gateway;
     private readonly IpcServer? _pluginServer;
@@ -50,6 +53,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly SemaphoreSlim _syncGate = new(1, 1);
     private readonly ServiceIpcHandlers _handlers;
+    private readonly ServiceSettingsStore _settings;
+    private readonly BlockNoticeSwitch _blockNotice = new();
     private SessionStatusDto? _lastPublished;
     private bool? _lastActive;
     private Guid? _lastSessionId;
@@ -70,6 +75,12 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         _sessionStore = new SecureSessionStore(secure, paths.SessionStorePath);
         _supervisionFile = new SupervisionStatusFile(secure, paths.SupervisionStatusPath, loggers.CreateLogger<SupervisionStatusFile>());
         var policyStore = new SecureSessionPolicyStore(secure, paths.SessionPolicyPath);
+        _appRules = new AppRuleEngine(
+            new AppRulesStore(secure, paths.AppRulesPath, loggers.CreateLogger<AppRulesStore>()),
+            new AppUsageStore(secure, paths.AppUsagePath, loggers.CreateLogger<AppUsageStore>()),
+            VerifiedOrSystemNow,
+            static () => TimeZoneInfo.Local.Id,
+            ports.Enforcement.WindowsDirectory);
         var pluginStore = new PluginStore(ports.FileSystem, paths.PluginsDirectory, paths.PluginDataDirectory);
 
         if (ports.PluginHostGateway is { } gateway)
@@ -98,17 +109,20 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
         _forwarder = new PluginEventForwarder(_gateway, loggers.CreateLogger<PluginEventForwarder>());
         var agent = new AgentLink(pid => ports.ProcessMonitor.EnumerateRunning().FirstOrDefault(p => p.ProcessId == pid)?.StartTimeTicks, loggers.CreateLogger<AgentLink>());
+        // The coordinator and the app rules both start and restart the one monitor; the wrapper keeps them from starting it twice.
+        var monitor = new SharedProcessMonitor(ports.ProcessMonitor);
+        var hasher = new FileHasher(ports.FileSystem);
         Machine = new SessionStateMachine(_sessionStore, _forwarder, ports.Clock, _verified, ports.BootMarker, ports.DevMode, ports.BreakGlassIterations);
         Coordinator = new EnforcementCoordinator(
             Machine,
             Journal,
             ports.ChangePlanner,
             policyStore,
-            ports.ProcessMonitor,
+            monitor,
             ports.ProcessController,
             ports.UserSessionLauncher,
             ports.SignatureVerifier,
-            new FileHasher(ports.FileSystem),
+            hasher,
             ports.BrowserFirewall,
             ports.ProxyFactory ?? ((policy, port) => new WebFilterProxy(policy, new WebFilterProxyOptions { Port = port }, logger: loggers.CreateLogger<WebFilterProxy>())),
             _forwarder,
@@ -116,7 +130,23 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             ports.Time,
             loggers.CreateLogger<EnforcementCoordinator>(),
             InterceptProcessAsync,
-            (pid, ct) => agent.CloseProcessAsync(pid, ct));
+            (pid, ct) => agent.CloseProcessAsync(pid, ct),
+            _blockNotice);
+
+        _appEnforcer = new AppRuleEnforcer(
+            _appRules,
+            monitor,
+            ports.ProcessController,
+            ports.UserSessionLauncher,
+            hasher,
+            new CriticalProcesses(ports.Enforcement.WindowsDirectory, ports.Enforcement.InstallDirectory, ports.Enforcement.ExtraTrustedRoots),
+            ports.Enforcement.StubExecutablePath,
+            _forwarder,
+            () => Coordinator.IsSessionActive,
+            () => agent.IsConnected,
+            ports.Time,
+            loggers.CreateLogger<AppRuleEnforcer>(),
+            _blockNotice);
 
         Server = new IpcServer(
             ports.ServicePipeName,
@@ -131,7 +161,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 Coordinator,
                 policyStore,
                 new DraftAllowlistStore(secure, paths.DraftAllowlistPath),
-                new ServiceSettingsStore(secure, paths.SettingsPath),
+                _settings = new ServiceSettingsStore(secure, paths.SettingsPath),
                 scanCache,
                 ports.AppScanner,
                 pluginStore,
@@ -143,7 +173,11 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 agent,
                 ports.DevMode,
                 ports.PluginTemplate,
-                SyncStatusAsync),
+                SyncStatusAsync,
+                new AppSetsStore(secure, paths.AppSetsPath, loggers.CreateLogger<AppSetsStore>()),
+                _appRules,
+                _appEnforcer,
+                _blockNotice),
             loggers.CreateLogger<ServiceIpcHandlers>());
         _registrations.AddRange(handlers.RegisterAll(Server));
         _handlers = handlers;
@@ -175,6 +209,12 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
     /// <summary>Gets the coordinator (tests drive its tick directly).</summary>
     internal EnforcementCoordinator Coordinator { get; }
+
+    /// <summary>Gets the per-app rules (tests read the metered usage).</summary>
+    internal AppRuleEngine AppRules => _appRules;
+
+    /// <summary>Gets the enforcer of the per-app rules (tests drive its tick directly).</summary>
+    internal AppRuleEnforcer AppEnforcer => _appEnforcer;
 
     /// <summary>Gets the session state machine.</summary>
     internal SessionStateMachine Machine { get; }
@@ -253,6 +293,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
         Coordinator.Notification -= OnNotification;
         await Server.DisposeAsync().ConfigureAwait(false);
         await Task.WhenAll(_background).ConfigureAwait(false);
+        await _appEnforcer.DisposeAsync().ConfigureAwait(false);
         await _notifications.DisposeAsync().ConfigureAwait(false);
         if (_supervisor is not null)
         {
@@ -279,6 +320,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private async Task InitializeAsync(bool scanIfNoCache, CancellationToken cancellationToken)
     {
         _ = await _verified.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        await LoadAppRulesAsync(cancellationToken).ConfigureAwait(false);
+        _blockNotice.Enabled = ServiceSettingKeys.ShowsBlockNotice(await _settings.GetAsync(cancellationToken).ConfigureAwait(false));
         await RecoverAsync(cancellationToken).ConfigureAwait(false);
         Server.Start();
         if (_pluginServer is not null && _supervisor is not null)
@@ -291,6 +334,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
         _background.Add(RunGuardedAsync("Time refresh", RefreshTimeLoopAsync));
         _background.Add(RunGuardedAsync("Status", StatusLoopAsync));
+        await StartAppEnforcerAsync(cancellationToken).ConfigureAwait(false);
+        _background.Add(RunGuardedAsync("App rules", _appEnforcer.RunAsync));
         if (_ports.ServiceControl is { } control && _ports.ProcessWaiter is { } waiter)
         {
             var supervisor = new MutualSupervisor(
@@ -310,5 +355,31 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
 
         await SyncStatusAsync(cancellationToken).ConfigureAwait(false);
         LogStarted(_logger, Snapshot.Phase);
+    }
+
+    // The per-app rules are an add-on to the sessions: a file or a monitor that cannot be used must not keep a running session from being
+    // recovered or the service from starting, so these two steps degrade to "no rules" instead of failing the start.
+    private async ValueTask LoadAppRulesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _appRules.LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogAppRulesLoadFailed(_logger, ex);
+        }
+    }
+
+    private async ValueTask StartAppEnforcerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _appEnforcer.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogAppEnforcerStartFailed(_logger, ex);
+        }
     }
 }

@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 namespace Blocker.Core.Policy;
 
 /// <summary>Streaming SHA-256 of executables with a bounded cache keyed by (path, length, last write time); any change invalidates the entry.</summary>
-public sealed class FileHasher(IFileSystem fileSystem, int maxCacheEntries = FileHasher.DefaultMaxCacheEntries)
+public class FileHasher(IFileSystem fileSystem, int maxCacheEntries = FileHasher.DefaultMaxCacheEntries)
 {
     /// <summary>Default cache bound.</summary>
     public const int DefaultMaxCacheEntries = 4096;
@@ -29,13 +29,23 @@ public sealed class FileHasher(IFileSystem fileSystem, int maxCacheEntries = Fil
     }
 
     /// <summary>Lower-case hex SHA-256 of <paramref name="path"/>, or <see langword="null"/> when the file is missing or unreadable (fail closed).</summary>
-    public async ValueTask<string?> GetSha256Async(string path, CancellationToken cancellationToken = default)
+    public ValueTask<string?> GetSha256Async(string path, CancellationToken cancellationToken = default) => GetSha256Async(path, long.MaxValue, cancellationToken);
+
+    /// <summary>
+    /// Lower-case hex SHA-256 of <paramref name="path"/>, or <see langword="null"/> when the file is missing, unreadable or larger than
+    /// <paramref name="maxBytes"/> (it is then not opened at all). Virtual so tests can stand in for a slow disk.
+    /// </summary>
+    /// <param name="path">File to hash.</param>
+    /// <param name="maxBytes">Largest file that is read.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The hash, or <see langword="null"/>.</returns>
+    public virtual async ValueTask<string?> GetSha256Async(string path, long maxBytes, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         try
         {
             IFileInfo info = fileSystem.FileInfo.New(path);
-            if (!info.Exists)
+            if (!info.Exists || info.Length > maxBytes)
             {
                 return null;
             }

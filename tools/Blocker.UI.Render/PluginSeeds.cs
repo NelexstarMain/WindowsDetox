@@ -94,8 +94,8 @@ internal static class PluginSeeds
         context.FakeTime.SetUtcNow(now);
     }
 
-    /// <summary>Publishes three weeks of focus sessions and blocked attempts to the already running Focus Insights plugin.</summary>
-    public static async Task ReplayInsightsAsync(FakePluginContext context, DateTimeOffset now, CancellationToken cancellationToken)
+    /// <summary>Publishes three weeks of focus sessions and blocked attempts to an already running Focus Insights or Focus Forest plugin.</summary>
+    public static async Task ReplaySessionsAsync(FakePluginContext context, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var random = new Random(2026);
         for (int back = 20; back >= 1; back--)

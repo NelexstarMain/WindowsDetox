@@ -13,6 +13,7 @@ using Blocker.Sdk.Events;
 using Blocker.Sdk.Extensions;
 using Blocker.Sdk.Model;
 using Blocker.Sdk.Session;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -151,6 +152,24 @@ internal sealed class FakePluginHost : IPluginHostGateway
     }
 }
 
+/// <summary>A logger factory whose every logger writes to one list.</summary>
+internal sealed class CapturingLoggerFactory : ILoggerFactory
+{
+    public CapturingLogger<object> Logger { get; } = new();
+
+    public ILogger CreateLogger(string categoryName) => Logger;
+
+    public void AddProvider(ILoggerProvider provider)
+    {
+        // Everything goes to Logger.
+    }
+
+    public void Dispose()
+    {
+        // Nothing to release.
+    }
+}
+
 internal sealed class FakeServiceInstaller : IServiceInstaller
 {
     private readonly List<string> _started = [];
@@ -248,6 +267,9 @@ internal sealed class ServiceHostHarness : IAsyncDisposable
 
     public BlockerServiceApp App { get; set; } = null!;
 
+    /// <summary>Gets or sets the logger factory of the next started service.</summary>
+    public ILoggerFactory Loggers { get; set; } = NullLoggerFactory.Instance;
+
     /// <summary>Gets or sets the data root protection of the next started service.</summary>
     public Action<BlockerPaths>? ProtectDataRoot { get; set; }
 
@@ -260,7 +282,7 @@ internal sealed class ServiceHostHarness : IAsyncDisposable
     }
 
     public Task<BlockerServiceApp> StartAppAsync() =>
-        BlockerServiceApp.StartAsync(CreatePorts(), Paths, NullLoggerFactory.Instance, Ct);
+        BlockerServiceApp.StartAsync(CreatePorts(), Paths, Loggers, Ct);
 
     /// <summary>Connects a client with the given roles and waits until the server knows its identity.</summary>
     public async Task<IpcClient> ConnectAsync(IpcCallerRole roles)

@@ -19,7 +19,6 @@ public sealed partial class EnforcementCoordinator
     private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromMinutes(2);
     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
 
-    private readonly string[] _baselineRoots = BaselineRoots(settings.WindowsDirectory);
     private readonly Lock _stubGate = new();
     private readonly Dictionary<string, long> _stubLaunches = new(StringComparer.Ordinal);
 
@@ -31,12 +30,6 @@ public sealed partial class EnforcementCoordinator
     private readonly record struct BlockDecision(ProcessInfo Process, ProcessVerdict Verdict, ProcessDescriptor Descriptor);
 
     private readonly record struct BudgetResult<T>(bool TimedOut, T? Value);
-
-    private static string[] BaselineRoots(string windowsDirectory)
-    {
-        string root = WinPath.Normalize(windowsDirectory);
-        return [root + @"\system32", root + @"\syswow64", root + @"\systemapps"];
-    }
 
     /// <summary>
     /// Blocks the process behind a foreground window that a plugin's window interceptor vetoed: terminated and replaced by the block screen,
@@ -299,7 +292,7 @@ public sealed partial class EnforcementCoordinator
         string? package = trusted ? null : TryGetPackage(process.ProcessId);
         var facts = new ProcessFacts(process, sha256, false, package, runtime.Tree.ParentAllowsInheritance(process, requireLiveParent: reconciled));
         ProcessVerdict core = runtime.Decision.Decide(facts);
-        if (core is { Kind: VerdictKind.Block, Reason: VerdictReason.NotAllowlisted } && IsBaselinePath(image) && IsMicrosoftSigned(image))
+        if (core is { Kind: VerdictKind.Block, Reason: VerdictReason.NotAllowlisted } && runtime.Decision.IsSystemBaselinePath(image) && IsMicrosoftSigned(image))
         {
             core = runtime.Decision.Decide(facts with { IsMicrosoftSigned = true });
         }
@@ -370,6 +363,11 @@ public sealed partial class EnforcementCoordinator
 
     private void LaunchStub(ProcessInfo process, VerdictReason reason)
     {
+        if (!_blockNotice.Enabled)
+        {
+            return;
+        }
+
         string image = process.ImagePath ?? "";
         string key = image.Length == 0 ? $"pid:{process.ProcessId}" : WinPath.Normalize(image);
         if (!TryReserveStubLaunch(key))
@@ -472,12 +470,6 @@ public sealed partial class EnforcementCoordinator
             LogStepFailed(logger, ex, "Verifying a signature");
             return false;
         }
-    }
-
-    private bool IsBaselinePath(string image)
-    {
-        string path = WinPath.Normalize(image);
-        return _baselineRoots.Any(root => WinPath.IsUnder(path, root));
     }
 
     private async ValueTask<IReadOnlyList<InterceptDecision>> RunInterceptorAsync(ProcessDescriptor descriptor, CancellationToken cancellationToken)

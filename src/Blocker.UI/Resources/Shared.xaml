@@ -6,7 +6,8 @@
     <cv:BoolToVisibilityConverter x:Key="BoolToCollapsed" Invert="True" />
     <cv:NullOrEmptyToVisibilityConverter x:Key="HasTextToVisible" />
     <cv:NullOrEmptyToVisibilityConverter x:Key="HasTextToCollapsed" Invert="True" />
-    <cv:PngBytesToImageConverter x:Key="PngToImage" />
+    <cv:PngBytesToThemedIconConverter x:Key="PngToMutedIcon" />
+    <cv:PngBytesToThemedIconConverter x:Key="PngToActiveIcon" Active="True" />
 
     <!-- Small borderless pill label used for state, source badges and capabilities. -->
     <Style x:Key="App.Chip" TargetType="Border">
@@ -49,6 +50,109 @@
                             <Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource Blocker.Logo.Brush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Segmented switch: a few mutually exclusive choices on one shared track (picker tabs, pool mode). -->
+    <Style x:Key="App.SegmentedItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Segment" Padding="16,6" CornerRadius="6" BorderThickness="1" Background="Transparent" BorderBrush="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Segment" Property="BorderBrush" Value="{DynamicResource Blocker.Logo.Brush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Segment" Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Segment" Property="Background" Value="{DynamicResource Blocker.Accent.Soft}" />
+                            <Setter TargetName="Segment" Property="BorderBrush" Value="{DynamicResource Blocker.Accent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="App.SegmentedList" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource App.SegmentedItem}" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Padding="3" CornerRadius="9" BorderThickness="1" Background="#181A15" BorderBrush="{DynamicResource Blocker.Border.Subtle}">
+                        <ItemsPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Flat button inside a saved-set chip: the chip itself carries the surface. -->
+    <Style x:Key="App.ChipButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Secondary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Blocker.Font.Ui}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Blocker.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.5" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Thin usage bar: a rounded track and a rounded fill. -->
+    <Style x:Key="App.Bar" TargetType="ProgressBar">
+        <Setter Property="Background" Value="{DynamicResource Blocker.Bg.Raised}" />
+        <Setter Property="Foreground" Value="{DynamicResource Blocker.Accent.Bar}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border x:Name="PART_Track" CornerRadius="3" Background="{TemplateBinding Background}" />
+                        <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3" Background="{TemplateBinding Foreground}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

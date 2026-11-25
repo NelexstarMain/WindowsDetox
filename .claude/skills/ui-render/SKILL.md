@@ -6,7 +6,7 @@ description: Render the real WPF UI (main window pages, plugin pages and widgets
 # UI render harness (Linux, Wine)
 
 `tools/Blocker.UI.Render` builds the real `MainWindow`, pages and view models on a stub service connection, runs the bundled
-plugins (Calendar, Goals & Tasks, Focus Insights) in-process with seeded data and a frozen clock (Monday 2026-11-23 10:30), and
+plugins (Calendar, Goals & Tasks, Focus Insights, Focus Forest) in-process with seeded data and a frozen clock (Monday 2026-11-23 10:30), and
 renders each scenario with `RenderTargetBitmap` at 96 DPI. One process renders all shots.
 
 ## Run

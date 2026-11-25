@@ -41,7 +41,8 @@ public sealed partial class EnforcementCoordinator(
     TimeProvider time,
     ILogger<EnforcementCoordinator> logger,
     Func<ProcessDescriptor, CancellationToken, ValueTask<IReadOnlyList<InterceptDecision>>>? interceptor = null,
-    Func<int, CancellationToken, Task<bool>>? closeGracefully = null) : IAsyncDisposable
+    Func<int, CancellationToken, Task<bool>>? closeGracefully = null,
+    BlockNoticeSwitch? blockNotice = null) : IAsyncDisposable
 {
     internal static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan GracefulCloseBudget = TimeSpan.FromSeconds(10);
@@ -54,6 +55,7 @@ public sealed partial class EnforcementCoordinator(
     private EnforcementSettings _settings = Validated(settings);
     private readonly Func<int, CancellationToken, Task<bool>> _closeGracefully =
         closeGracefully ?? ((pid, ct) => controller.TryCloseGracefullyAsync(pid, GracefulCloseBudget, ct));
+    private readonly BlockNoticeSwitch _blockNotice = blockNotice ?? new BlockNoticeSwitch();
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ProgressCounter _ticks = new();
     private SessionRuntime? _runtime;
@@ -328,7 +330,7 @@ public sealed partial class EnforcementCoordinator(
     {
         var allowlist = new Allowlist(policy.Entries);
         var domains = new DomainMatcher(policy.Domains.Select(static d => DomainPattern.TryParse(d, out DomainPattern? p) ? p : null).OfType<DomainPattern>());
-        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots, _settings.WindowsAppsDirectory);
+        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots);
         var decision = new EnforcementPolicy(critical, new BypassTools(_settings.BypassToolHashes), allowlist, _settings.WindowsDirectory);
         return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist), _settings.ResolveBrowsers());
     }

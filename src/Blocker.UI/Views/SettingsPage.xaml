@@ -5,6 +5,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
       xmlns:bh="clr-namespace:Blocker.UI.Behaviors"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Settings" Background="Transparent">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="{StaticResource Blocker.Thickness.Page}" MaxWidth="760" HorizontalAlignment="Left">
@@ -25,6 +26,24 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <Border Style="{DynamicResource Blocker.SectionDivider}" Padding="0,0,0,24" Margin="0,0,0,24">
+                <StackPanel>
+                    <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="Block notice" Margin="0,0,0,16" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="Show when an app is blocked" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="A small card in the corner that closes by itself" />
+                        </StackPanel>
+                        <ui:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="Show when an app is blocked"
+                                         IsChecked="{Binding ShowBlockNotice, Mode=TwoWay}" IsEnabled="{Binding CanChangeBlockNotice}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
 
             <TextBlock Style="{DynamicResource Blocker.Text.Caption}"
                        Text="Blocking is decided by the Blocker service. This app only shows state and sends your requests." />

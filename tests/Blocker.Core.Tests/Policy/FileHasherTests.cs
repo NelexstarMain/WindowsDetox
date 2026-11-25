@@ -96,6 +96,19 @@ public sealed class FileHasherTests
     }
 
     [Fact]
+    public async Task A_file_over_the_size_cap_yields_null_without_being_read_or_cached()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var hasher = new FileHasher(_fs);
+        Write(Path, "abc", T0);
+
+        Assert.Null(await hasher.GetSha256Async(Path, maxBytes: 2, ct));
+        Assert.Equal(0, hasher.CacheCount);
+        Assert.Equal(AbcHash, await hasher.GetSha256Async(Path, maxBytes: 3, ct)); // the cap is inclusive
+        Assert.Equal(1, hasher.CacheCount);
+    }
+
+    [Fact]
     public void Rejects_non_positive_cache_size()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new FileHasher(_fs, 0));

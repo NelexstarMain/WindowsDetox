@@ -33,6 +33,21 @@ public static class IpcMethods
     /// <summary>Replaces the allowlist; rejected while a session runs.</summary>
     public const string AllowlistSet = "allowlist.set";
 
+    /// <summary>Returns the saved app sets.</summary>
+    public const string AppSetsGet = "appSets.get";
+
+    /// <summary>Replaces the saved app sets.</summary>
+    public const string AppSetsSet = "appSets.set";
+
+    /// <summary>Returns the per-app rules (scheduled blocks and usage pools).</summary>
+    public const string AppRulesGet = "appRules.get";
+
+    /// <summary>Replaces the per-app rules; a rule cannot be loosened while its app is blocked.</summary>
+    public const string AppRulesSet = "appRules.set";
+
+    /// <summary>Returns the live state of every per-app rule.</summary>
+    public const string AppRulesStatus = "appRules.status";
+
     /// <summary>Returns the settings.</summary>
     public const string SettingsGet = "settings.get";
 

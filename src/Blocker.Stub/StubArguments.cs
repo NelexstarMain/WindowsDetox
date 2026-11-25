@@ -67,19 +67,20 @@ internal sealed record StubArguments(string? BlockedPath, string Reason, string 
             return string.Empty;
         }
 
+        if (!Path.IsPathRooted(trimmed))
+        {
+            return trimmed.ToUpperInvariant();
+        }
+
         try
         {
-            if (Path.IsPathRooted(trimmed))
-            {
-                trimmed = Path.GetFullPath(trimmed).TrimEnd('\\', '/');
-            }
+            return Path.GetFullPath(trimmed).TrimEnd('\\', '/').ToUpperInvariant();
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            // Keep the raw trimmed key when an external command line passes malformed path characters.
+            // An external command line may pass malformed path characters; the raw key still identifies the image.
+            return trimmed.ToUpperInvariant();
         }
-
-        return trimmed.ToUpperInvariant();
     }
 
     /// <summary>Words a reason code or text for the user.</summary>
@@ -88,6 +89,8 @@ internal sealed record StubArguments(string? BlockedPath, string Reason, string 
     {
         "" or "not-allowlisted" or "notallowlisted" or "ifeo" => "This app isn't on your allowlist for this session.",
         "bypass" or "bypass-tool" => "This tool could be used to get around the session, so it stays blocked.",
+        "appscheduledblock" => "This app is blocked right now by the schedule you set for it.",
+        "appbudgetexhausted" => "You've used up the time you set for this app.",
         _ => Reason,
     };
 }

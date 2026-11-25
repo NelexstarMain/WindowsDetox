@@ -72,14 +72,16 @@ internal static class AppHost
         services.AddSingleton<IWidgetLayoutStore>(_ => new WidgetLayoutStore(WidgetLayoutStore.DefaultPath));
         services.AddSingleton<WidgetBoardViewModel>();
         services.AddSingleton<DashboardViewModel>();
+        services.AddSingleton<AppSetsViewModel>();
         services.AddSingleton<SetupViewModel>();
+        services.AddSingleton<AppLimitsViewModel>();
         services.AddSingleton<PluginsViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<ShellViewModel>();
 
         services.AddSingleton<DashboardPage>();
-        services.AddSingleton<AllowlistPage>();
         services.AddSingleton<SetupPage>();
+        services.AddSingleton<AppLimitsPage>();
         services.AddSingleton<PluginsPage>();
         services.AddSingleton<SettingsPage>();
         services.AddSingleton<PluginPage>();

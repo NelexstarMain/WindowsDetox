@@ -86,6 +86,8 @@ internal sealed class OrchestrationHarness : IAsyncDisposable
 
     public FakeUserSessionLauncher Launcher { get; } = new();
 
+    public BlockNoticeSwitch BlockNotice { get; } = new();
+
     public FakeSignatureVerifier Signatures { get; } = new();
 
     public FakeBrowserFirewall Firewall { get; }
@@ -236,7 +238,8 @@ internal sealed class OrchestrationHarness : IAsyncDisposable
             Time,
             NullLogger<EnforcementCoordinator>.Instance,
             _interceptor,
-            _closeGracefully);
+            _closeGracefully,
+            BlockNotice);
         coordinator.Notification += (_, n) =>
         {
             lock (_notifications)

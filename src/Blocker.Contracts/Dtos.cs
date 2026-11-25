@@ -74,6 +74,86 @@ public sealed record AllowlistEntryDto(string DisplayName, string? ExecutablePat
 /// <param name="Domains">Allowed domain patterns.</param>
 public sealed record AllowlistDto(IReadOnlyList<AllowlistEntryDto> Apps, IReadOnlyList<string> Domains);
 
+/// <summary>A named, reusable selection of apps and domains for starting a session.</summary>
+/// <param name="Name">Name shown on the set chip; unique, case-insensitive.</param>
+/// <param name="Apps">Applications of the set.</param>
+/// <param name="Domains">Domain patterns of the set.</param>
+public sealed record AppSetDto(string Name, IReadOnlyList<AllowlistEntryDto> Apps, IReadOnlyList<string> Domains);
+
+/// <summary>Every saved app set, in the order the user arranged them.</summary>
+/// <param name="Sets">The sets.</param>
+public sealed record AppSetsDto(IReadOnlyList<AppSetDto> Sets);
+
+/// <summary>A blocked range within one weekday, in local wall-clock minutes.</summary>
+/// <param name="Day">Weekday, 0 = Monday through 6 = Sunday.</param>
+/// <param name="StartMinute">First blocked minute after midnight (0 to 1439).</param>
+/// <param name="EndMinute">Minute after midnight at which the block ends, exclusive (1 to 1440).</param>
+public sealed record WeeklyRangeDto(int Day, int StartMinute, int EndMinute);
+
+/// <summary>How an app's usage-time pool is measured.</summary>
+public enum AppBudgetMode
+{
+    /// <summary>No pool: the app is unlimited outside sessions and scheduled blocks.</summary>
+    None,
+
+    /// <summary>The same number of minutes every day.</summary>
+    Daily,
+
+    /// <summary>A separate number of minutes for each weekday.</summary>
+    PerWeekday,
+
+    /// <summary>One pool of minutes for the whole week, Monday to Sunday.</summary>
+    Weekly,
+}
+
+/// <summary>An app's usage-time pool. Only the fields of the chosen <see cref="Mode"/> are used.</summary>
+/// <param name="Mode">How the pool is measured.</param>
+/// <param name="DailyMinutes">Minutes per day for <see cref="AppBudgetMode.Daily"/>.</param>
+/// <param name="PerWeekdayMinutes">Seven values, Monday to Sunday, for <see cref="AppBudgetMode.PerWeekday"/>.</param>
+/// <param name="WeeklyMinutes">Minutes per week for <see cref="AppBudgetMode.Weekly"/>.</param>
+public sealed record AppBudgetDto(AppBudgetMode Mode, int DailyMinutes, IReadOnlyList<int>? PerWeekdayMinutes, int WeeklyMinutes);
+
+/// <summary>
+/// Rules for one app that apply outside sessions. Precedence: a running session decides first, then a scheduled
+/// block, then the usage pool.
+/// </summary>
+/// <param name="App">The app the rule applies to.</param>
+/// <param name="BlockedRanges">Weekly ranges during which the app is blocked.</param>
+/// <param name="Budget">Usage-time pool.</param>
+public sealed record AppRuleDto(AllowlistEntryDto App, IReadOnlyList<WeeklyRangeDto> BlockedRanges, AppBudgetDto Budget);
+
+/// <summary>Every per-app rule.</summary>
+/// <param name="Rules">The rules, at most one per app.</param>
+public sealed record AppRulesDto(IReadOnlyList<AppRuleDto> Rules);
+
+/// <summary>What currently decides about an app with a rule.</summary>
+public enum AppRuleState
+{
+    /// <summary>The app may run; usage counts against its pool if it has one.</summary>
+    Allowed,
+
+    /// <summary>A running session decides about the app.</summary>
+    SessionControlled,
+
+    /// <summary>The app is inside one of its scheduled blocked ranges.</summary>
+    ScheduledBlock,
+
+    /// <summary>The app used up its pool for the current day or week.</summary>
+    BudgetExhausted,
+}
+
+/// <summary>Live state of one app rule.</summary>
+/// <param name="App">The app.</param>
+/// <param name="State">What currently decides about the app.</param>
+/// <param name="UsedSeconds">Foreground time counted in the current pool period (day or week); 0 without a pool.</param>
+/// <param name="RemainingSeconds">Pool time left in the current period; null without a pool.</param>
+/// <param name="BlockedUntil">When the current scheduled block or exhausted pool ends; null when not blocked.</param>
+public sealed record AppRuleStatusDto(AllowlistEntryDto App, AppRuleState State, long UsedSeconds, long? RemainingSeconds, DateTimeOffset? BlockedUntil);
+
+/// <summary>Result of <see cref="IpcMethods.AppRulesStatus"/>.</summary>
+/// <param name="Items">One entry per rule.</param>
+public sealed record AppRulesStatusResponse(IReadOnlyList<AppRuleStatusDto> Items);
+
 /// <summary>Parameters of <see cref="IpcMethods.SessionStart"/>. The service chooses the time zone itself.</summary>
 /// <param name="DurationMinutes">Session length.</param>
 /// <param name="EmergencyPassesPerDay">Passes per day.</param>
@@ -346,7 +426,8 @@ public sealed record BlockInfoRequest(string BlockId);
 /// <summary>Result of <see cref="IpcMethods.StubGetBlockInfo"/>.</summary>
 /// <param name="Subject">What was blocked (application or domain).</param>
 /// <param name="Status">Session state.</param>
-public sealed record BlockInfoResponse(string Subject, SessionStatusDto Status);
+/// <param name="ShowNotice">Whether the user wants the block notice; when false the block screen closes without showing anything.</param>
+public sealed record BlockInfoResponse(string Subject, SessionStatusDto Status, bool ShowNotice = true);
 
 /// <summary>Parameters of <see cref="IpcMethods.PluginHostRegister"/>.</summary>
 /// <param name="ProtocolVersion">Protocol version the host speaks.</param>

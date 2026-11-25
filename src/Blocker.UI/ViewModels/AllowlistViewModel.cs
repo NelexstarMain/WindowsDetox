@@ -31,6 +31,7 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
 {
     private readonly List<AppEntryViewModel> _allApps = [];
     private bool _loadedOnce;
+    private bool _applyingSelection;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -68,7 +69,13 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
     public AllowlistViewModel(IServiceConnection connection, ISnackbarService snackbar)
         : base(connection, snackbar)
     {
-        Domains.CollectionChanged += (_, _) => SelectionChanged?.Invoke(this, EventArgs.Empty);
+        Domains.CollectionChanged += (_, _) =>
+        {
+            if (!_applyingSelection)
+            {
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+        };
         connection.SessionChanged += (_, _) => RefreshReadOnly();
         connection.ConnectionChanged += OnConnectionChanged;
         RefreshReadOnly();
@@ -85,7 +92,7 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
     public ObservableCollection<string> Domains { get; } = [];
 
     /// <summary>Gets the banner text shown while the page is locked.</summary>
-    public string LockMessage => "The allowlist is locked while a session is running. It unlocks when the session ends.";
+    public string LockMessage => "Locked while a session is running.";
 
     /// <summary>Gets whether the lock banner is visible.</summary>
     public bool IsLocked => IsReadOnly;
@@ -149,6 +156,60 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
         {
             Domains.Add(domain);
         }
+    }
+
+    /// <summary>Replaces the selected apps and the domain list, for example with a saved set. Apps the scan did not find stay selectable as saved entries.</summary>
+    /// <param name="apps">Apps to select; every other app is deselected.</param>
+    /// <param name="domains">Domain patterns that replace the current list.</param>
+    public void ApplySelection(IReadOnlyList<AllowlistEntryDto> apps, IReadOnlyList<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(apps);
+        ArgumentNullException.ThrowIfNull(domains);
+        _applyingSelection = true;
+        try
+        {
+            foreach (AppEntryViewModel app in _allApps)
+            {
+                app.IsSelected = false;
+            }
+
+            foreach (AllowlistEntryDto entry in apps)
+            {
+                AppEntryViewModel? match = _allApps.FirstOrDefault(a => a.Matches(entry));
+                if (match is null)
+                {
+                    match = new AppEntryViewModel(entry);
+                    match.PropertyChanged += OnAppPropertyChanged;
+                    _allApps.Add(match);
+                }
+
+                match.IsSelected = true;
+            }
+
+            _allApps.Sort(static (a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+            ApplyFilter();
+            LoadDomains(domains);
+        }
+        finally
+        {
+            _applyingSelection = false;
+        }
+
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Returns whether the current selection is exactly the given apps and domains.</summary>
+    /// <param name="apps">Apps to compare with.</param>
+    /// <param name="domains">Domain patterns to compare with.</param>
+    /// <returns><see langword="true"/> when both lists match, ignoring order and case of domains.</returns>
+    public bool SelectionEquals(IReadOnlyList<AllowlistEntryDto> apps, IReadOnlyList<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(apps);
+        ArgumentNullException.ThrowIfNull(domains);
+        List<AppEntryViewModel> selected = [.. _allApps.Where(a => a.IsSelected)];
+        return selected.Count == apps.Count
+            && apps.All(entry => selected.Exists(a => a.Matches(entry)))
+            && new HashSet<string>(Domains, StringComparer.OrdinalIgnoreCase).SetEquals(domains);
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
@@ -301,7 +362,7 @@ internal sealed partial class AllowlistViewModel : ServiceViewModel, IAllowlistS
 
     private void OnAppPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(AppEntryViewModel.IsSelected))
+        if (e.PropertyName == nameof(AppEntryViewModel.IsSelected) && !_applyingSelection)
         {
             UpdateSelectionState();
             SelectionChanged?.Invoke(this, EventArgs.Empty);

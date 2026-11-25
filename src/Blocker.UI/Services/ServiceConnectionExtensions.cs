@@ -51,12 +51,57 @@ internal static class ServiceConnectionExtensions
     public static ValueTask<OperationResponse> SetAllowlistAsync(this IServiceConnection connection, AllowlistDto allowlist, CancellationToken cancellationToken) =>
         connection.InvokeAsync<AllowlistDto, OperationResponse>(IpcMethods.AllowlistSet, allowlist, cancellationToken);
 
+    /// <summary>Reads the saved app sets.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The sets.</returns>
+    public static ValueTask<AppSetsDto> GetAppSetsAsync(this IServiceConnection connection, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<AppSetsDto>(IpcMethods.AppSetsGet, cancellationToken);
+
+    /// <summary>Replaces the saved app sets.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="sets">New sets.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The outcome.</returns>
+    public static ValueTask<OperationResponse> SetAppSetsAsync(this IServiceConnection connection, AppSetsDto sets, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<AppSetsDto, OperationResponse>(IpcMethods.AppSetsSet, sets, cancellationToken);
+
+    /// <summary>Reads the per-app rules.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The rules.</returns>
+    public static ValueTask<AppRulesDto> GetAppRulesAsync(this IServiceConnection connection, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<AppRulesDto>(IpcMethods.AppRulesGet, cancellationToken);
+
+    /// <summary>Replaces the per-app rules.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="rules">New rules.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The outcome; the service rejects loosening a rule while its app is blocked.</returns>
+    public static ValueTask<OperationResponse> SetAppRulesAsync(this IServiceConnection connection, AppRulesDto rules, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<AppRulesDto, OperationResponse>(IpcMethods.AppRulesSet, rules, cancellationToken);
+
+    /// <summary>Reads the live state of every per-app rule.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>One status per rule.</returns>
+    public static ValueTask<AppRulesStatusResponse> GetAppRulesStatusAsync(this IServiceConnection connection, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<AppRulesStatusResponse>(IpcMethods.AppRulesStatus, cancellationToken);
+
     /// <summary>Reads the settings.</summary>
     /// <param name="connection">Connection.</param>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>The settings.</returns>
     public static ValueTask<SettingsDto> GetSettingsAsync(this IServiceConnection connection, CancellationToken cancellationToken) =>
         connection.InvokeAsync<SettingsDto>(IpcMethods.SettingsGet, cancellationToken);
+
+    /// <summary>Changes some settings; the others keep their values.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="settings">The settings to change.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The outcome.</returns>
+    public static ValueTask<OperationResponse> SetSettingsAsync(this IServiceConnection connection, SettingsDto settings, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<SettingsDto, OperationResponse>(IpcMethods.SettingsSet, settings, cancellationToken);
 
     /// <summary>Lists installed plugins.</summary>
     /// <param name="connection">Connection.</param>

@@ -1,13 +1,16 @@
+using System.IO.Abstractions.TestingHelpers;
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
 using Blocker.Core.Ports;
 using Blocker.Core.Security;
 using Blocker.Core.ServiceHost;
 using Blocker.Core.Supervision;
+using Blocker.Core.Tests.AppRules;
 using Blocker.Core.Tests.Orchestration;
 using Blocker.Core.Tests.Security;
 using Blocker.Sdk.Events;
 using Blocker.Sdk.Session;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Blocker.Core.Tests.ServiceHost;
@@ -191,6 +194,9 @@ public sealed class ServiceEndToEndTests
         await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
         IpcClient agent = await h.ConnectAsync(IpcCallerRole.User | IpcCallerRole.Agent);
         h.Plugins.WindowVerdict = window => window.ImageName == "game.exe" ? new InterceptResponse(true, "Too distracting", "com.test.sample") : InterceptResponse.Abstain;
+        h.Controller.Images[600] = OrchestrationHarness.Game;
+        h.Controller.Images[601] = OrchestrationHarness.Explorer;
+        Assert.True((await agent.InvokeAsync<AgentRegisterRequest, AgentRegisterResponse>(IpcMethods.AgentRegister, new AgentRegisterRequest(AgentProtocol.Version, 1), Ct)).Accepted);
         Assert.True((await agent.InvokeAsync<StartSessionRequest, StartSessionResponse>(IpcMethods.SessionStart, ServiceHostHarness.Request(), Ct)).Success);
 
         _ = await agent.InvokeAsync<ForegroundWindowDto, EmptyDto>(IpcMethods.AgentForegroundWindow, new ForegroundWindowDto(600, 6_000, OrchestrationHarness.Game), Ct);
@@ -250,6 +256,41 @@ public sealed class ServiceEndToEndTests
         Assert.Equal(SessionPhase.Idle, h.App.Snapshot.Phase);
         Assert.Empty(h.System.Values);
         Assert.False(h.Fs.File.Exists(h.Paths.SessionStorePath));
+    }
+
+    [Fact]
+    public async Task An_app_rules_file_that_cannot_be_read_does_not_stop_the_service_and_the_session_is_still_recovered()
+    {
+        var loggers = new CapturingLoggerFactory();
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync(arrange: harness => harness.Loggers = loggers);
+        IpcClient client = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await client.InvokeAsync<StartSessionRequest, StartSessionResponse>(IpcMethods.SessionStart, ServiceHostHarness.Request(), Ct)).Success);
+        await h.App.DisposeAsync();
+        h.Fs.AddFile(h.Paths.AppRulesPath, new MockFileData("held by another process") { AllowedFileShare = FileShare.None });
+
+        h.App = await h.StartAppAsync();
+
+        Assert.Equal(SessionPhase.Active, h.App.Snapshot.Phase);
+        Assert.Empty(h.App.AppRules.Rules.Rules);
+        Assert.Contains(loggers.Logger.Entries, static e => e.Level == LogLevel.Error && e.Message.Contains("app rules", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task An_app_rule_enforcer_that_cannot_start_does_not_stop_the_service_and_the_session_is_still_recovered()
+    {
+        var loggers = new CapturingLoggerFactory();
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync(arrange: harness => harness.Loggers = loggers);
+        IpcClient client = await h.ConnectAsync(IpcCallerRole.User);
+        Assert.True((await client.InvokeAsync<AppRulesDto, OperationResponse>(IpcMethods.AppRulesSet, new AppRulesDto([AppRuleTestData.Rule(AppRuleTestData.Daily(0))]), Ct)).Success);
+        Assert.True((await client.InvokeAsync<StartSessionRequest, StartSessionResponse>(IpcMethods.SessionStart, ServiceHostHarness.Request(), Ct)).Success);
+        await h.App.DisposeAsync();
+        h.Monitor.AttachFault = new UnauthorizedAccessException("the process monitor is not available");
+
+        h.App = await h.StartAppAsync();
+
+        Assert.Equal(SessionPhase.Active, h.App.Snapshot.Phase);
+        Assert.Single(h.App.AppRules.Rules.Rules);
+        Assert.Contains(loggers.Logger.Entries, static e => e.Level == LogLevel.Error && e.Message.Contains("app rule", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

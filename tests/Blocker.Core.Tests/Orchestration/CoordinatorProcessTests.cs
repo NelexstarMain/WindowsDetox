@@ -169,6 +169,33 @@ public sealed class CoordinatorProcessTests
     }
 
     [Fact]
+    public async Task SignedImageDirectlyInTheWindowsDirectory_IsLeftAlone()
+    {
+        const string spooler = @"C:\Windows\splwow64.exe";
+        await using var h = new OrchestrationHarness();
+        h.Signatures.Signed.Add(spooler);
+        await h.StartAsync();
+
+        await h.SpawnAsync(P(20, spooler));
+
+        Assert.Empty(h.Controller.Terminated);
+        Assert.Empty(h.Launcher.Launches);
+    }
+
+    [Fact]
+    public async Task BlockNoticeTurnedOff_TerminatesWithoutLaunchingTheStub()
+    {
+        await using var h = new OrchestrationHarness();
+        h.BlockNotice.Enabled = false;
+        await h.StartAsync();
+
+        await h.SpawnAsync(P(20, Game));
+
+        Assert.Equal([(20, 20_000L)], h.Controller.Terminated);
+        Assert.Empty(h.Launcher.Launches);
+    }
+
+    [Fact]
     public async Task StubLaunches_AreDeduplicatedPerImageForTwoMinutes()
     {
         await using var h = new OrchestrationHarness();

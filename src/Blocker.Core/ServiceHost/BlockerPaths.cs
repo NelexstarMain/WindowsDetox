@@ -38,6 +38,15 @@ public sealed record BlockerPaths
     /// <summary>Gets the allowlist the user is editing (used by the next session).</summary>
     public string DraftAllowlistPath => Combine(DataRoot, "allowlist-draft.bin");
 
+    /// <summary>Gets the saved app sets.</summary>
+    public string AppSetsPath => Combine(DataRoot, "app-sets.bin");
+
+    /// <summary>Gets the per-app rules and the time zone they are read in.</summary>
+    public string AppRulesPath => Combine(DataRoot, "app-rules.bin");
+
+    /// <summary>Gets the foreground time counted per app.</summary>
+    public string AppUsagePath => Combine(DataRoot, "app-usage.bin");
+
     /// <summary>Gets the settings.</summary>
     public string SettingsPath => Combine(DataRoot, "settings.bin");
 

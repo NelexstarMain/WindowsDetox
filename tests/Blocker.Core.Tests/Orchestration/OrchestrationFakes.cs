@@ -6,7 +6,21 @@ namespace Blocker.Core.Tests.Orchestration;
 
 internal sealed class FakeProcessMonitor : IProcessMonitor
 {
-    public event EventHandler<ProcessStartedEventArgs>? ProcessStarted;
+    private EventHandler<ProcessStartedEventArgs>? _processStarted;
+
+    public event EventHandler<ProcessStartedEventArgs>? ProcessStarted
+    {
+        add
+        {
+            if (AttachFault is { } fault)
+            {
+                throw fault;
+            }
+
+            _processStarted += value;
+        }
+        remove => _processStarted -= value;
+    }
 
     public event EventHandler<ProcessExitedEventArgs>? ProcessExited;
 
@@ -16,11 +30,14 @@ internal sealed class FakeProcessMonitor : IProcessMonitor
 
     public Exception? StartFault { get; set; }
 
+    /// <summary>Gets or sets what subscribing to <see cref="ProcessStarted"/> throws.</summary>
+    public Exception? AttachFault { get; set; }
+
     public Exception? EnumerateFault { get; set; }
 
     public Action? OnEnumerate { get; set; }
 
-    public int Handlers => (ProcessStarted?.GetInvocationList().Length ?? 0) + (ProcessExited?.GetInvocationList().Length ?? 0);
+    public int Handlers => (_processStarted?.GetInvocationList().Length ?? 0) + (ProcessExited?.GetInvocationList().Length ?? 0);
 
     private TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -65,7 +82,7 @@ internal sealed class FakeProcessMonitor : IProcessMonitor
     public void Spawn(ProcessInfo process)
     {
         Running.Add(process);
-        ProcessStarted?.Invoke(this, new ProcessStartedEventArgs(process));
+        _processStarted?.Invoke(this, new ProcessStartedEventArgs(process));
     }
 
     /// <summary>The process exits: it leaves the snapshot and an exit event is raised.</summary>
@@ -114,8 +131,22 @@ internal sealed class FakeProcessController : IProcessController
 
     public Exception? TerminateFault { get; set; }
 
+    /// <summary>Gets or sets what <see cref="TryTerminate"/> waits for before it answers (to hold a pipeline thread).</summary>
+    public ManualResetEventSlim? TerminateGate { get; set; }
+
+    /// <summary>Gets the signal that <see cref="TryTerminate"/> was entered.</summary>
+    public ManualResetEventSlim TerminateEntered { get; } = new(false);
+
+    /// <summary>Gets how many times <see cref="TryTerminate"/> was called, whatever it answered.</summary>
+    public int TerminateAttempts => Volatile.Read(ref _terminateAttempts);
+
+    private int _terminateAttempts;
+
     public bool TryTerminate(int processId, long startTimeTicks)
     {
+        _ = Interlocked.Increment(ref _terminateAttempts);
+        TerminateEntered.Set();
+        TerminateGate?.Wait();
         if (TerminateFault is { } fault)
         {
             throw fault;

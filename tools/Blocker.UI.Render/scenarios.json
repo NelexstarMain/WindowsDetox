@@ -1,5 +1,5 @@
 {
-  // One entry per screenshot. target: "main:<dashboard|allowlist|setup|plugins|settings>" or "plugin:<calendar|goals|insights>".
+  // One entry per screenshot. target: "main:<dashboard|setup|appLimits|plugins|settings>" or "plugin:<calendar|goals|insights>".
   // size: window size in DIPs. session: idle (default) | active | pass.
   // steps: { "action": "<UiAction element id>", "args": { form fields } } | { "click": [x, y] } | { "drag": [[x1, y1], [x2, y2]] } | { "wait": ms }.
   // The fake clock is Monday 2026-11-23 10:30; plugins are seeded with a work week of data.
@@ -7,8 +7,13 @@
     { "name": "dashboard-idle", "target": "main:dashboard", "size": [1280, 1080] },
     { "name": "dashboard-session", "target": "main:dashboard", "size": [1280, 1080], "session": "active" },
     { "name": "dashboard-pass", "target": "main:dashboard", "size": [1280, 1080], "session": "pass" },
-    { "name": "allowlist", "target": "main:allowlist", "size": [1280, 1080] },
-    { "name": "setup", "target": "main:setup", "size": [1280, 1080] },
+    { "name": "setup", "target": "main:setup", "size": [1280, 800] },
+    { "name": "setup-websites", "target": "main:setup", "size": [1280, 800], "steps": [ { "click": [380, 154] }, { "wait": 200 } ] },
+    { "name": "setup-save-set", "target": "main:setup", "size": [1100, 700], "steps": [ { "click": [675, 252] }, { "wait": 300 } ] },
+    { "name": "setup-session", "target": "main:setup", "size": [1280, 800], "session": "active" },
+    { "name": "app-limits", "target": "main:appLimits", "size": [1280, 1000], "steps": [ { "click": [321, 227] }, { "wait": 300 } ] },
+    { "name": "app-limits-small", "target": "main:appLimits", "size": [1100, 700], "steps": [ { "click": [321, 227] }, { "wait": 300 } ] },
+    { "name": "app-limits-pool", "target": "main:appLimits", "size": [1280, 1000], "steps": [ { "click": [321, 267] }, { "click": [721, 206] }, { "wait": 200 } ] },
     { "name": "plugins", "target": "main:plugins", "size": [1280, 1080] },
     { "name": "settings", "target": "main:settings", "size": [1280, 1300] },
     { "name": "calendar-week", "target": "plugin:calendar", "size": [1280, 1500] },
@@ -21,13 +26,18 @@
     { "name": "calendar-multiselect", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-4-739942-0" }, { "action": "cal-ev-5-739943-0", "kind": "click", "args": { "extend": "true" } } ] },
     { "name": "goals", "target": "plugin:goals", "size": [1280, 1200] },
     { "name": "insights", "target": "plugin:insights", "size": [1280, 1800] },
+    { "name": "forest", "target": "plugin:forest", "size": [1280, 2600] },
+    { "name": "forest-select", "target": "plugin:forest", "size": [1280, 1500], "steps": [ { "action": "forest-obj-30" } ] },
+    { "name": "forest-move", "target": "plugin:forest", "size": [1280, 1500], "steps": [ { "action": "forest-obj-30" }, { "action": "forest-move" } ] },
+    { "name": "forest-shop", "target": "plugin:forest", "size": [1280, 2600], "steps": [ { "action": "forest-shop-decorations" } ] },
+    { "name": "forest-empty", "target": "gallery:forest:0:165:2:empty", "size": [1280, 1700] },
     { "name": "goals-complete", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-done-29", "kind": "toggle", "value": "true" }, { "action": "goals-done-30", "kind": "toggle", "value": "true" } ] },
     { "name": "goals-add", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-add", "args": { "goals-add-text": "Prepare quarterly planning notes" } } ] },
     { "name": "goals-goal-up", "target": "plugin:goals", "size": [1280, 1200], "steps": [ { "action": "goals-goal-up" }, { "action": "goals-goal-up" } ] },
     { "name": "calendar-more", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "drag": [[700, 700], [700, 800]] }, { "wait": 300 }, { "action": "cal-more" } ] },
     { "name": "calendar-month-selected", "target": "plugin:calendar", "size": [1280, 1300], "steps": [ { "action": "cal-view-month" }, { "action": "cal-day-739943" } ] },
     { "name": "calendar-edit-more", "target": "plugin:calendar", "size": [1280, 1500], "steps": [ { "action": "cal-ev-1-739942-0" }, { "action": "cal-edit" }, { "action": "cal-more" } ] },
-    { "name": "settings-armed", "target": "main:settings", "size": [1280, 1300], "steps": [ { "action": "goals-reset" }, { "action": "insights-clear" }, { "action": "cal-set-clear" } ] },
+    { "name": "settings-armed", "target": "main:settings", "size": [1280, 1300], "steps": [ { "action": "goals-reset" }, { "action": "insights-clear" }, { "action": "forest-reset" }, { "action": "cal-set-clear" } ] },
     { "name": "anim-cal-create-empty", "target": "plugin:calendar", "size": [1280, 1100], "animate": true, "steps": [ { "move": [780, 725] }, { "drag": [[780, 725], [780, 797]] }, { "wait": 300 }, { "click": [1210, 800] }, { "wait": 300 } ] },
     { "name": "anim-cal-resize", "target": "plugin:calendar", "size": [1280, 1100], "animate": true, "steps": [ { "click": [520, 760] }, { "wait": 200 }, { "move": [520, 863] }, { "drag": [[520, 863], [520, 915]] }, { "wait": 300 } ] },
     { "name": "anim-cal-select-dismiss", "target": "plugin:calendar", "size": [1280, 1100], "animate": true, "steps": [ { "click": [650, 520] }, { "wait": 200 }, { "click": [780, 950] }, { "wait": 300 } ] },
@@ -46,5 +56,10 @@
     { "name": "anim-wheel-dashboard", "target": "main:dashboard", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [500, 600, -360] }, { "wheel": [500, 600, -360] }, { "wheel": [500, 600, 360] } ] }
     ,{ "name": "anim-wheel-calendar", "target": "plugin:calendar", "size": [1280, 800], "animate": true, "steps": [ { "wheel": [700, 550, -360] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, -1200] }, { "wheel": [700, 550, 1200] } ] }
     ,{ "name": "plugins-narrow", "target": "main:plugins", "size": [900, 800] }
+    ,{ "name": "forest-example", "target": "gallery:forest:0:165:2:example", "size": [1280, 1900] }
+    ,{ "name": "forest-models", "target": "gallery:forest", "size": [1900, 1700] }
+    ,{ "name": "forest-paths", "target": "gallery:forest:0:165:2:paths", "size": [1400, 1100] }
+    ,{ "name": "forest-world", "target": "gallery:forest:0:165:2:world", "size": [1400, 1100] }
+    ,{ "name": "forest-models-back", "target": "gallery:forest:2", "size": [1900, 1700] }
   ]
 }

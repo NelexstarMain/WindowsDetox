@@ -1,5 +1,6 @@
 using Blocker.Contracts;
 using Blocker.Core.Abstractions;
+using Blocker.Core.AppRules;
 using Blocker.Core.Clock;
 using Blocker.Core.Ipc;
 using Blocker.Core.Orchestration;
@@ -32,6 +33,9 @@ namespace Blocker.Core.ServiceHost;
 /// <param name="DevMode">Whether <c>session.devAbort</c> works.</param>
 /// <param name="PluginTemplate">Produces the plugin starter ZIP.</param>
 /// <param name="StateChanged">Called after an operation that may have changed the session state.</param>
+/// <param name="AppSets">Saved app sets.</param>
+/// <param name="AppRules">Per-app rules, their usage ledger and every decision on them.</param>
+/// <param name="AppEnforcer">Meters the foreground app against the rules and enforces them outside sessions.</param>
 internal sealed record ServiceHandlerDependencies(
     EnforcementCoordinator Coordinator,
     ISessionPolicyStore SessionPolicies,
@@ -48,7 +52,11 @@ internal sealed record ServiceHandlerDependencies(
     AgentLink Agent,
     bool DevMode,
     Func<CancellationToken, ValueTask<byte[]>> PluginTemplate,
-    Func<CancellationToken, ValueTask> StateChanged);
+    Func<CancellationToken, ValueTask> StateChanged,
+    AppSetsStore AppSets,
+    AppRuleEngine AppRules,
+    AppRuleEnforcer AppEnforcer,
+    BlockNoticeSwitch BlockNotice);
 
 /// <summary>
 /// Every client-callable IPC method of the service. Roles, the session gate and payload sizes are enforced by <see cref="IpcServer"/> from
@@ -56,6 +64,7 @@ internal sealed record ServiceHandlerDependencies(
 /// </summary>
 internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps, ILogger<ServiceIpcHandlers> logger)
 {
+    private const int MaxImagePathLength = 1024;
     private const int MaxPackageBytes = 3 * 1024 * 1024;
     private const int MaxScanResponseBytes = 3 * 1024 * 1024;
     private const int MaxPluginPayloadBytes = 64 * 1024;
@@ -84,6 +93,11 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             server.Register<EmptyDto, ScanAppsResponse>(IpcMethods.AllowlistScanApps, ScanAppsAsync),
             server.Register<EmptyDto, AllowlistDto>(IpcMethods.AllowlistGet, GetAllowlistAsync),
             server.Register<AllowlistDto, OperationResponse>(IpcMethods.AllowlistSet, SetAllowlistAsync),
+            server.Register<EmptyDto, AppSetsDto>(IpcMethods.AppSetsGet, GetAppSetsAsync),
+            server.Register<AppSetsDto, OperationResponse>(IpcMethods.AppSetsSet, SetAppSetsAsync),
+            server.Register<EmptyDto, AppRulesDto>(IpcMethods.AppRulesGet, GetAppRulesAsync),
+            server.Register<AppRulesDto, OperationResponse>(IpcMethods.AppRulesSet, SetAppRulesAsync),
+            server.Register<EmptyDto, AppRulesStatusResponse>(IpcMethods.AppRulesStatus, GetAppRulesStatusAsync),
             server.Register<EmptyDto, SettingsDto>(IpcMethods.SettingsGet, GetSettingsAsync),
             server.Register<SettingsDto, OperationResponse>(IpcMethods.SettingsSet, SetSettingsAsync),
             server.Register<EmptyDto, ListPluginsResponse>(IpcMethods.PluginsList, ListPluginsAsync),
@@ -324,6 +338,11 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         Require(request.Values);
         RequireNoSession();
         IReadOnlyList<string> errors = await deps.Settings.SetAsync(request.Values, cancellationToken).ConfigureAwait(false);
+        if (errors.Count == 0)
+        {
+            deps.BlockNotice.Enabled = ServiceSettingKeys.ShowsBlockNotice(await deps.Settings.GetAsync(cancellationToken).ConfigureAwait(false));
+        }
+
         return new OperationResponse(errors.Count == 0, errors);
     }
 
@@ -334,7 +353,7 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         // The block id is only a hint from the launch command line: show its file name, never anything else, and never trust it further.
         string name = request.BlockId is { Length: > 0 and <= 1024 } id ? id[(id.LastIndexOfAny(['\\', '/']) + 1)..] : string.Empty;
         string subject = name.Length == 0 ? "an application" : Printable(name, 128);
-        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending)));
+        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending), deps.BlockNotice.Enabled));
     }
 
     private ValueTask<AgentRegisterResponse> RegisterAgentAsync(IpcRequestContext context, AgentRegisterRequest request, CancellationToken cancellationToken)
@@ -349,14 +368,21 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         return ValueTask.FromResult(new AgentRegisterResponse(accepted, AgentProtocol.Version));
     }
 
+    // The role only says that the caller runs as the logged-on user: any process of that user can hold it. What the metering and the plugins
+    // may believe is limited to the one connection that registered as the agent, and even that connection names a process, not an image.
     private async ValueTask<EmptyDto> ForegroundWindowAsync(IpcRequestContext context, ForegroundWindowDto request, CancellationToken cancellationToken)
     {
-        if (request.ProcessId <= 0 || (request.ImagePath?.Length ?? 0) > 1024)
+        if (!deps.Agent.IsRegistered(context.Peer))
+        {
+            LogUnregisteredAgentReport(logger, context.Method);
+            return new EmptyDto();
+        }
+
+        if (request.ProcessId <= 0 || TryGetImagePath(request.ProcessId, request.StartTimeTicks) is not { Length: > 0 and <= MaxImagePathLength } path)
         {
             return new EmptyDto();
         }
 
-        string path = request.ImagePath ?? string.Empty;
         var window = new WindowDescriptor(
             request.ProcessId,
             path[(path.LastIndexOfAny(['\\', '/']) + 1)..],
@@ -370,14 +396,36 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
             _ = await deps.Coordinator.BlockWindowProcessAsync(request.ProcessId, request.StartTimeTicks, path, verdict.Reason, cancellationToken).ConfigureAwait(false);
         }
 
+        // After the plugin check of the session, so nothing in the app rules can hold that up.
+        await deps.AppEnforcer.OnForegroundAsync(path, window.PackageFamilyName, cancellationToken).ConfigureAwait(false);
         return new EmptyDto();
     }
 
     private async ValueTask<EmptyDto> IdleChangedAsync(IpcRequestContext context, IdleChangedDto request, CancellationToken cancellationToken)
     {
+        if (!deps.Agent.IsRegistered(context.Peer))
+        {
+            LogUnregisteredAgentReport(logger, context.Method);
+            return new EmptyDto();
+        }
+
         TimeSpan idle = TimeSpan.FromSeconds(Math.Clamp(request.IdleSeconds, 0, 366 * 24 * 3600));
+        deps.AppEnforcer.SetIdle(request.IsIdle);
         await deps.Events.PublishAsync(new UserIdleChanged(request.IsIdle, idle, VerifiedNow()), cancellationToken).ConfigureAwait(false);
         return new EmptyDto();
+    }
+
+    private string? TryGetImagePath(int processId, long startTimeTicks)
+    {
+        try
+        {
+            return deps.Processes.TryGetImagePath(processId, startTimeTicks);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogImageLookupFailed(logger, ex);
+            return null;
+        }
     }
 
     private string? TryGetPackage(int processId)
@@ -404,6 +452,12 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Reading the package family name failed.")]
     private static partial void LogPackageLookupFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Reading the image path of a reported foreground process failed.")]
+    private static partial void LogImageLookupFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "{Method} was ignored: the caller is not the registered agent.")]
+    private static partial void LogUnregisteredAgentReport(ILogger logger, string method);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Plugin {PluginId} installed.")]
     private static partial void LogPluginInstalled(ILogger logger, string pluginId);

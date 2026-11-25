@@ -18,17 +18,13 @@ public enum CriticalKind
 /// <summary>
 /// Hardcoded set of image names that are never terminated. A name only counts when the image lives in a canonical directory for that name
 /// (System32, SysWOW64, the Windows directory itself for <c>explorer</c>, one package level below <c>SystemApps</c>, one component level below
-/// <c>WinSxS</c>), in an administrator-only extra root (Defender), in the Windows Terminal package for its console host, or in the install
-/// directory for Blocker's own executables. Directories are matched exactly, never as a prefix: the Windows directory has subtrees every user can
-/// write and execute from (<c>Tasks</c>, <c>Temp</c>, <c>tracing</c>, <c>System32\spool\drivers\color</c>...), so a renamed <c>explorer.exe</c> in
-/// Downloads or a copy of <c>svchost.exe</c> in <c>C:\Windows\Tasks</c> is not critical. <c>SystemSettings</c> is deliberately absent: it can be
-/// used to bypass a session.
+/// <c>WinSxS</c>), or in an administrator-only extra root (Defender), or in the install directory for Blocker's own executables. Directories are
+/// matched exactly, never as a prefix: the Windows directory has subtrees every user can write and execute from (<c>Tasks</c>, <c>Temp</c>,
+/// <c>tracing</c>, <c>System32\spool\drivers\color</c>...), so a renamed <c>explorer.exe</c> in Downloads or a copy of <c>svchost.exe</c> in
+/// <c>C:\Windows\Tasks</c> is not critical. <c>SystemSettings</c> is deliberately absent: it can be used to bypass a session.
 /// </summary>
 public sealed class CriticalProcesses
 {
-    /// <summary>The publisher id of Microsoft Corporation packages; it is derived from the signing certificate, so no other package can carry it.</summary>
-    private const string MicrosoftPublisherId = "__8wekyb3d8bbwe";
-
     private static readonly FrozenDictionary<string, Locations> SystemNames = new Dictionary<string, Locations>(StringComparer.OrdinalIgnoreCase)
     {
         ["System"] = Locations.Servicing,
@@ -57,11 +53,6 @@ public sealed class CriticalProcesses
         ["LogonUI"] = Locations.Servicing,
         ["userinit"] = Locations.Servicing,
         ["conhost"] = Locations.Servicing,
-
-        // With Windows Terminal as the default terminal, Windows gives the console of every starting console program to OpenConsole.exe; killing it
-        // while the program starts fails the program with STATUS_DLL_INIT_FAILED (0xC0000142), allowlisted or not. The terminal itself stays blockable.
-        ["OpenConsole"] = Locations.TerminalPackage,
-
         ["dllhost"] = Locations.Servicing,
         ["audiodg"] = Locations.Servicing,
         ["spoolsv"] = Locations.Servicing,
@@ -71,11 +62,10 @@ public sealed class CriticalProcesses
         ["MsMpEng"] = Locations.None, // Defender runs from the administrator-only extra roots
         ["NisSrv"] = Locations.None,
         ["smartscreen"] = Locations.Servicing,
+        ["consent"] = Locations.Servicing, // the UAC prompt: killing it denies every elevation
+        ["CredentialUIBroker"] = Locations.Servicing, // hosts the credential dialogs of Windows and of apps
         ["ApplicationFrameHost"] = Locations.Servicing,
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Windows Terminal package names; the directory is <c>name_version_architecture__publisherId</c>.</summary>
-    private static readonly string[] TerminalPackageNames = ["Microsoft.WindowsTerminal", "Microsoft.WindowsTerminalPreview", "Microsoft.WindowsTerminalCanary"];
 
     private static readonly FrozenSet<string> OwnNames = new[]
     {
@@ -86,9 +76,9 @@ public sealed class CriticalProcesses
     public static IReadOnlyList<string> KnownImageNames { get; } = [.. SystemNames.Keys.Concat(OwnNames).Order(StringComparer.OrdinalIgnoreCase)];
 
     private readonly string _windowsDirectory;
+    private readonly string[] _writableSubtrees;
     private readonly string[] _extraRoots;
     private readonly string _installDirectory;
-    private readonly string _windowsAppsDirectory;
 
     /// <summary>Creates the classifier.</summary>
     /// <param name="windowsDirectory"><c>%SystemRoot%</c>, for example <c>C:\Windows</c>.</param>
@@ -97,18 +87,14 @@ public sealed class CriticalProcesses
     /// Extra trusted roots, whole subtrees, for system names that legitimately live elsewhere (Defender: <c>%ProgramFiles%\Windows Defender</c>,
     /// <c>%ProgramData%\Microsoft\Windows Defender</c>). Must be writable only by administrators.
     /// </param>
-    /// <param name="windowsAppsDirectory">
-    /// <c>%ProgramFiles%\WindowsApps</c>, which only TrustedInstaller can write; where the Windows Terminal package, with its console host, lives.
-    /// The package rule is off when it is blank.
-    /// </param>
-    public CriticalProcesses(string windowsDirectory, string installDirectory, IEnumerable<string>? additionalSystemDirectories = null, string? windowsAppsDirectory = null)
+    public CriticalProcesses(string windowsDirectory, string installDirectory, IEnumerable<string>? additionalSystemDirectories = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(windowsDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(installDirectory);
         _windowsDirectory = WinPath.Normalize(windowsDirectory);
+        _writableSubtrees = [.. EnforcementPolicy.WritableSubtrees.Select(relative => _windowsDirectory + @"\" + relative)];
         _extraRoots = [.. (additionalSystemDirectories ?? []).Select(WinPath.Normalize)];
         _installDirectory = WinPath.Normalize(installDirectory);
-        _windowsAppsDirectory = WinPath.Normalize(windowsAppsDirectory);
     }
 
     /// <summary>The canonical directories (below the Windows directory) a system image may run from.</summary>
@@ -121,9 +107,6 @@ public sealed class CriticalProcesses
         WindowsRoot = 4,
         SystemApps = 8,
         WinSxS = 16,
-
-        /// <summary>Anywhere below a Windows Terminal package directory under <c>WindowsApps</c>.</summary>
-        TerminalPackage = 32,
 
         /// <summary>The default: the two system directories and the servicing store, all writable by TrustedInstaller only.</summary>
         Servicing = System32 | SysWow64 | WinSxS,
@@ -152,6 +135,18 @@ public sealed class CriticalProcesses
     /// <summary>True when the process must never be killed.</summary>
     public bool IsCritical(string imagePath) => Classify(imagePath) != CriticalKind.None;
 
+    /// <summary>
+    /// True when the image lives in the Windows directory outside the subtrees every user can write to and run from (<c>Tasks</c>, <c>Temp</c>...),
+    /// which can hold a copy of any program and so are not trusted.
+    /// </summary>
+    /// <param name="imagePath">DOS-style image path; empty paths are never in the system directory.</param>
+    /// <returns>Whether the image is a system program by its location.</returns>
+    public bool IsInTrustedSystemDirectory(string imagePath)
+    {
+        string path = WinPath.Normalize(imagePath);
+        return WinPath.IsUnder(path, _windowsDirectory) && !_writableSubtrees.Any(subtree => WinPath.IsUnder(path, subtree));
+    }
+
     /// <summary>True when <paramref name="imageName"/> (with or without extension) is one of the protected names, wherever the image lives.</summary>
     public static bool IsKnownImageName(string imageName)
     {
@@ -172,27 +167,7 @@ public sealed class CriticalProcesses
             || (locations.HasFlag(Locations.SysWow64) && directory == _windowsDirectory + @"\syswow64")
             || (locations.HasFlag(Locations.WindowsRoot) && directory == _windowsDirectory)
             || (locations.HasFlag(Locations.SystemApps) && IsDirectChild(directory, _windowsDirectory + @"\systemapps"))
-            || (locations.HasFlag(Locations.WinSxS) && IsDirectChild(directory, _windowsDirectory + @"\winsxs"))
-            || (locations.HasFlag(Locations.TerminalPackage) && IsInTerminalPackage(path));
-    }
-
-    private bool IsInTerminalPackage(string path)
-    {
-        if (!WinPath.IsUnder(path, _windowsAppsDirectory))
-        {
-            return false;
-        }
-
-        string relative = path[(_windowsAppsDirectory.Length + 1)..];
-        int cut = relative.IndexOf('\\');
-        if (cut < 0)
-        {
-            return false; // a file directly in WindowsApps
-        }
-
-        string package = relative[..cut];
-        return package.EndsWith(MicrosoftPublisherId, StringComparison.OrdinalIgnoreCase)
-            && TerminalPackageNames.Any(name => package.StartsWith(name + "_", StringComparison.OrdinalIgnoreCase));
+            || (locations.HasFlag(Locations.WinSxS) && IsDirectChild(directory, _windowsDirectory + @"\winsxs"));
     }
 
     private static bool IsDirectChild(string directory, string parent) =>
