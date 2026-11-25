@@ -4,39 +4,60 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:rd="clr-namespace:Blocker.UI.Controls.Rendering;assembly=Blocker.UI.Controls"
         xmlns:local="clr-namespace:Blocker.Stub"
-        Title="Blocked by WindowsDetox" Width="560" Height="420"
+        Title="Blocked by WindowsDetox" Width="400" Height="440"
         Icon="pack://application:,,,/Assets/app.ico"
-        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize"
-        ShowInTaskbar="False" Topmost="True"
-        Background="{DynamicResource Blocker.Bg.Canvas}"
-        Foreground="{DynamicResource Blocker.Text.Primary}"
-        BorderBrush="#3C4132" BorderThickness="1">
-    <Grid>
-        <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}" Opacity="0.025"
-              Width="360" Height="360" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-              Margin="0,0,-60,-60" IsHitTestVisible="False" />
-        <Border Margin="24" ClipToBounds="False">
+        WindowStartupLocation="Manual" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True" ShowActivated="False" Opacity="0"
+        Foreground="{DynamicResource Blocker.Text.Primary}">
+    <!--
+        A corner card that never takes focus: a blocked launch must not interrupt what the user was doing; clicking it expands the details.
+        The window keeps one size and the card sits at its bottom, so expanding never moves or resizes the window (no flicker); the empty
+        transparent part lets clicks through.
+    -->
+    <Grid x:Name="Card" VerticalAlignment="Bottom" ClipToBounds="True"
+          Background="{DynamicResource Blocker.Bg.Canvas}">
+        <Border BorderBrush="#3C4132" BorderThickness="1" IsHitTestVisible="False" Panel.ZIndex="1" />
+        <!-- A zero-size Canvas keeps the watermark out of the card's measure, so the compact card stays one row high. -->
+        <Canvas HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False">
+            <Path Data="{StaticResource Blocker.Logo.Geometry}" Fill="{DynamicResource Blocker.Logo.Brush}" Opacity="0.025"
+                  Width="200" Height="200" Stretch="Uniform" Canvas.Right="-50" Canvas.Bottom="-50" />
+        </Canvas>
+        <Border Margin="16,14" ClipToBounds="False">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <Image Width="40" Height="40" Margin="0,0,14,0" Source="{Binding BlockedPath, Converter={StaticResource ExeIcon}}" />
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Style="{DynamicResource Blocker.Text.Title}" FontSize="22" Text="{Binding AppName}" TextTrimming="CharacterEllipsis" MaxWidth="400" />
-                        <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="is blocked right now" />
+                <Grid Grid.Row="0" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="OnHeaderClicked"
+                      AutomationProperties.Name="Show details">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Image Grid.Column="0" Width="32" Height="32" Margin="0,0,12,0" Source="{Binding BlockedPath, Converter={StaticResource ExeIcon}}" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Style="{DynamicResource Blocker.Text.CardTitle}" Text="{Binding AppName}" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="is blocked right now" />
+                            <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Visibility="{Binding SessionIsRunning, Converter={StaticResource BoolToVisible}}">
+                                <Run Text=" · " /><Run Text="{Binding ClockText, Mode=OneWay}" /><Run Text=" left" />
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                    <Button Grid.Column="2" VerticalAlignment="Top" Style="{DynamicResource Blocker.Button.SubtleCompact}"
+                            Command="{Binding CloseCommand}" Content="&#x2715;" AutomationProperties.Name="Close" />
+                </Grid>
 
-                <ScrollViewer Grid.Row="1" Margin="0,16,0,12" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="1" Margin="0,14,0,12" MaxHeight="260" VerticalScrollBarVisibility="Auto"
+                              Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}">
                     <StackPanel>
                         <TextBlock Style="{DynamicResource Blocker.Text.Body}" Text="{Binding ReasonText}" />
 
                         <StackPanel Margin="0,16,0,0" Visibility="{Binding SessionIsRunning, Converter={StaticResource BoolToVisible}}">
-                            <TextBlock Style="{DynamicResource Blocker.Text.Clock}" FontSize="44" Text="{Binding ClockText}"
+                            <TextBlock Style="{DynamicResource Blocker.Text.Clock}" FontSize="34" Text="{Binding ClockText}"
                                        AutomationProperties.Name="Time remaining in session" />
                             <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Text="until the session ends" />
                         </StackPanel>
@@ -56,17 +77,17 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <StackPanel Grid.Row="2">
+                <StackPanel Grid.Row="2" Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisible}}">
                     <TextBlock Style="{DynamicResource Blocker.Text.Caption}" Margin="0,0,0,8" Text="{Binding StatusMessage}"
                                Visibility="{Binding StatusMessage, Converter={StaticResource HasText}}" />
 
                     <!-- Inline confirmation instead of a dialog: the window is tiny and modal dialogs would hide the clock. -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsConfirming, Converter={StaticResource BoolToVisible}}">
-                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" VerticalAlignment="Center" Margin="0,0,12,0"
+                    <WrapPanel Visibility="{Binding IsConfirming, Converter={StaticResource BoolToVisible}}">
+                        <TextBlock Style="{DynamicResource Blocker.Text.Body}" VerticalAlignment="Center" Margin="0,0,12,8"
                                    Text="Pause blocking and use one pass?" />
                         <Button Style="{DynamicResource Blocker.Button.Warning}" Command="{Binding ConfirmEmergencyExitCommand}" Content="Use pass" />
                         <Button Margin="8,0,0,0" Style="{DynamicResource Blocker.Button.Subtle}" Command="{Binding CancelEmergencyExitCommand}" Content="Keep blocking" />
-                    </StackPanel>
+                    </WrapPanel>
 
                     <Grid>
                         <Grid.Style>

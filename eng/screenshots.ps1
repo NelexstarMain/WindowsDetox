@@ -527,5 +527,8 @@ Stop-Process $ui -Force -ErrorAction SilentlyContinue
 Get-Process Blocker.UI -ErrorAction SilentlyContinue | Stop-Process -Force
 
 $stub = Start-Process (Join-Path $InstallDir 'Blocker.Stub.exe') -ArgumentList '--blocked', "`"$env:WINDIR\notepad.exe`"", '--reason', '"Not on your allowlist"' -PassThru
-Shot (Wait-Window $stub.Id) '07-block-screen'
+$block = Wait-Window $stub.Id
+Shot $block '07-block-screen'
+# The compact card expands when its header is clicked; the click lands on the app name.
+if (Click-Named $block 'notepad' -Anywhere) { Start-Sleep -Milliseconds 800; Shot $block '07-block-screen-expanded' }
 Stop-Process $stub -Force -ErrorAction SilentlyContinue

@@ -22,17 +22,24 @@ internal sealed record BlockContribution(string PluginId, string ContributionId,
 internal sealed record BlockContributionAction(BlockContribution Contribution, UiAction Action);
 
 /// <summary>
-/// The block screen: what was blocked and why, the live session countdown, the emergency exit (inline confirmation, no dialog) and plugin
-/// content. It asks to close itself after <see cref="AutoCloseDelay"/> (never while the emergency exit is being confirmed), or after
-/// <see cref="UnreachableCloseDelay"/> when the service cannot be reached, which it then says neutrally.
+/// The block notice: a compact card naming the blocked app that closes itself after <see cref="CompactCloseDelay"/>; when expanded it shows
+/// why, the live session countdown, the emergency exit (inline confirmation, no dialog) and plugin content, and closes after
+/// <see cref="AutoCloseDelay"/> of no interaction. It never closes while the pointer is over it or the emergency exit is being confirmed,
+/// and after <see cref="UnreachableCloseDelay"/> when the service cannot be reached, which it then says neutrally.
 /// </summary>
 internal sealed partial class BlockScreenViewModel : ObservableObject
 {
     /// <summary>How long the window stays when the service is unreachable.</summary>
     public static readonly TimeSpan UnreachableCloseDelay = TimeSpan.FromSeconds(10);
 
-    /// <summary>How long the block screen stays by itself; it only explains what happened and must not get in the way.</summary>
-    public static readonly TimeSpan AutoCloseDelay = TimeSpan.FromSeconds(8);
+    /// <summary>How long the compact card stays by itself; it only says what happened and must not get in the way.</summary>
+    public static readonly TimeSpan CompactCloseDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>How long the expanded notice stays after the last interaction.</summary>
+    public static readonly TimeSpan AutoCloseDelay = TimeSpan.FromSeconds(20);
+
+    /// <summary>The grace after the pointer leaves, so the card does not vanish the instant the pointer slips off it.</summary>
+    private static readonly TimeSpan PointerLeftCloseDelay = TimeSpan.FromSeconds(2);
 
     private static readonly TimeSpan PassStartedCloseDelay = TimeSpan.FromSeconds(3);
 
@@ -65,6 +72,12 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _sessionIsRunning;
+
+    [ObservableProperty]
+    private bool _isExpanded;
+
+    [ObservableProperty]
+    private bool _isPointerOver;
 
     /// <summary>Creates the view model.</summary>
     /// <param name="service">Service connection.</param>
@@ -122,7 +135,7 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
             Refresh();
             GetContributionsResponse contributions = await _service.GetContributionsAsync(cancellationToken);
             Synchronize(contributions.Items);
-            ScheduleClose(AutoCloseDelay);
+            ScheduleClose(IsExpanded ? AutoCloseDelay : CompactCloseDelay);
         }
         catch (Exception ex) when (IsExpected(ex))
         {
@@ -141,10 +154,26 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
         CanUseEmergencyExit = !IsUnreachable && snapshot.Phase == SessionPhase.Active && snapshot.EmergencyPassesLeftToday > 0;
         UseEmergencyExitCommand.NotifyCanExecuteChanged();
 
-        if (_closeAt is { } due && _time.GetTimestamp() >= due && !IsConfirming)
+        if (_closeAt is { } due && _time.GetTimestamp() >= due && !IsConfirming && !IsPointerOver)
         {
             _closeAt = null;
             CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    [RelayCommand]
+    private void Expand()
+    {
+        IsExpanded = true;
+        ScheduleClose(AutoCloseDelay);
+    }
+
+    partial void OnIsPointerOverChanged(bool value)
+    {
+        long graceEnd = _time.GetTimestamp() + ToTicks(PointerLeftCloseDelay);
+        if (!value && _closeAt is { } due && due < graceEnd)
+        {
+            _closeAt = graceEnd;
         }
     }
 
@@ -212,8 +241,9 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
         }
     }
 
-    private void ScheduleClose(TimeSpan delay) =>
-        _closeAt = _time.GetTimestamp() + (long)(delay.TotalSeconds * _time.TimestampFrequency);
+    private void ScheduleClose(TimeSpan delay) => _closeAt = _time.GetTimestamp() + ToTicks(delay);
+
+    private long ToTicks(TimeSpan delay) => (long)(delay.TotalSeconds * _time.TimestampFrequency);
 
     private static bool IsExpected(Exception ex) => ex is IpcException or IOException or TimeoutException or UnauthorizedAccessException or ObjectDisposedException;
 
