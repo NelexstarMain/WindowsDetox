@@ -1,0 +1,386 @@
+diff --git a/src/Blocker.Core/PluginRuntime/PluginHostRuntime.cs b/src/Blocker.Core/PluginRuntime/PluginHostRuntime.cs
+--- a/src/Blocker.Core/PluginRuntime/PluginHostRuntime.cs
++++ b/src/Blocker.Core/PluginRuntime/PluginHostRuntime.cs
+@@ -52,10 +52,10 @@
+     public long StorageQuotaBytes { get; init; } = FileBackedPluginStorage.DefaultQuotaBytes;
+ 
+     /// <summary>Gets the largest serialized UI tree of one contribution, in bytes.</summary>
+-    public int MaxContributionBytes { get; init; } = 128 * 1024;
+-
+-    /// <summary>Gets the largest total of all trees in one slot response, in bytes (the service accepts 256 KiB frames from the host).</summary>
+-    public int MaxSlotResponseBytes { get; init; } = 224 * 1024;
++    public int MaxContributionBytes { get; init; } = UiJson.MaxDocumentBytes;
++
++    /// <summary>Gets the largest total of all trees in one slot response, in bytes (within <see cref="IpcLimits.MaxMessageBytes"/>).</summary>
++    public int MaxSlotResponseBytes { get; init; } = 2 * 1024 * 1024;
+ 
+     /// <summary>Gets the channel to the service for session starts and toasts; refuses everything by default.</summary>
+     public IPluginHostServiceChannel Services { get; init; } = UnavailablePluginHostServiceChannel.Instance;
+diff --git a/src/Blocker.Core/Ipc/IpcServer.cs b/src/Blocker.Core/Ipc/IpcServer.cs
+--- a/src/Blocker.Core/Ipc/IpcServer.cs
++++ b/src/Blocker.Core/Ipc/IpcServer.cs
+@@ -346,7 +346,10 @@
+                 return;
+             }
+ 
+-            connection = new IpcConnection(pipe, IpcMethodPolicy.MaxFrameBytesFor(identity.Roles), _time, _logger);
++            int maxInboundBytes = identity.Roles.HasFlag(IpcCallerRole.PluginHost)
++                ? IpcLimits.MaxMessageBytes
++                : IpcMethodPolicy.MaxFrameBytesFor(identity.Roles);
++            connection = new IpcConnection(pipe, maxInboundBytes, _time, _logger);
+             peer = new IpcPeer(Guid.NewGuid(), identity, connection, new TokenBucket(_options.RequestsPerSecond, _options.RateBurst, _time));
+             var current = peer;
+             connection.Inbound = (message, frameBytes, ct) => HandleInboundAsync(current, message, frameBytes, ct);
+diff --git a/src/Blocker.Core/PluginRuntime/PluginHostSupervisor.cs b/src/Blocker.Core/PluginRuntime/PluginHostSupervisor.cs
+--- a/src/Blocker.Core/PluginRuntime/PluginHostSupervisor.cs
++++ b/src/Blocker.Core/PluginRuntime/PluginHostSupervisor.cs
+@@ -64,7 +64,7 @@
+     public TimeSpan NotifyTimeout { get; init; } = TimeSpan.FromSeconds(1);
+ 
+     /// <summary>Gets the time for loading plugins (every plugin is compiled with Roslyn).</summary>
+-    public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromSeconds(60);
++    public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromMinutes(3);
+ 
+     /// <summary>Gets the time for evaluating a package: a cold Roslyn compile plus the plugin tests, which alone may take up to 60 s.</summary>
+     public TimeSpan EvaluateTimeout { get; init; } = TimeSpan.FromSeconds(120);
+diff --git a/src/Blocker.UI/ViewModels/ShellViewModel.cs b/src/Blocker.UI/ViewModels/ShellViewModel.cs
+--- a/src/Blocker.UI/ViewModels/ShellViewModel.cs
++++ b/src/Blocker.UI/ViewModels/ShellViewModel.cs
+@@ -109,7 +109,7 @@
+         await RefreshPagesAsync(CancellationToken.None);
+         foreach (TimeSpan delay in EmptyPagesRetryDelays)
+         {
+-            if (PluginPages.Count > 0 || generation != _loadGeneration || !Connection.IsConnected)
++            if (generation != _loadGeneration || !Connection.IsConnected)
+             {
+                 return;
+             }
+diff --git a/src/Blocker.Core/AppRules/AppRuleEnforcer.cs b/src/Blocker.Core/AppRules/AppRuleEnforcer.cs
+--- a/src/Blocker.Core/AppRules/AppRuleEnforcer.cs
++++ b/src/Blocker.Core/AppRules/AppRuleEnforcer.cs
+@@ -63,7 +63,7 @@
+     private const int MaxTerminateAttempts = 3;
+     private static readonly TimeSpan PersistInterval = TimeSpan.FromSeconds(30);
+     private static readonly TimeSpan MaxMeterStep = TimeSpan.FromSeconds(5);
+-    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromSeconds(3);
++    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromMinutes(2);
+     private static readonly TimeSpan HashRetryDelay = TimeSpan.FromMinutes(1);
+     private static readonly TimeSpan QueueFullWarningInterval = TimeSpan.FromMinutes(1);
+     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
+diff --git a/tests/Blocker.Core.Tests/AppRules/AppRuleEnforcerTests.cs b/tests/Blocker.Core.Tests/AppRules/AppRuleEnforcerTests.cs
+--- a/tests/Blocker.Core.Tests/AppRules/AppRuleEnforcerTests.cs
++++ b/tests/Blocker.Core.Tests/AppRules/AppRuleEnforcerTests.cs
+@@ -226,10 +226,12 @@
+         await h.SpawnAsync(P(20, GamePath)); // stays in the fake's snapshot after the kill
+         await h.TickAfterAsync(ReconcileInterval);
+         await h.TickAfterAsync(ReconcileInterval);
+-        await h.SpawnAsync(P(21, GamePath)); // a new instance right after the 10 s above: its screen is due again
+-        await h.SpawnAsync(P(22, GamePath));
+-
+-        Assert.Equal([(20, 20_000L), (21, 21_000L), (22, 22_000L)], h.Controller.Terminated);
++        await h.SpawnAsync(P(21, GamePath)); // still within the 2-minute dedupe window
++        h.Time.Advance(TimeSpan.FromMinutes(2));
++        await h.SpawnAsync(P(22, GamePath)); // outside the 2-minute dedupe window: its screen is due again
++        await h.SpawnAsync(P(23, GamePath));
++
++        Assert.Equal([(20, 20_000L), (21, 21_000L), (22, 22_000L), (23, 23_000L)], h.Controller.Terminated);
+         Assert.Equal(2, h.Launcher.Launches.Count);
+     }
+ 
+diff --git a/src/Blocker.Stub/StubArguments.cs b/src/Blocker.Stub/StubArguments.cs
+--- a/src/Blocker.Stub/StubArguments.cs
++++ b/src/Blocker.Stub/StubArguments.cs
+@@ -11,7 +11,8 @@
+ /// <param name="BlockedPath">Path of the blocked executable, or <see langword="null"/> when unknown.</param>
+ /// <param name="Reason">Reason code or text from the service; empty for IFEO launches.</param>
+ /// <param name="BlockId">Identifier for <c>stub.getBlockInfo</c>.</param>
+-internal sealed record StubArguments(string? BlockedPath, string Reason, string BlockId)
++/// <param name="IsIfeo">Whether the stub was started directly by an IFEO debugger redirect.</param>
++internal sealed record StubArguments(string? BlockedPath, string Reason, string BlockId, bool IsIfeo = false)
+ {
+     /// <summary>Parses the process arguments; never throws. Unknown arguments are ignored.</summary>
+     /// <param name="args">Process arguments.</param>
+@@ -20,7 +21,7 @@
+     {
+         if (args.Count >= 2 && string.Equals(args[0], "--ifeo", StringComparison.OrdinalIgnoreCase))
+         {
+-            return new StubArguments(args[1], string.Empty, args[1]);
++            return new StubArguments(args[1], string.Empty, args[1], IsIfeo: true);
+         }
+ 
+         string? path = null;
+@@ -45,14 +46,40 @@
+         return new StubArguments(path, reason, blockId ?? path ?? string.Empty);
+     }
+ 
+-    /// <summary>Gets the name of the per-image mutex that keeps one stub window per blocked executable.</summary>
+-    public string MutexName
++    /// <summary>Gets the stable 16-hex-char hash of the normalized blocked executable path.</summary>
++    public string ImageHash
+     {
+         get
+         {
+-            string key = (BlockedPath ?? string.Empty).ToUpperInvariant();
+-            return @"Local\WindowsDetox.Stub." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
++            string key = NormalizeImageKey(BlockedPath);
++            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+         }
++    }
++
++    /// <summary>Gets the name of the per-image mutex that keeps one stub window per blocked executable.</summary>
++    public string MutexName => @"Local\WindowsDetox.Stub." + ImageHash;
++
++    private static string NormalizeImageKey(string? path)
++    {
++        string trimmed = (path ?? string.Empty).Trim().Trim('"');
++        if (trimmed.Length == 0)
++        {
++            return string.Empty;
++        }
++
++        try
++        {
++            if (Path.IsPathRooted(trimmed))
++            {
++                trimmed = Path.GetFullPath(trimmed).TrimEnd('\\', '/');
++            }
++        }
++        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
++        {
++            // Keep the raw trimmed key when an external command line passes malformed path characters.
++        }
++
++        return trimmed.ToUpperInvariant();
+     }
+ 
+     /// <summary>Words a reason code or text for the user.</summary>
+diff --git a/src/Blocker.Stub/App.xaml.cs b/src/Blocker.Stub/App.xaml.cs
+--- a/src/Blocker.Stub/App.xaml.cs
++++ b/src/Blocker.Stub/App.xaml.cs
+@@ -1,3 +1,4 @@
++using System.Globalization;
+ using System.Windows;
+ using Blocker.Contracts;
+ using Blocker.Core.Ipc;
+@@ -8,11 +9,13 @@
+ namespace Blocker.Stub;
+ 
+ /// <summary>
+-/// Entry of the block screen. Starts one window per blocked image (a named mutex stops stub storms when a blocked app is launched
+-/// repeatedly) and exits when that window closes.
++/// Entry of the block screen. Starts one window per blocked image (a named mutex plus an IFEO cooldown stamp stops stub storms when a
++/// blocked app is launched repeatedly) and exits when that window closes.
+ /// </summary>
+ internal sealed partial class App : Application
+ {
++    private static readonly TimeSpan IfeoCooldownWindow = TimeSpan.FromMinutes(2);
++
+     private IHost? _host;
+     private Mutex? _instanceLock;
+ 
+@@ -23,7 +26,7 @@
+         StubArguments arguments = StubArguments.Parse(e.Args);
+ 
+         _instanceLock = new Mutex(initiallyOwned: true, arguments.MutexName, out bool createdNew);
+-        if (!createdNew)
++        if (!createdNew || !TryPassIfeoCooldown(arguments))
+         {
+             Shutdown();
+             return;
+@@ -54,4 +57,35 @@
+         _instanceLock?.Dispose();
+         base.OnExit(e);
+     }
++
++    private static bool TryPassIfeoCooldown(StubArguments arguments)
++    {
++        try
++        {
++            string dir = Path.Combine(
++                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
++                "WindowsDetox",
++                "StubCooldown");
++            Directory.CreateDirectory(dir);
++            string stamp = Path.Combine(dir, arguments.ImageHash + ".stamp");
++            DateTimeOffset now = DateTimeOffset.UtcNow;
++
++            if (arguments.IsIfeo && File.Exists(stamp))
++            {
++                DateTime lastUtc = File.GetLastWriteTimeUtc(stamp);
++                if (now.UtcDateTime - lastUtc < IfeoCooldownWindow)
++                {
++                    return false;
++                }
++            }
++
++            File.WriteAllText(stamp, now.UtcTicks.ToString(CultureInfo.InvariantCulture));
++        }
++        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
++        {
++            // Never fail to display a block screen because of local temp/appdata permissions.
++        }
++
++        return true;
++    }
+ }
+diff --git a/src/Blocker.Core/Orchestration/EnforcementSettings.cs b/src/Blocker.Core/Orchestration/EnforcementSettings.cs
+--- a/src/Blocker.Core/Orchestration/EnforcementSettings.cs
++++ b/src/Blocker.Core/Orchestration/EnforcementSettings.cs
+@@ -24,6 +24,9 @@
+ 
+     /// <summary>Additional trusted roots for critical system names (for example the Defender directories).</summary>
+     public IReadOnlyList<string> ExtraTrustedRoots { get; init; } = [];
++
++    /// <summary>The packaged-apps directory (<c>%ProgramFiles%\WindowsApps</c>), where the console host of Windows Terminal lives; empty when unknown.</summary>
++    public string WindowsAppsDirectory { get; init; } = "";
+ 
+     /// <summary>Resolved browser executables; entries whose image name is not in <see cref="KnownBrowserImageNames"/> are ignored.</summary>
+     public IReadOnlyList<string> BrowserExecutables { get; init; } = [];
+diff --git a/src/Blocker.Core/Orchestration/EnforcementCoordinator.cs b/src/Blocker.Core/Orchestration/EnforcementCoordinator.cs
+--- a/src/Blocker.Core/Orchestration/EnforcementCoordinator.cs
++++ b/src/Blocker.Core/Orchestration/EnforcementCoordinator.cs
+@@ -328,7 +328,7 @@
+     {
+         var allowlist = new Allowlist(policy.Entries);
+         var domains = new DomainMatcher(policy.Domains.Select(static d => DomainPattern.TryParse(d, out DomainPattern? p) ? p : null).OfType<DomainPattern>());
+-        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots);
++        var critical = new CriticalProcesses(_settings.WindowsDirectory, _settings.InstallDirectory, _settings.ExtraTrustedRoots, _settings.WindowsAppsDirectory);
+         var decision = new EnforcementPolicy(critical, new BypassTools(_settings.BypassToolHashes), allowlist, _settings.WindowsDirectory);
+         return new SessionRuntime(domains, critical, decision, _settings.BuildIfeoImageNames(allowlist), _settings.ResolveBrowsers());
+     }
+diff --git a/src/Blocker.Service/WindowsServicePorts.cs b/src/Blocker.Service/WindowsServicePorts.cs
+--- a/src/Blocker.Service/WindowsServicePorts.cs
++++ b/src/Blocker.Service/WindowsServicePorts.cs
+@@ -35,7 +35,8 @@
+         string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+         string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+         string[] extraTrustedRoots = [Path.Combine(programFiles, "Windows Defender"), Path.Combine(programData, "Microsoft", "Windows Defender")];
+-        var critical = new CriticalProcesses(windows, paths.InstallDirectory, extraTrustedRoots);
++        string windowsApps = Path.Combine(programFiles, "WindowsApps");
++        var critical = new CriticalProcesses(windows, paths.InstallDirectory, extraTrustedRoots, windowsApps);
+         var clock = new SystemMonotonicClock();
+         var http = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(10) };
+         var udp = new UdpExchange();
+@@ -89,6 +90,7 @@
+                 WindowsDirectory = windows,
+                 StubExecutablePath = paths.StubExecutablePath,
+                 ExtraTrustedRoots = extraTrustedRoots,
++                WindowsAppsDirectory = windowsApps,
+                 BrowserExecutables = BrowserLocator.ForCurrentMachine().Locate(),
+                 BypassToolImageNames = BypassTools.KnownImageNames,
+                 BypassToolHashes = HashBypassBinaries(windows),
+diff --git a/src/Blocker.Core/Policy/CriticalProcesses.cs b/src/Blocker.Core/Policy/CriticalProcesses.cs
+--- a/src/Blocker.Core/Policy/CriticalProcesses.cs
++++ b/src/Blocker.Core/Policy/CriticalProcesses.cs
+@@ -18,13 +18,17 @@
+ /// <summary>
+ /// Hardcoded set of image names that are never terminated. A name only counts when the image lives in a canonical directory for that name
+ /// (System32, SysWOW64, the Windows directory itself for <c>explorer</c>, one package level below <c>SystemApps</c>, one component level below
+-/// <c>WinSxS</c>), or in an administrator-only extra root (Defender), or in the install directory for Blocker's own executables. Directories are
+-/// matched exactly, never as a prefix: the Windows directory has subtrees every user can write and execute from (<c>Tasks</c>, <c>Temp</c>,
+-/// <c>tracing</c>, <c>System32\spool\drivers\color</c>...), so a renamed <c>explorer.exe</c> in Downloads or a copy of <c>svchost.exe</c> in
+-/// <c>C:\Windows\Tasks</c> is not critical. <c>SystemSettings</c> is deliberately absent: it can be used to bypass a session.
++/// <c>WinSxS</c>), in an administrator-only extra root (Defender), in the Windows Terminal package for its console host, or in the install
++/// directory for Blocker's own executables. Directories are matched exactly, never as a prefix: the Windows directory has subtrees every user can
++/// write and execute from (<c>Tasks</c>, <c>Temp</c>, <c>tracing</c>, <c>System32\spool\drivers\color</c>...), so a renamed <c>explorer.exe</c> in
++/// Downloads or a copy of <c>svchost.exe</c> in <c>C:\Windows\Tasks</c> is not critical. <c>SystemSettings</c> is deliberately absent: it can be
++/// used to bypass a session.
+ /// </summary>
+ public sealed class CriticalProcesses
+ {
++    /// <summary>The publisher id of Microsoft Corporation packages; it is derived from the signing certificate, so no other package can carry it.</summary>
++    private const string MicrosoftPublisherId = "__8wekyb3d8bbwe";
++
+     private static readonly FrozenDictionary<string, Locations> SystemNames = new Dictionary<string, Locations>(StringComparer.OrdinalIgnoreCase)
+     {
+         ["System"] = Locations.Servicing,
+@@ -53,6 +57,11 @@
+         ["LogonUI"] = Locations.Servicing,
+         ["userinit"] = Locations.Servicing,
+         ["conhost"] = Locations.Servicing,
++
++        // With Windows Terminal as the default terminal, Windows gives the console of every starting console program to OpenConsole.exe; killing it
++        // while the program starts fails the program with STATUS_DLL_INIT_FAILED (0xC0000142), allowlisted or not. The terminal itself stays blockable.
++        ["OpenConsole"] = Locations.TerminalPackage,
++
+         ["dllhost"] = Locations.Servicing,
+         ["audiodg"] = Locations.Servicing,
+         ["spoolsv"] = Locations.Servicing,
+@@ -67,6 +76,9 @@
+         ["ApplicationFrameHost"] = Locations.Servicing,
+     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+ 
++    /// <summary>Windows Terminal package names; the directory is <c>name_version_architecture__publisherId</c>.</summary>
++    private static readonly string[] TerminalPackageNames = ["Microsoft.WindowsTerminal", "Microsoft.WindowsTerminalPreview", "Microsoft.WindowsTerminalCanary"];
++
+     private static readonly FrozenSet<string> OwnNames = new[]
+     {
+         "Blocker.Service", "Blocker.Watchdog", "Blocker.UI", "Blocker.Stub", "Blocker.PluginHost",
+@@ -79,6 +91,7 @@
+     private readonly string[] _writableSubtrees;
+     private readonly string[] _extraRoots;
+     private readonly string _installDirectory;
++    private readonly string _windowsAppsDirectory;
+ 
+     /// <summary>Creates the classifier.</summary>
+     /// <param name="windowsDirectory"><c>%SystemRoot%</c>, for example <c>C:\Windows</c>.</param>
+@@ -87,7 +100,11 @@
+     /// Extra trusted roots, whole subtrees, for system names that legitimately live elsewhere (Defender: <c>%ProgramFiles%\Windows Defender</c>,
+     /// <c>%ProgramData%\Microsoft\Windows Defender</c>). Must be writable only by administrators.
+     /// </param>
+-    public CriticalProcesses(string windowsDirectory, string installDirectory, IEnumerable<string>? additionalSystemDirectories = null)
++    /// <param name="windowsAppsDirectory">
++    /// <c>%ProgramFiles%\WindowsApps</c>, which only TrustedInstaller can write; where the Windows Terminal package, with its console host, lives.
++    /// The package rule is off when it is blank.
++    /// </param>
++    public CriticalProcesses(string windowsDirectory, string installDirectory, IEnumerable<string>? additionalSystemDirectories = null, string? windowsAppsDirectory = null)
+     {
+         ArgumentException.ThrowIfNullOrWhiteSpace(windowsDirectory);
+         ArgumentException.ThrowIfNullOrWhiteSpace(installDirectory);
+@@ -95,6 +112,7 @@
+         _writableSubtrees = [.. EnforcementPolicy.WritableSubtrees.Select(relative => _windowsDirectory + @"\" + relative)];
+         _extraRoots = [.. (additionalSystemDirectories ?? []).Select(WinPath.Normalize)];
+         _installDirectory = WinPath.Normalize(installDirectory);
++        _windowsAppsDirectory = WinPath.Normalize(windowsAppsDirectory);
+     }
+ 
+     /// <summary>The canonical directories (below the Windows directory) a system image may run from.</summary>
+@@ -107,6 +125,9 @@
+         WindowsRoot = 4,
+         SystemApps = 8,
+         WinSxS = 16,
++
++        /// <summary>Anywhere below a Windows Terminal package directory under <c>WindowsApps</c>.</summary>
++        TerminalPackage = 32,
+ 
+         /// <summary>The default: the two system directories and the servicing store, all writable by TrustedInstaller only.</summary>
+         Servicing = System32 | SysWow64 | WinSxS,
+@@ -167,7 +188,27 @@
+             || (locations.HasFlag(Locations.SysWow64) && directory == _windowsDirectory + @"\syswow64")
+             || (locations.HasFlag(Locations.WindowsRoot) && directory == _windowsDirectory)
+             || (locations.HasFlag(Locations.SystemApps) && IsDirectChild(directory, _windowsDirectory + @"\systemapps"))
+-            || (locations.HasFlag(Locations.WinSxS) && IsDirectChild(directory, _windowsDirectory + @"\winsxs"));
++            || (locations.HasFlag(Locations.WinSxS) && IsDirectChild(directory, _windowsDirectory + @"\winsxs"))
++            || (locations.HasFlag(Locations.TerminalPackage) && IsInTerminalPackage(path));
++    }
++
++    private bool IsInTerminalPackage(string path)
++    {
++        if (!WinPath.IsUnder(path, _windowsAppsDirectory))
++        {
++            return false;
++        }
++
++        string relative = path[(_windowsAppsDirectory.Length + 1)..];
++        int cut = relative.IndexOf('\\');
++        if (cut < 0)
++        {
++            return false; // a file directly in WindowsApps
++        }
++
++        string package = relative[..cut];
++        return package.EndsWith(MicrosoftPublisherId, StringComparison.OrdinalIgnoreCase)
++            && TerminalPackageNames.Any(name => package.StartsWith(name + "_", StringComparison.OrdinalIgnoreCase));
+     }
+ 
+     private static bool IsDirectChild(string directory, string parent) =>

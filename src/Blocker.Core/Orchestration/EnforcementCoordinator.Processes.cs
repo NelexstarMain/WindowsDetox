@@ -15,7 +15,8 @@ public sealed partial class EnforcementCoordinator
     internal const int QueueCapacity = 4096;
 
     private static readonly TimeSpan InterceptorBudget = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromSeconds(3);
+    /// <summary>A respawning background program would otherwise bring the block screen back every few seconds.</summary>
+    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromMinutes(2);
     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();
 
     private readonly string[] _baselineRoots = BaselineRoots(settings.WindowsDirectory);

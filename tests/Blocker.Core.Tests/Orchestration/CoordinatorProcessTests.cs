@@ -169,7 +169,7 @@ public sealed class CoordinatorProcessTests
     }
 
     [Fact]
-    public async Task StubLaunches_AreDeduplicatedPerImageForThreeSeconds()
+    public async Task StubLaunches_AreDeduplicatedPerImageForTwoMinutes()
     {
         await using var h = new OrchestrationHarness();
         await h.StartAsync();
@@ -177,7 +177,7 @@ public sealed class CoordinatorProcessTests
         await h.SpawnAsync(P(20, Game));
         await h.SpawnAsync(P(21, Game));
         await h.SpawnAsync(P(23, @"C:\Games\other.exe"));
-        h.Time.Advance(TimeSpan.FromSeconds(2.9));
+        h.Time.Advance(TimeSpan.FromSeconds(119.9));
         await h.SpawnAsync(P(24, Game));
         Assert.Equal(
             [(StubPath, StubArgs(Game, "NotAllowlisted")), (StubPath, StubArgs(@"C:\Games\other.exe", "NotAllowlisted"))],
