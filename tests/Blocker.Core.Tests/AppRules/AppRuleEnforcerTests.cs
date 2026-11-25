@@ -226,10 +226,12 @@ public sealed class AppRuleEnforcerTests
         await h.SpawnAsync(P(20, GamePath)); // stays in the fake's snapshot after the kill
         await h.TickAfterAsync(ReconcileInterval);
         await h.TickAfterAsync(ReconcileInterval);
-        await h.SpawnAsync(P(21, GamePath)); // a new instance right after the 10 s above: its screen is due again
-        await h.SpawnAsync(P(22, GamePath));
+        await h.SpawnAsync(P(21, GamePath)); // still within the 2-minute dedupe window
+        h.Time.Advance(TimeSpan.FromMinutes(2));
+        await h.SpawnAsync(P(22, GamePath)); // outside the 2-minute dedupe window: its screen is due again
+        await h.SpawnAsync(P(23, GamePath));
 
-        Assert.Equal([(20, 20_000L), (21, 21_000L), (22, 22_000L)], h.Controller.Terminated);
+        Assert.Equal([(20, 20_000L), (21, 21_000L), (22, 22_000L), (23, 23_000L)], h.Controller.Terminated);
         Assert.Equal(2, h.Launcher.Launches.Count);
     }
 

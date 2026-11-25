@@ -63,7 +63,7 @@ internal sealed partial class AppRuleEnforcer(
     private const int MaxTerminateAttempts = 3;
     private static readonly TimeSpan PersistInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxMeterStep = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan StubDedupeWindow = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan HashRetryDelay = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan QueueFullWarningInterval = TimeSpan.FromMinutes(1);
     private static readonly long MaxFileTime = DateTime.MaxValue.ToFileTimeUtc();

@@ -11,7 +11,8 @@ namespace Blocker.Stub;
 /// <param name="BlockedPath">Path of the blocked executable, or <see langword="null"/> when unknown.</param>
 /// <param name="Reason">Reason code or text from the service; empty for IFEO launches.</param>
 /// <param name="BlockId">Identifier for <c>stub.getBlockInfo</c>.</param>
-internal sealed record StubArguments(string? BlockedPath, string Reason, string BlockId)
+/// <param name="IsIfeo">Whether the stub was started directly by an IFEO debugger redirect.</param>
+internal sealed record StubArguments(string? BlockedPath, string Reason, string BlockId, bool IsIfeo = false)
 {
     /// <summary>Parses the process arguments; never throws. Unknown arguments are ignored.</summary>
     /// <param name="args">Process arguments.</param>
@@ -20,7 +21,7 @@ internal sealed record StubArguments(string? BlockedPath, string Reason, string 
     {
         if (args.Count >= 2 && string.Equals(args[0], "--ifeo", StringComparison.OrdinalIgnoreCase))
         {
-            return new StubArguments(args[1], string.Empty, args[1]);
+            return new StubArguments(args[1], string.Empty, args[1], IsIfeo: true);
         }
 
         string? path = null;
@@ -45,13 +46,40 @@ internal sealed record StubArguments(string? BlockedPath, string Reason, string 
         return new StubArguments(path, reason, blockId ?? path ?? string.Empty);
     }
 
-    /// <summary>Gets the name of the per-image mutex that keeps one stub window per blocked executable.</summary>
-    public string MutexName
+    /// <summary>Gets the stable 16-hex-char hash of the normalized blocked executable path.</summary>
+    public string ImageHash
     {
         get
         {
-            string key = (BlockedPath ?? string.Empty).ToUpperInvariant();
-            return @"Local\WindowsDetox.Stub." + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+            string key = NormalizeImageKey(BlockedPath);
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+        }
+    }
+
+    /// <summary>Gets the name of the per-image mutex that keeps one stub window per blocked executable.</summary>
+    public string MutexName => @"Local\WindowsDetox.Stub." + ImageHash;
+
+    private static string NormalizeImageKey(string? path)
+    {
+        string trimmed = (path ?? string.Empty).Trim().Trim('"');
+        if (trimmed.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (!Path.IsPathRooted(trimmed))
+        {
+            return trimmed.ToUpperInvariant();
+        }
+
+        try
+        {
+            return Path.GetFullPath(trimmed).TrimEnd('\\', '/').ToUpperInvariant();
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // An external command line may pass malformed path characters; the raw key still identifies the image.
+            return trimmed.ToUpperInvariant();
         }
     }
 

@@ -346,7 +346,10 @@ public sealed partial class IpcServer : IAsyncDisposable
                 return;
             }
 
-            connection = new IpcConnection(pipe, IpcMethodPolicy.MaxFrameBytesFor(identity.Roles), _time, _logger);
+            int maxInboundBytes = identity.Roles.HasFlag(IpcCallerRole.PluginHost)
+                ? IpcLimits.MaxMessageBytes
+                : IpcMethodPolicy.MaxFrameBytesFor(identity.Roles);
+            connection = new IpcConnection(pipe, maxInboundBytes, _time, _logger);
             peer = new IpcPeer(Guid.NewGuid(), identity, connection, new TokenBucket(_options.RequestsPerSecond, _options.RateBurst, _time));
             var current = peer;
             connection.Inbound = (message, frameBytes, ct) => HandleInboundAsync(current, message, frameBytes, ct);

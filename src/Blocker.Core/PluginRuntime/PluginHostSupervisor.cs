@@ -64,7 +64,7 @@ public sealed record PluginHostSupervisorOptions
     public TimeSpan NotifyTimeout { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>Gets the time for loading plugins (every plugin is compiled with Roslyn).</summary>
-    public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromSeconds(60);
+    public TimeSpan LoadTimeout { get; init; } = TimeSpan.FromMinutes(3);
 
     /// <summary>Gets the time for evaluating a package: a cold Roslyn compile plus the plugin tests, which alone may take up to 60 s.</summary>
     public TimeSpan EvaluateTimeout { get; init; } = TimeSpan.FromSeconds(120);

@@ -35,7 +35,8 @@ internal static class WindowsServicePorts
         string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         string[] extraTrustedRoots = [Path.Combine(programFiles, "Windows Defender"), Path.Combine(programData, "Microsoft", "Windows Defender")];
-        var critical = new CriticalProcesses(windows, paths.InstallDirectory, extraTrustedRoots);
+        string windowsApps = Path.Combine(programFiles, "WindowsApps");
+        var critical = new CriticalProcesses(windows, paths.InstallDirectory, extraTrustedRoots, windowsApps);
         var clock = new SystemMonotonicClock();
         var http = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(10) };
         var udp = new UdpExchange();
@@ -89,6 +90,7 @@ internal static class WindowsServicePorts
                 WindowsDirectory = windows,
                 StubExecutablePath = paths.StubExecutablePath,
                 ExtraTrustedRoots = extraTrustedRoots,
+                WindowsAppsDirectory = windowsApps,
                 BrowserExecutables = BrowserLocator.ForCurrentMachine().Locate(),
                 BypassToolImageNames = BypassTools.KnownImageNames,
                 BypassToolHashes = HashBypassBinaries(windows),

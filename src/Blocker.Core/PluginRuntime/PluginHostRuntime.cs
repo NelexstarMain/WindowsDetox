@@ -52,10 +52,10 @@ public sealed record PluginRuntimeOptions
     public long StorageQuotaBytes { get; init; } = FileBackedPluginStorage.DefaultQuotaBytes;
 
     /// <summary>Gets the largest serialized UI tree of one contribution, in bytes.</summary>
-    public int MaxContributionBytes { get; init; } = 128 * 1024;
+    public int MaxContributionBytes { get; init; } = UiJson.MaxDocumentBytes;
 
-    /// <summary>Gets the largest total of all trees in one slot response, in bytes (the service accepts 256 KiB frames from the host).</summary>
-    public int MaxSlotResponseBytes { get; init; } = 224 * 1024;
+    /// <summary>Gets the largest total of all trees in one slot response, in bytes (within <see cref="IpcLimits.MaxMessageBytes"/>).</summary>
+    public int MaxSlotResponseBytes { get; init; } = 2 * 1024 * 1024;
 
     /// <summary>Gets the channel to the service for session starts and toasts; refuses everything by default.</summary>
     public IPluginHostServiceChannel Services { get; init; } = UnavailablePluginHostServiceChannel.Instance;

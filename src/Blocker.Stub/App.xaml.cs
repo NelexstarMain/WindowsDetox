@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using Blocker.Contracts;
 using Blocker.Core.Ipc;
@@ -8,11 +9,13 @@ using Microsoft.Extensions.Logging;
 namespace Blocker.Stub;
 
 /// <summary>
-/// Entry of the block screen. Starts one window per blocked image (a named mutex stops stub storms when a blocked app is launched
-/// repeatedly) and exits when that window closes.
+/// Entry of the block screen. Starts one window per blocked image (a named mutex plus an IFEO cooldown stamp stops stub storms when a
+/// blocked app is launched repeatedly) and exits when that window closes.
 /// </summary>
 internal sealed partial class App : Application
 {
+    private static readonly TimeSpan IfeoCooldownWindow = TimeSpan.FromMinutes(2);
+
     private IHost? _host;
     private Mutex? _instanceLock;
 
@@ -23,7 +26,7 @@ internal sealed partial class App : Application
         StubArguments arguments = StubArguments.Parse(e.Args);
 
         _instanceLock = new Mutex(initiallyOwned: true, arguments.MutexName, out bool createdNew);
-        if (!createdNew)
+        if (!createdNew || !TryPassIfeoCooldown(arguments))
         {
             Shutdown();
             return;
@@ -53,5 +56,36 @@ internal sealed partial class App : Application
         _host?.Dispose();
         _instanceLock?.Dispose();
         base.OnExit(e);
+    }
+
+    private static bool TryPassIfeoCooldown(StubArguments arguments)
+    {
+        try
+        {
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WindowsDetox",
+                "StubCooldown");
+            Directory.CreateDirectory(dir);
+            string stamp = Path.Combine(dir, arguments.ImageHash + ".stamp");
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            if (arguments.IsIfeo && File.Exists(stamp))
+            {
+                DateTime lastUtc = File.GetLastWriteTimeUtc(stamp);
+                if (now.UtcDateTime - lastUtc < IfeoCooldownWindow)
+                {
+                    return false;
+                }
+            }
+
+            File.WriteAllText(stamp, now.UtcTicks.ToString(CultureInfo.InvariantCulture));
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // An unwritable profile must never hide the block notice.
+            return true;
+        }
     }
 }

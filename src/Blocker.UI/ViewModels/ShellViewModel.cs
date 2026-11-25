@@ -109,7 +109,7 @@ internal sealed partial class ShellViewModel : ServiceViewModel
         await RefreshPagesAsync(CancellationToken.None);
         foreach (TimeSpan delay in EmptyPagesRetryDelays)
         {
-            if (PluginPages.Count > 0 || generation != _loadGeneration || !Connection.IsConnected)
+            if (generation != _loadGeneration || !Connection.IsConnected)
             {
                 return;
             }
