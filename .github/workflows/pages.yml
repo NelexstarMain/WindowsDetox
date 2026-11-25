@@ -1,7 +1,7 @@
 name: pages
 on:
   push:
-    branches: [claude/anti-distraction-windows-app-irhha1, main]
+    branches: [main]
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
