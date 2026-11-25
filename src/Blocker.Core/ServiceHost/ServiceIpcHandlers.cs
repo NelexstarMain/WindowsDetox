@@ -55,7 +55,8 @@ internal sealed record ServiceHandlerDependencies(
     Func<CancellationToken, ValueTask> StateChanged,
     AppSetsStore AppSets,
     AppRuleEngine AppRules,
-    AppRuleEnforcer AppEnforcer);
+    AppRuleEnforcer AppEnforcer,
+    BlockNoticeSwitch BlockNotice);
 
 /// <summary>
 /// Every client-callable IPC method of the service. Roles, the session gate and payload sizes are enforced by <see cref="IpcServer"/> from
@@ -337,6 +338,11 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         Require(request.Values);
         RequireNoSession();
         IReadOnlyList<string> errors = await deps.Settings.SetAsync(request.Values, cancellationToken).ConfigureAwait(false);
+        if (errors.Count == 0)
+        {
+            deps.BlockNotice.Enabled = ServiceSettingKeys.ShowsBlockNotice(await deps.Settings.GetAsync(cancellationToken).ConfigureAwait(false));
+        }
+
         return new OperationResponse(errors.Count == 0, errors);
     }
 
@@ -347,7 +353,7 @@ internal sealed partial class ServiceIpcHandlers(ServiceHandlerDependencies deps
         // The block id is only a hint from the launch command line: show its file name, never anything else, and never trust it further.
         string name = request.BlockId is { Length: > 0 and <= 1024 } id ? id[(id.LastIndexOfAny(['\\', '/']) + 1)..] : string.Empty;
         string subject = name.Length == 0 ? "an application" : Printable(name, 128);
-        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending)));
+        return ValueTask.FromResult(new BlockInfoResponse(subject, SessionStatusDto.From(deps.Coordinator.Snapshot, deps.Coordinator.CleanupPending), deps.BlockNotice.Enabled));
     }
 
     private ValueTask<AgentRegisterResponse> RegisterAgentAsync(IpcRequestContext context, AgentRegisterRequest request, CancellationToken cancellationToken)

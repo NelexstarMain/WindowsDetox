@@ -30,6 +30,7 @@ namespace Blocker.Core.AppRules;
 /// <param name="agentConnected">Whether the user-session agent is connected.</param>
 /// <param name="time">Time source for every timer and measured interval.</param>
 /// <param name="logger">Logger.</param>
+/// <param name="blockNotice">Whether a block shows the block screen; on when omitted.</param>
 internal sealed partial class AppRuleEnforcer(
     AppRuleEngine engine,
     IProcessMonitor monitor,
@@ -42,7 +43,8 @@ internal sealed partial class AppRuleEnforcer(
     Func<bool> sessionRunning,
     Func<bool> agentConnected,
     TimeProvider time,
-    ILogger<AppRuleEnforcer> logger) : IAsyncDisposable
+    ILogger<AppRuleEnforcer> logger,
+    BlockNoticeSwitch? blockNotice = null) : IAsyncDisposable
 {
     /// <summary>How often the usage is counted.</summary>
     internal static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
@@ -598,6 +600,11 @@ internal sealed partial class AppRuleEnforcer(
 
     private void LaunchStub(string imagePath, VerdictReason reason)
     {
+        if (blockNotice is { Enabled: false })
+        {
+            return;
+        }
+
         if (!TryReserveStubLaunch(WinPath.Normalize(imagePath)))
         {
             return;

@@ -95,6 +95,14 @@ internal static class ServiceConnectionExtensions
     public static ValueTask<SettingsDto> GetSettingsAsync(this IServiceConnection connection, CancellationToken cancellationToken) =>
         connection.InvokeAsync<SettingsDto>(IpcMethods.SettingsGet, cancellationToken);
 
+    /// <summary>Changes some settings; the others keep their values.</summary>
+    /// <param name="connection">Connection.</param>
+    /// <param name="settings">The settings to change.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The outcome.</returns>
+    public static ValueTask<OperationResponse> SetSettingsAsync(this IServiceConnection connection, SettingsDto settings, CancellationToken cancellationToken) =>
+        connection.InvokeAsync<SettingsDto, OperationResponse>(IpcMethods.SettingsSet, settings, cancellationToken);
+
     /// <summary>Lists installed plugins.</summary>
     /// <param name="connection">Connection.</param>
     /// <param name="cancellationToken">Cancellation.</param>

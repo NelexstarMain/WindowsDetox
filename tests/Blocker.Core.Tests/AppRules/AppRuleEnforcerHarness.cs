@@ -2,6 +2,7 @@ using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using Blocker.Contracts;
 using Blocker.Core.AppRules;
+using Blocker.Core.Orchestration;
 using Blocker.Core.Policy;
 using Blocker.Core.Ports;
 using Blocker.Core.Security;
@@ -92,7 +93,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
             () => SessionRunning,
             () => AgentConnected,
             Time,
-            Log);
+            Log,
+            BlockNotice);
     }
 
     public static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -110,6 +112,8 @@ internal sealed class AppRuleEnforcerHarness : IAsyncDisposable
     public FakeProcessController Controller { get; } = new();
 
     public FakeUserSessionLauncher Launcher { get; } = new();
+
+    public BlockNoticeSwitch BlockNotice { get; } = new();
 
     public RecordingPublisher Events { get; } = new();
 

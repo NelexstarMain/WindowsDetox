@@ -393,6 +393,26 @@ public sealed class ServiceHandlerTests
     }
 
     [Fact]
+    public async Task Turning_the_block_notice_off_tells_the_block_screen_to_stay_hidden_and_survives_a_restart()
+    {
+        await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();
+        IpcClient user = await h.ConnectAsync(IpcCallerRole.User);
+        IpcClient stub = await h.ConnectAsync(IpcCallerRole.Stub);
+        bool shownByDefault = (await stub.InvokeAsync<BlockInfoRequest, BlockInfoResponse>(IpcMethods.StubGetBlockInfo, new BlockInfoRequest("a.exe"), Ct)).ShowNotice;
+
+        OperationResponse off = await user.InvokeAsync<SettingsDto, OperationResponse>(IpcMethods.SettingsSet, new SettingsDto(new Dictionary<string, string> { ["blockNotice.show"] = "off" }), Ct);
+        bool shownAfterOff = (await stub.InvokeAsync<BlockInfoRequest, BlockInfoResponse>(IpcMethods.StubGetBlockInfo, new BlockInfoRequest("a.exe"), Ct)).ShowNotice;
+        await h.RestartAsync();
+        IpcClient stubAgain = await h.ConnectAsync(IpcCallerRole.Stub);
+        bool shownAfterRestart = (await stubAgain.InvokeAsync<BlockInfoRequest, BlockInfoResponse>(IpcMethods.StubGetBlockInfo, new BlockInfoRequest("a.exe"), Ct)).ShowNotice;
+
+        Assert.True(shownByDefault);
+        Assert.True(off.Success);
+        Assert.False(shownAfterOff);
+        Assert.False(shownAfterRestart);
+    }
+
+    [Fact]
     public async Task An_agent_with_another_protocol_version_is_not_accepted()
     {
         await using ServiceHostHarness h = await ServiceHostHarness.StartAsync();

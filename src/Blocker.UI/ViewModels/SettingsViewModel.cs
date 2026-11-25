@@ -9,9 +9,16 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Blocker.UI.ViewModels;
 
-/// <summary>Settings page: about information and plugin settings sections.</summary>
+/// <summary>Settings page: the block notice switch, about information and plugin settings sections.</summary>
 internal sealed partial class SettingsViewModel : ServiceViewModel
 {
+    private const string BlockNoticeKey = "blockNotice.show";
+
+    private bool _applyingStored;
+
+    [ObservableProperty]
+    private bool _showBlockNotice = true;
+
     /// <summary>Creates the view model.</summary>
     /// <param name="connection">Service connection.</param>
     /// <param name="snackbar">Snackbars.</param>
@@ -19,7 +26,11 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
         : base(connection, snackbar)
     {
         connection.ConnectionChanged += OnConnectionChanged;
-        connection.SessionChanged += (_, _) => _ = RefreshSectionsAsync(CancellationToken.None);
+        connection.SessionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(CanChangeBlockNotice));
+            _ = RefreshSectionsAsync(CancellationToken.None);
+        };
         OnConnectionChanged(this, EventArgs.Empty);
     }
 
@@ -28,6 +39,9 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
 
     /// <summary>Gets whether any plugin settings section is shown.</summary>
     public bool HasSections => Sections.Count > 0;
+
+    /// <summary>Gets whether the block notice switch can be flipped: the service refuses settings changes during a session.</summary>
+    public bool CanChangeBlockNotice => Connection.IsConnected && !Connection.Session.IsSessionRunning;
 
     /// <summary>Gets the application name and version.</summary>
     public string VersionText { get; } = DescribeVersion();
@@ -68,6 +82,49 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
         }
     }
 
+    partial void OnShowBlockNoticeChanged(bool value)
+    {
+        if (!_applyingStored)
+        {
+            _ = SaveBlockNoticeAsync(value);
+        }
+    }
+
+    private async Task SaveBlockNoticeAsync(bool show)
+    {
+        OperationResponse? response = null;
+        bool sent = await TryAsync(
+            async () => response = await Connection.SetSettingsAsync(new SettingsDto(new Dictionary<string, string> { [BlockNoticeKey] = show ? "on" : "off" }), CancellationToken.None),
+            "Could not save the setting");
+        if (sent && response is { Success: true })
+        {
+            return;
+        }
+
+        if (response is { Success: false })
+        {
+            Snackbar.Show("Could not save the setting", string.Join(" ", response.Errors), NotificationSeverity.Error);
+        }
+
+        ApplyStored(!show);
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        SettingsDto? settings = null;
+        if (await TryAsync(async () => settings = await Connection.GetSettingsAsync(CancellationToken.None), "Could not load settings") && settings is not null)
+        {
+            ApplyStored(!settings.Values.TryGetValue(BlockNoticeKey, out string? value) || value != "off");
+        }
+    }
+
+    private void ApplyStored(bool show)
+    {
+        _applyingStored = true;
+        ShowBlockNotice = show;
+        _applyingStored = false;
+    }
+
     private static string DescribeVersion()
     {
         Assembly assembly = typeof(SettingsViewModel).Assembly;
@@ -78,8 +135,10 @@ internal sealed partial class SettingsViewModel : ServiceViewModel
 
     private void OnConnectionChanged(object? sender, EventArgs e)
     {
+        OnPropertyChanged(nameof(CanChangeBlockNotice));
         if (Connection.IsConnected)
         {
+            _ = LoadSettingsAsync();
             _ = RefreshSectionsAsync(CancellationToken.None);
         }
     }

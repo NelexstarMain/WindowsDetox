@@ -426,7 +426,8 @@ public sealed record BlockInfoRequest(string BlockId);
 /// <summary>Result of <see cref="IpcMethods.StubGetBlockInfo"/>.</summary>
 /// <param name="Subject">What was blocked (application or domain).</param>
 /// <param name="Status">Session state.</param>
-public sealed record BlockInfoResponse(string Subject, SessionStatusDto Status);
+/// <param name="ShowNotice">Whether the user wants the block notice; when false the block screen closes without showing anything.</param>
+public sealed record BlockInfoResponse(string Subject, SessionStatusDto Status, bool ShowNotice = true);
 
 /// <summary>Parameters of <see cref="IpcMethods.PluginHostRegister"/>.</summary>
 /// <param name="ProtocolVersion">Protocol version the host speaks.</param>

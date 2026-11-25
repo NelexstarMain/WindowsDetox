@@ -109,16 +109,30 @@ public static class ServiceSettingKeys
     /// <summary>Quality of the UI's background effect: <c>high</c>, <c>low</c> or <c>off</c>.</summary>
     public const string EffectsQuality = "effects.quality";
 
+    /// <summary>Whether a blocked program brings up the block notice: <c>on</c> or <c>off</c>.</summary>
+    public const string BlockNoticeShow = "blockNotice.show";
+
     private static readonly IReadOnlyDictionary<string, string[]> Allowed = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
         [EffectsQuality] = ["high", "low", "off"],
+        [BlockNoticeShow] = ["on", "off"],
     };
 
     /// <summary>Gets the values a fresh installation has.</summary>
     public static IReadOnlyDictionary<string, string> Defaults { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [EffectsQuality] = "high",
+        [BlockNoticeShow] = "on",
     };
+
+    /// <summary>Reads <see cref="BlockNoticeShow"/> from a full set of settings.</summary>
+    /// <param name="values">Settings, defaults included.</param>
+    /// <returns>Whether the block notice is shown.</returns>
+    public static bool ShowsBlockNotice(IReadOnlyDictionary<string, string> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        return !values.TryGetValue(BlockNoticeShow, out string? value) || value != "off";
+    }
 
     /// <summary>Returns the errors of a set of values; empty when every key is known and every value permitted.</summary>
     /// <param name="values">Values to check.</param>

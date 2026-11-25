@@ -20,11 +20,7 @@ internal sealed partial class BlockWindow : Window
         InitializeComponent();
         PlaceInCorner();
         viewModel.CloseRequested += (_, _) => Close();
-        Loaded += (_, _) =>
-        {
-            BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)));
-            viewModel.InitializeCommand.Execute(null);
-        };
+        Loaded += (_, _) => BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180)));
         Card.MouseEnter += (_, _) => viewModel.IsPointerOver = true;
         Card.MouseLeave += (_, _) => viewModel.IsPointerOver = false;
     }

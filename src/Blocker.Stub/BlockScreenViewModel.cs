@@ -118,10 +118,13 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
     /// <summary>Gets whether any plugin element is shown.</summary>
     public bool HasContributions => Contributions.Count > 0;
 
+    /// <summary>Gets whether the notice should appear; false when the user turned block notices off (unknown counts as shown).</summary>
+    public bool ShouldShow { get; private set; } = true;
+
     /// <summary>Gets the neutral message shown when the service cannot be reached.</summary>
     public string UnreachableMessage => "Blocker isn't answering right now, so it can't show session details. This window closes by itself in a few seconds.";
 
-    /// <summary>Loads block info, subscribes to updates and loads plugin content. Call once after the window is shown.</summary>
+    /// <summary>Loads block info, subscribes to updates and loads plugin content. Call once before the window is shown.</summary>
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>A task that completes when the first load is done.</returns>
     [RelayCommand]
@@ -130,6 +133,12 @@ internal sealed partial class BlockScreenViewModel : ObservableObject
         try
         {
             BlockInfoResponse info = await _service.GetBlockInfoAsync(_arguments.BlockId, cancellationToken);
+            ShouldShow = info.ShowNotice;
+            if (!ShouldShow)
+            {
+                return;
+            }
+
             Subject = info.Subject;
             _timeline.Update(info.Status.ToSnapshot());
             Refresh();

@@ -363,6 +363,11 @@ public sealed partial class EnforcementCoordinator
 
     private void LaunchStub(ProcessInfo process, VerdictReason reason)
     {
+        if (!_blockNotice.Enabled)
+        {
+            return;
+        }
+
         string image = process.ImagePath ?? "";
         string key = image.Length == 0 ? $"pid:{process.ProcessId}" : WinPath.Normalize(image);
         if (!TryReserveStubLaunch(key))

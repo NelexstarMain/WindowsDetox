@@ -53,6 +53,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly SemaphoreSlim _syncGate = new(1, 1);
     private readonly ServiceIpcHandlers _handlers;
+    private readonly ServiceSettingsStore _settings;
+    private readonly BlockNoticeSwitch _blockNotice = new();
     private SessionStatusDto? _lastPublished;
     private bool? _lastActive;
     private Guid? _lastSessionId;
@@ -128,7 +130,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             ports.Time,
             loggers.CreateLogger<EnforcementCoordinator>(),
             InterceptProcessAsync,
-            (pid, ct) => agent.CloseProcessAsync(pid, ct));
+            (pid, ct) => agent.CloseProcessAsync(pid, ct),
+            _blockNotice);
 
         _appEnforcer = new AppRuleEnforcer(
             _appRules,
@@ -142,7 +145,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             () => Coordinator.IsSessionActive,
             () => agent.IsConnected,
             ports.Time,
-            loggers.CreateLogger<AppRuleEnforcer>());
+            loggers.CreateLogger<AppRuleEnforcer>(),
+            _blockNotice);
 
         Server = new IpcServer(
             ports.ServicePipeName,
@@ -157,7 +161,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 Coordinator,
                 policyStore,
                 new DraftAllowlistStore(secure, paths.DraftAllowlistPath),
-                new ServiceSettingsStore(secure, paths.SettingsPath),
+                _settings = new ServiceSettingsStore(secure, paths.SettingsPath),
                 scanCache,
                 ports.AppScanner,
                 pluginStore,
@@ -172,7 +176,8 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
                 SyncStatusAsync,
                 new AppSetsStore(secure, paths.AppSetsPath, loggers.CreateLogger<AppSetsStore>()),
                 _appRules,
-                _appEnforcer),
+                _appEnforcer,
+                _blockNotice),
             loggers.CreateLogger<ServiceIpcHandlers>());
         _registrations.AddRange(handlers.RegisterAll(Server));
         _handlers = handlers;
@@ -316,6 +321,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
     {
         _ = await _verified.RefreshAsync(cancellationToken).ConfigureAwait(false);
         await LoadAppRulesAsync(cancellationToken).ConfigureAwait(false);
+        _blockNotice.Enabled = ServiceSettingKeys.ShowsBlockNotice(await _settings.GetAsync(cancellationToken).ConfigureAwait(false));
         await RecoverAsync(cancellationToken).ConfigureAwait(false);
         Server.Start();
         if (_pluginServer is not null && _supervisor is not null)

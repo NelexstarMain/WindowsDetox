@@ -235,6 +235,20 @@ public sealed class AppRuleEnforcerTests
         Assert.Equal(2, h.Launcher.Launches.Count);
     }
 
+    [Fact]
+    public async Task With_the_block_notice_turned_off_a_blocked_app_is_terminated_without_a_block_screen()
+    {
+        await using var h = new AppRuleEnforcerHarness();
+        h.BlockNotice.Enabled = false;
+        await h.SetRulesAsync(AllWeekBlock());
+        await h.Enforcer.StartAsync(Ct);
+
+        await h.SpawnAsync(P(20, GamePath));
+
+        Assert.Equal([(20, 20_000L)], h.Controller.Terminated);
+        Assert.Empty(h.Launcher.Launches);
+    }
+
     // ---- reconcile ----
 
     [Fact]

@@ -47,7 +47,21 @@ internal sealed partial class App : Application
 
         BlockWindow window = _host.Services.GetRequiredService<BlockWindow>();
         MainWindow = window;
-        window.Show();
+        _ = ShowUnlessTurnedOffAsync(window, _host.Services.GetRequiredService<BlockScreenViewModel>());
+    }
+
+    // The service is asked first: an IFEO launch starts the stub directly, so only its answer can honour "block notices off".
+    private async Task ShowUnlessTurnedOffAsync(BlockWindow window, BlockScreenViewModel viewModel)
+    {
+        await viewModel.InitializeAsync(CancellationToken.None);
+        if (viewModel.ShouldShow)
+        {
+            window.Show();
+        }
+        else
+        {
+            Shutdown();
+        }
     }
 
     /// <inheritdoc />
