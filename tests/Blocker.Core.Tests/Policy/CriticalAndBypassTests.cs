@@ -60,32 +60,8 @@ public sealed class CriticalAndBypassTests
         Assert.Equal(expected != CriticalKind.None, Critical.IsCritical(path));
     }
 
-    // Windows hands the console of a starting console program to OpenConsole.exe when Windows Terminal is the default terminal; killing it
-    // while the program is still starting fails that program with STATUS_DLL_INIT_FAILED, so it is critical like conhost, in its package only.
-    [Theory]
-    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.3232.0_x64__8wekyb3d8bbwe\OpenConsole.exe", CriticalKind.System)]
-    [InlineData(@"C:\PROGRAM FILES\WindowsApps\Microsoft.WindowsTerminalPreview_1.23.1.0_x64__8wekyb3d8bbwe\x86\OpenConsole.exe", CriticalKind.System)]
-    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.3232.0_x64__8wekyb3d8bbwe\WindowsTerminal.exe", CriticalKind.None)] // the terminal stays a bypass tool
-    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.3232.0_x64__8wekyb3d8bbwe\notes.exe", CriticalKind.None)]
-    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.0_x64__abcdefghijklm\OpenConsole.exe", CriticalKind.None)] // not Microsoft's publisher id
-    [InlineData(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminalFake_1.0_x64__8wekyb3d8bbwe\OpenConsole.exe", CriticalKind.None)]
-    [InlineData(@"C:\Program Files\WindowsApps\Other.App_1.0_x64__8wekyb3d8bbwe\OpenConsole.exe", CriticalKind.None)]
-    [InlineData(@"C:\Program Files\WindowsApps\OpenConsole.exe", CriticalKind.None)]
-    [InlineData(@"C:\Users\me\WindowsApps\Microsoft.WindowsTerminal_1.0_x64__8wekyb3d8bbwe\OpenConsole.exe", CriticalKind.None)]
-    [InlineData(@"C:\Users\me\Downloads\OpenConsole.exe", CriticalKind.None)]
-    [InlineData(@"C:\Windows\Tasks\OpenConsole.exe", CriticalKind.None)]
-    public void Classifies_the_console_host_of_windows_terminal_by_its_package(string path, CriticalKind expected) =>
-        Assert.Equal(expected, new CriticalProcesses(@"C:\Windows", @"C:\Program Files\Blocker", [], @"C:\Program Files\WindowsApps").Classify(path));
-
-    [Fact]
-    public void The_console_host_rule_is_off_while_the_packages_directory_is_unknown() =>
-        Assert.Equal(
-            CriticalKind.None,
-            Critical.Classify(@"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.22.3232.0_x64__8wekyb3d8bbwe\OpenConsole.exe"));
-
     [Theory]
     [InlineData("explorer.exe", true)]
-    [InlineData("OpenConsole.exe", true)] // never redirected to the block screen: it would stop every console program from starting
     [InlineData("MsMpEng", true)] // Defender is critical only in its own roots, but its name is never redirected
     [InlineData("Blocker.UI.exe", true)]
     [InlineData("notepad.exe", false)]

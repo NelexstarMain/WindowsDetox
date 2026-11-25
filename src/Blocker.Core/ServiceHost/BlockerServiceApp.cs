@@ -136,7 +136,7 @@ public sealed partial class BlockerServiceApp : IAsyncDisposable
             ports.ProcessController,
             ports.UserSessionLauncher,
             hasher,
-            new CriticalProcesses(ports.Enforcement.WindowsDirectory, ports.Enforcement.InstallDirectory, ports.Enforcement.ExtraTrustedRoots, ports.Enforcement.WindowsAppsDirectory),
+            new CriticalProcesses(ports.Enforcement.WindowsDirectory, ports.Enforcement.InstallDirectory, ports.Enforcement.ExtraTrustedRoots),
             ports.Enforcement.StubExecutablePath,
             _forwarder,
             () => Coordinator.IsSessionActive,

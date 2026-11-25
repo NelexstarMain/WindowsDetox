@@ -25,9 +25,6 @@ public sealed record EnforcementSettings
     /// <summary>Additional trusted roots for critical system names (for example the Defender directories).</summary>
     public IReadOnlyList<string> ExtraTrustedRoots { get; init; } = [];
 
-    /// <summary>The packaged-apps directory (<c>%ProgramFiles%\WindowsApps</c>), where the console host of Windows Terminal lives; empty when unknown.</summary>
-    public string WindowsAppsDirectory { get; init; } = "";
-
     /// <summary>Resolved browser executables; entries whose image name is not in <see cref="KnownBrowserImageNames"/> are ignored.</summary>
     public IReadOnlyList<string> BrowserExecutables { get; init; } = [];
 
